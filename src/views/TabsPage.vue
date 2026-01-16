@@ -72,9 +72,9 @@ import { homeOutline, barbellOutline, calendarOutline, statsChartOutline, person
 
 <style scoped>
 .custom-tab-bar {
-  --background: white;
+  --background: var(--ion-tab-bar-background);
   --border: none;
-  box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
   border-radius: 20px 20px 0 0;
   padding-bottom: env(safe-area-inset-bottom);
 }
@@ -82,16 +82,10 @@ import { homeOutline, barbellOutline, calendarOutline, statsChartOutline, person
 ion-tab-button {
   --color: var(--ion-color-medium);
   --color-selected: var(--ion-color-primary);
-  transition: all 0.3s ease;
-}
-
-ion-tab-button.tab-selected ion-icon {
-  transform: scale(1.1);
 }
 
 ion-tab-button ion-icon {
   font-size: 22px;
-  transition: transform 0.2s ease;
 }
 
 ion-tab-button ion-label {

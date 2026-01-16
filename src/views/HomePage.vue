@@ -641,7 +641,7 @@ onIonViewWillEnter(() => {
 
 <style scoped>
 .home-content {
-    --background: #f8f9fa;
+    --background: var(--forgy-content-bg);
 }
 
 .header-brand {
@@ -762,9 +762,9 @@ onIonViewWillEnter(() => {
     width: 80px;
     height: 80px;
     transform: rotate(-90deg);
-    background: white;
+    background: var(--forgy-card-bg);
     border-radius: 50%;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .ring-bg {
@@ -804,7 +804,7 @@ onIonViewWillEnter(() => {
 .ring-value {
     font-size: 18px;
     font-weight: 800;
-    color: var(--ion-color-dark);
+    color: var(--forgy-text-primary);
     line-height: 1;
 }
 
@@ -836,10 +836,11 @@ onIonViewWillEnter(() => {
 
 /* Goal Card */
 .goal-card {
-    background: white;
+    background: var(--forgy-card-bg);
     border-radius: 20px;
     padding: 20px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    color: var(--forgy-text-primary);
 }
 
 .goal-header {
@@ -901,11 +902,12 @@ onIonViewWillEnter(() => {
 .week-summary {
     display: flex;
     justify-content: space-between;
-    background: white;
+    background: var(--forgy-card-bg);
     border-radius: 16px;
     padding: 16px;
     margin-bottom: 12px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    color: var(--forgy-text-primary);
 }
 
 .week-day {
@@ -957,10 +959,11 @@ onIonViewWillEnter(() => {
 .week-stats {
     display: flex;
     justify-content: space-around;
-    background: white;
+    background: var(--forgy-card-bg);
     border-radius: 16px;
     padding: 16px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    color: var(--forgy-text-primary);
 }
 
 .week-stat {
@@ -993,11 +996,12 @@ onIonViewWillEnter(() => {
     display: flex;
     align-items: center;
     gap: 12px;
-    background: white;
+    background: var(--forgy-card-bg);
     padding: 16px;
     border-radius: 16px;
     min-width: 180px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    color: var(--forgy-text-primary);
 }
 
 .pr-medal {
@@ -1025,12 +1029,12 @@ onIonViewWillEnter(() => {
     display: flex;
     align-items: center;
     gap: 16px;
-    background: white;
+    background: var(--forgy-card-bg);
     padding: 20px;
     border-radius: 20px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     cursor: pointer;
-    transition: transform 0.2s;
+    color: var(--forgy-text-primary);
 }
 
 .recommendation-card:active {
@@ -1095,12 +1099,12 @@ onIonViewWillEnter(() => {
     flex-direction: column;
     align-items: center;
     gap: 8px;
-    background: white;
+    background: var(--forgy-card-bg);
     padding: 16px 8px;
     border-radius: 16px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     cursor: pointer;
-    transition: all 0.2s;
+    color: var(--forgy-text-primary);
 }
 
 .action-card:active {
@@ -1116,7 +1120,7 @@ onIonViewWillEnter(() => {
     font-size: 11px;
     font-weight: 600;
     text-align: center;
-    color: var(--ion-color-dark);
+    color: var(--forgy-text-primary);
 }
 
 /* Achievement Toast */

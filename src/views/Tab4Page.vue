@@ -222,9 +222,15 @@ const loadStats = async () => {
 
 const toggleDarkMode = () => {
     document.body.classList.toggle('dark', darkMode.value);
+    document.body.classList.toggle('light', !darkMode.value);
 };
 
-onIonViewWillEnter(() => loadStats());
+onIonViewWillEnter(() => {
+    loadStats();
+    // Check system preference
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    darkMode.value = document.body.classList.contains('dark') || prefersDark;
+});
 </script>
 
 <style scoped>
@@ -282,10 +288,11 @@ onIonViewWillEnter(() => loadStats());
     justify-content: space-around;
     align-items: center;
     padding: 20px;
-    background: white;
+    background: var(--forgy-card-bg);
     margin: -20px 16px 16px;
     border-radius: 16px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    color: var(--forgy-text-primary);
 }
 
 .stat-item {
@@ -302,14 +309,14 @@ onIonViewWillEnter(() => loadStats());
 
 .stat-label {
     font-size: 12px;
-    color: var(--ion-color-medium);
+    color: var(--forgy-text-secondary);
     margin-top: 4px;
 }
 
 .stat-divider {
     width: 1px;
     height: 40px;
-    background: var(--ion-color-light);
+    background: var(--forgy-border);
 }
 
 .menu-list {
@@ -323,7 +330,7 @@ onIonViewWillEnter(() => loadStats());
     font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 1px;
-    color: var(--ion-color-medium);
+    color: var(--forgy-text-secondary);
 }
 
 .menu-list ion-item {
@@ -341,7 +348,7 @@ onIonViewWillEnter(() => loadStats());
 .app-version {
     text-align: center;
     padding: 24px;
-    color: var(--ion-color-medium);
+    color: var(--forgy-text-secondary);
     font-size: 12px;
 }
 

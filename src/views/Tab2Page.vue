@@ -721,7 +721,7 @@ onIonViewWillEnter(() => {
   align-items: center;
   justify-content: space-between;
   padding: 12px 8px;
-  background: var(--ion-color-light);
+  background: var(--forgy-content-bg);
 }
 
 .week-info {
@@ -732,20 +732,20 @@ onIonViewWillEnter(() => {
   display: block;
   font-size: 16px;
   font-weight: 600;
-  color: var(--ion-color-dark);
+  color: var(--forgy-text-primary);
 }
 
 .week-range {
   font-size: 12px;
-  color: var(--ion-color-medium);
+  color: var(--forgy-text-secondary);
 }
 
 .week-calendar {
   display: flex;
   justify-content: space-around;
   padding: 12px 8px;
-  background: white;
-  border-bottom: 1px solid var(--ion-color-light);
+  background: var(--forgy-card-bg);
+  border-bottom: 1px solid var(--forgy-border);
 }
 
 .day-item {
@@ -755,15 +755,12 @@ onIonViewWillEnter(() => {
   padding: 8px 12px;
   border-radius: 12px;
   cursor: pointer;
-  transition: all 0.3s ease;
   position: relative;
 }
 
 .day-item.active {
   background: var(--ion-color-primary);
   color: white;
-  transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(var(--ion-color-primary-rgb), 0.4);
 }
 
 .day-item.today:not(.active) {
@@ -798,6 +795,8 @@ onIonViewWillEnter(() => {
 .day-summary {
   margin: 16px;
   border-radius: 16px;
+  --background: var(--forgy-card-bg);
+  color: var(--forgy-text-primary);
 }
 
 .summary-stats {
@@ -819,11 +818,12 @@ onIonViewWillEnter(() => {
 .summary-stat .stat-value {
   font-size: 20px;
   font-weight: 700;
+  color: var(--forgy-text-primary);
 }
 
 .summary-stat .stat-label {
   font-size: 11px;
-  color: var(--ion-color-medium);
+  color: var(--forgy-text-secondary);
 }
 
 .section-header {
@@ -838,6 +838,7 @@ onIonViewWillEnter(() => {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
+  color: var(--forgy-text-primary);
 }
 
 .empty-state {
@@ -846,7 +847,7 @@ onIonViewWillEnter(() => {
   align-items: center;
   padding: 40px 20px;
   text-align: center;
-  color: var(--ion-color-medium);
+  color: var(--forgy-text-secondary);
 }
 
 .empty-state ion-icon {
@@ -857,7 +858,7 @@ onIonViewWillEnter(() => {
 
 .empty-state h4 {
   margin: 0 0 8px;
-  color: var(--ion-color-dark);
+  color: var(--forgy-text-primary);
 }
 
 .workout-list {
@@ -882,6 +883,7 @@ onIonViewWillEnter(() => {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
+  color: var(--forgy-text-primary);
 }
 
 .sets-preview {
@@ -892,15 +894,16 @@ onIonViewWillEnter(() => {
 }
 
 .set-pill {
-  background: var(--ion-color-light);
+  background: var(--forgy-input-bg);
   padding: 4px 10px;
   border-radius: 20px;
   font-size: 12px;
   font-weight: 500;
+  color: var(--forgy-text-primary);
 }
 
 .more-sets {
-  color: var(--ion-color-medium);
+  color: var(--forgy-text-secondary);
   font-size: 12px;
   padding: 4px 8px;
 }
@@ -909,7 +912,7 @@ onIonViewWillEnter(() => {
   display: flex;
   gap: 16px;
   font-size: 12px;
-  color: var(--ion-color-medium);
+  color: var(--forgy-text-secondary);
 }
 
 .workout-meta ion-icon {
@@ -920,14 +923,15 @@ onIonViewWillEnter(() => {
 
 /* Modal Styles */
 .modal-content {
-  --background: var(--ion-color-light);
+  --background: var(--forgy-content-bg);
 }
 
 .step-section {
-  background: white;
+  background: var(--forgy-card-bg);
   margin: 12px;
   border-radius: 16px;
   padding: 16px;
+  color: var(--forgy-text-primary);
 }
 
 .step-header {
@@ -982,10 +986,9 @@ onIonViewWillEnter(() => {
   align-items: center;
   gap: 12px;
   padding: 12px;
-  background: var(--ion-color-light);
+  background: var(--forgy-input-bg);
   border-radius: 12px;
   border: 2px solid transparent;
-  transition: all 0.3s ease;
 }
 
 .exercise-card.selected {
@@ -1006,6 +1009,7 @@ onIonViewWillEnter(() => {
 .exercise-name {
   font-weight: 600;
   font-size: 14px;
+  color: var(--forgy-text-primary);
 }
 
 .exercise-difficulty {
@@ -1036,7 +1040,7 @@ onIonViewWillEnter(() => {
   align-items: center;
   gap: 12px;
   padding: 12px;
-  background: var(--ion-color-light);
+  background: var(--forgy-input-bg);
   border-radius: 12px;
 }
 
@@ -1063,7 +1067,7 @@ onIonViewWillEnter(() => {
 .input-group label {
   display: block;
   font-size: 11px;
-  color: var(--ion-color-medium);
+  color: var(--forgy-text-secondary);
   margin-bottom: 4px;
   text-align: center;
 }
@@ -1072,7 +1076,7 @@ onIonViewWillEnter(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: white;
+  background: var(--forgy-card-bg);
   border-radius: 8px;
   padding: 4px;
 }
@@ -1082,6 +1086,7 @@ onIonViewWillEnter(() => {
   text-align: center;
   font-weight: 700;
   font-size: 16px;
+  color: var(--forgy-text-primary);
 }
 
 .add-set-btn {
@@ -1093,7 +1098,7 @@ onIonViewWillEnter(() => {
 }
 
 .details-list ion-item {
-  --background: var(--ion-color-light);
+  --background: var(--forgy-input-bg);
   border-radius: 12px;
   margin-bottom: 8px;
 }

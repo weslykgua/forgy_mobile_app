@@ -555,11 +555,6 @@ onIonViewWillLeave(() => {
 
 .muscle-chip {
   margin: 0;
-  transition: all 0.2s ease;
-}
-
-.muscle-chip:active {
-  transform: scale(0.95);
 }
 
 .chip-emoji {
@@ -577,14 +572,16 @@ onIonViewWillLeave(() => {
   align-items: center;
   gap: 8px;
   margin-bottom: 16px;
-  color: var(--ion-color-medium);
+  color: var(--forgy-text-secondary);
   font-size: 14px;
 }
 
 .exercise-card {
   margin-bottom: 16px;
   border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --background: var(--forgy-card-bg);
+  color: var(--forgy-text-primary);
 }
 
 .card-header-content {
@@ -610,7 +607,7 @@ onIonViewWillLeave(() => {
 }
 
 .exercise-description {
-  color: var(--ion-color-medium);
+  color: var(--forgy-text-secondary);
   margin-bottom: 12px;
   line-height: 1.5;
 }
@@ -619,7 +616,7 @@ onIonViewWillLeave(() => {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--ion-color-medium);
+  color: var(--forgy-text-secondary);
   font-size: 14px;
   margin-bottom: 12px;
 }
@@ -629,7 +626,7 @@ onIonViewWillLeave(() => {
   justify-content: flex-end;
   gap: 4px;
   padding-top: 8px;
-  border-top: 1px solid var(--ion-color-light);
+  border-top: 1px solid var(--forgy-border);
 }
 
 .empty-state {
@@ -639,7 +636,7 @@ onIonViewWillLeave(() => {
   justify-content: center;
   padding: 60px 20px;
   text-align: center;
-  color: var(--ion-color-medium);
+  color: var(--forgy-text-secondary);
 }
 
 .empty-state ion-icon {
@@ -650,7 +647,7 @@ onIonViewWillLeave(() => {
 
 .empty-state h3 {
   margin: 0 0 8px;
-  color: var(--ion-color-dark);
+  color: var(--forgy-text-primary);
 }
 
 ion-card-title {

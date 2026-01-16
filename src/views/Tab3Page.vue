@@ -728,14 +728,15 @@ onIonViewWillEnter(() => loadAllData());
 
 /* Streak Card */
 .streak-card {
-  background: white;
+  background: var(--forgy-card-bg);
   border-radius: 16px;
   padding: 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  color: var(--forgy-text-primary);
 }
 
 .streak-info {
@@ -757,7 +758,7 @@ onIonViewWillEnter(() => loadAllData());
 .streak-label {
   display: block;
   font-size: 13px;
-  color: var(--ion-color-medium);
+  color: var(--forgy-text-secondary);
 }
 
 .streak-badges {
@@ -767,19 +768,21 @@ onIonViewWillEnter(() => loadAllData());
 }
 
 .badge {
-  background: var(--ion-color-light);
+  background: var(--forgy-input-bg);
   padding: 4px 10px;
   border-radius: 12px;
   font-size: 11px;
+  color: var(--forgy-text-primary);
 }
 
 /* Section Card */
 .section-card {
-  background: white;
+  background: var(--forgy-card-bg);
   border-radius: 16px;
   padding: 16px;
   margin-bottom: 16px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  color: var(--forgy-text-primary);
 }
 
 .section-header {
@@ -802,7 +805,7 @@ onIonViewWillEnter(() => loadAllData());
 
 .section-value {
   font-size: 13px;
-  color: var(--ion-color-medium);
+  color: var(--forgy-text-secondary);
 }
 
 .section-value.trend-up {
@@ -816,7 +819,7 @@ onIonViewWillEnter(() => loadAllData());
 /* Water Progress */
 .water-progress {
   height: 24px;
-  background: var(--ion-color-light);
+  background: var(--forgy-input-bg);
   border-radius: 12px;
   overflow: hidden;
   margin-bottom: 12px;
@@ -851,15 +854,14 @@ onIonViewWillEnter(() => loadAllData());
   align-items: center;
   gap: 4px;
   padding: 12px 8px;
-  background: var(--ion-color-light);
+  background: var(--forgy-input-bg);
   border: none;
   border-radius: 12px;
   cursor: pointer;
-  transition: all 0.2s;
+  color: var(--forgy-text-primary);
 }
 
 .water-btn:active {
-  transform: scale(0.95);
   background: var(--ion-color-primary-tint);
 }
 
@@ -885,17 +887,15 @@ onIonViewWillEnter(() => loadAllData());
   align-items: center;
   gap: 4px;
   padding: 12px 8px;
-  background: var(--ion-color-light);
+  background: var(--forgy-input-bg);
   border: 2px solid transparent;
   border-radius: 12px;
   cursor: pointer;
-  transition: all 0.3s;
 }
 
 .mood-btn.active {
-  background: var(--ion-color-primary-tint);
+  background: rgba(var(--ion-color-primary-rgb), 0.1);
   border-color: var(--ion-color-primary);
-  transform: scale(1.05);
 }
 
 .mood-emoji {
@@ -905,6 +905,7 @@ onIonViewWillEnter(() => loadAllData());
 .mood-label {
   font-size: 11px;
   font-weight: 500;
+  color: var(--forgy-text-primary);
 }
 
 /* Mini Chart */
@@ -929,7 +930,6 @@ onIonViewWillEnter(() => loadAllData());
   border-radius: 4px 4px 0 0;
   min-height: 20px;
   position: relative;
-  transition: height 0.5s;
 }
 
 .bar-tooltip {
@@ -945,7 +945,7 @@ onIonViewWillEnter(() => loadAllData());
 .chart-label {
   margin-top: 6px;
   font-size: 10px;
-  color: var(--ion-color-medium);
+  color: var(--forgy-text-secondary);
 }
 
 /* Stats Row */
@@ -956,14 +956,15 @@ onIonViewWillEnter(() => loadAllData());
 }
 
 .stat-card {
-  background: white;
+  background: var(--forgy-card-bg);
   border-radius: 16px;
   padding: 20px 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  color: var(--forgy-text-primary);
 }
 
 .stat-card ion-icon {
@@ -977,7 +978,7 @@ onIonViewWillEnter(() => loadAllData());
 
 .stat-label {
   font-size: 12px;
-  color: var(--ion-color-medium);
+  color: var(--forgy-text-secondary);
 }
 
 /* History */
@@ -997,15 +998,16 @@ onIonViewWillEnter(() => loadAllData());
 .empty-history h3 {
   margin: 0 0 8px;
   font-size: 20px;
+  color: var(--forgy-text-primary);
 }
 
 .empty-history p {
   margin: 0;
-  color: var(--ion-color-medium);
+  color: var(--forgy-text-secondary);
 }
 
 .history-day {
-  background: white;
+  background: var(--forgy-card-bg);
   border-radius: 16px;
   padding: 16px;
   margin-bottom: 12px;
@@ -1018,7 +1020,7 @@ onIonViewWillEnter(() => loadAllData());
   align-items: flex-start;
   margin-bottom: 12px;
   padding-bottom: 12px;
-  border-bottom: 1px solid var(--ion-color-light);
+  border-bottom: 1px solid var(--forgy-border);
 }
 
 .day-name {
@@ -1026,11 +1028,12 @@ onIonViewWillEnter(() => loadAllData());
   font-weight: 700;
   font-size: 16px;
   text-transform: capitalize;
+  color: var(--forgy-text-primary);
 }
 
 .day-full {
   font-size: 12px;
-  color: var(--ion-color-medium);
+  color: var(--forgy-text-secondary);
 }
 
 .day-stats {
@@ -1043,7 +1046,7 @@ onIonViewWillEnter(() => loadAllData());
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  color: var(--ion-color-medium);
+  color: var(--forgy-text-secondary);
 }
 
 .workout-item {
@@ -1056,6 +1059,7 @@ onIonViewWillEnter(() => loadAllData());
 .workout-name {
   font-weight: 500;
   font-size: 14px;
+  color: var(--forgy-text-primary);
 }
 
 .workout-sets {
@@ -1064,14 +1068,15 @@ onIonViewWillEnter(() => loadAllData());
 }
 
 .set-tag {
-  background: var(--ion-color-light);
+  background: var(--forgy-input-bg);
   padding: 2px 8px;
   border-radius: 8px;
   font-size: 11px;
+  color: var(--forgy-text-primary);
 }
 
 .more-tag {
-  color: var(--ion-color-medium);
+  color: var(--forgy-text-secondary);
   font-size: 11px;
 }
 
@@ -1088,11 +1093,12 @@ onIonViewWillEnter(() => loadAllData());
 .records-header h2 {
   margin: 8px 0 4px;
   font-size: 24px;
+  color: var(--forgy-text-primary);
 }
 
 .records-header p {
   margin: 0;
-  color: var(--ion-color-medium);
+  color: var(--forgy-text-secondary);
   font-size: 14px;
 }
 
@@ -1100,7 +1106,7 @@ onIonViewWillEnter(() => loadAllData());
   display: flex;
   align-items: center;
   gap: 16px;
-  background: white;
+  background: var(--forgy-card-bg);
   padding: 16px;
   border-radius: 16px;
   margin-bottom: 12px;
@@ -1110,13 +1116,14 @@ onIonViewWillEnter(() => loadAllData());
 .pr-rank {
   width: 36px;
   height: 36px;
-  background: var(--ion-color-light);
+  background: var(--forgy-input-bg);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
   font-size: 16px;
+  color: var(--forgy-text-primary);
 }
 
 .pr-card:first-child .pr-rank {
@@ -1142,11 +1149,12 @@ onIonViewWillEnter(() => loadAllData());
   display: block;
   font-weight: 600;
   font-size: 15px;
+  color: var(--forgy-text-primary);
 }
 
 .pr-date {
   font-size: 12px;
-  color: var(--ion-color-medium);
+  color: var(--forgy-text-secondary);
 }
 
 .pr-weight {
@@ -1161,16 +1169,16 @@ onIonViewWillEnter(() => loadAllData());
 
 .pr-unit {
   font-size: 14px;
-  color: var(--ion-color-medium);
+  color: var(--forgy-text-secondary);
 }
 
 /* Modal */
 .modal-content {
-  --background: var(--ion-color-light);
+  --background: var(--forgy-content-bg);
 }
 
 .form-section {
-  background: white;
+  background: var(--forgy-card-bg);
   margin: 16px;
   border-radius: 16px;
   padding: 8px 16px;
@@ -1181,7 +1189,7 @@ onIonViewWillEnter(() => loadAllData());
   justify-content: space-between;
   align-items: center;
   padding: 14px 0;
-  border-bottom: 1px solid var(--ion-color-light);
+  border-bottom: 1px solid var(--forgy-border);
 }
 
 .form-row:last-child {
@@ -1193,6 +1201,7 @@ onIonViewWillEnter(() => loadAllData());
   align-items: center;
   gap: 8px;
   font-weight: 500;
+  color: var(--forgy-text-primary);
 }
 
 .form-icon {
@@ -1209,10 +1218,11 @@ onIonViewWillEnter(() => loadAllData());
   width: 36px;
   height: 36px;
   border: none;
-  background: var(--ion-color-light);
+  background: var(--forgy-input-bg);
   border-radius: 50%;
   font-size: 20px;
   cursor: pointer;
+  color: var(--forgy-text-primary);
 }
 
 .number-control input {
@@ -1222,22 +1232,26 @@ onIonViewWillEnter(() => loadAllData());
   background: transparent;
   font-size: 18px;
   font-weight: 600;
+  color: var(--forgy-text-primary);
 }
 
 .notes-label {
   display: block;
   padding: 12px 0;
   font-weight: 500;
+  color: var(--forgy-text-primary);
 }
 
 .form-section textarea {
   width: 100%;
   min-height: 80px;
-  border: 1px solid var(--ion-color-light);
+  border: 1px solid var(--forgy-border);
   border-radius: 12px;
   padding: 12px;
   font-family: inherit;
   font-size: 14px;
   resize: none;
+  color: var(--forgy-text-primary);
+  background: var(--forgy-card-bg);
 }
 </style>

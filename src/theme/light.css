@@ -1,0 +1,37 @@
+/* ============================================
+   FORGY APP - Light Theme
+   Variables específicas del tema claro
+   ============================================ */
+
+/* Light theme variables */
+.theme-light,
+body,
+body.light {
+    /* Ionic variables */
+    --ion-background-color: #f8f9fa;
+    --ion-background-color-rgb: 248, 249, 250;
+    --ion-text-color: #222428;
+    --ion-text-color-rgb: 34, 36, 40;
+    --ion-card-background: #ffffff;
+    --ion-item-background: #ffffff;
+    --ion-toolbar-background: #ffffff;
+    --ion-tab-bar-background: #ffffff;
+    --ion-border-color: #e0e0e0;
+
+    /* Light color variant */
+    --ion-color-light: #f4f5f8;
+    --ion-color-light-rgb: 244, 245, 248;
+    --ion-color-light-contrast: #000000;
+    --ion-color-light-contrast-rgb: 0, 0, 0;
+    --ion-color-light-shade: #d7d8da;
+    --ion-color-light-tint: #f5f6f9;
+
+    /* Forgy custom variables */
+    --forgy-card-bg: #ffffff;
+    --forgy-content-bg: #f5f5f5;
+    --forgy-text-primary: #222428;
+    --forgy-text-secondary: #666666;
+    --forgy-border: #e0e0e0;
+    --forgy-input-bg: #f0f0f0;
+    --forgy-shadow: rgba(0, 0, 0, 0.06);
+}
