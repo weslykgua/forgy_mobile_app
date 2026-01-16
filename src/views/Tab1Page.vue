@@ -34,7 +34,7 @@ const API_URL = 'http://localhost:3000';
 const exercises = ref<Exercise[]>([]);
 const isLoading = ref(true);
 const searchText = ref('');
-const selectedMuscle = ref('Todos');
+const selectedMuscle = ref<string[]>(['Todos']);
 const isModalOpen = ref(false);
 const isEditing = ref(false);
 const currentExercise = ref<Exercise | null>(null);
@@ -70,12 +70,41 @@ const form = ref({
   instructions: ''
 });
 
+// Manejar selección de filtros de músculo
+const toggleMuscleFilter = (muscleName: string) => {
+  // Si se hace clic en 'Todos', se convierte en la única selección.
+  if (muscleName === 'Todos') {
+    selectedMuscle.value = ['Todos'];
+    return;
+  }
+
+  const newSelection = [...selectedMuscle.value];
+
+  // Eliminar 'Todos' si está presente y estamos agregando un músculo específico.
+  const todosIndex = newSelection.indexOf('Todos');
+  if (todosIndex > -1) {
+    newSelection.splice(todosIndex, 1);
+  }
+
+  const muscleIndex = newSelection.indexOf(muscleName);
+  if (muscleIndex > -1) {
+    // Deseleccionar: eliminarlo del array.
+    newSelection.splice(muscleIndex, 1);
+  } else {
+    // Seleccionar: agregarlo al array.
+    newSelection.push(muscleName);
+  }
+
+  // Si el array queda vacío, volver a 'Todos'.
+  selectedMuscle.value = newSelection.length > 0 ? newSelection : ['Todos'];
+};
+
 // Filtrar ejercicios
 const filteredExercises = computed(() => {
   let result = exercises.value;
 
-  if (selectedMuscle.value !== 'Todos') {
-    result = result.filter(ex => ex.muscle === selectedMuscle.value);
+  if (!selectedMuscle.value.includes('Todos') && selectedMuscle.value.length > 0) {
+    result = result.filter(ex => selectedMuscle.value.includes(ex.muscle));
   }
 
   if (searchText.value) {
@@ -241,6 +270,8 @@ const handleRefresh = async (event: CustomEvent) => {
 
 onIonViewWillEnter(() => {
   loadExercises();
+  selectedMuscle.value = ['Todos']; // Opcional: Reinicia los filtros
+  searchText.value = ''; // Opcional: Limpia la búsqueda
   socket = io(API_URL);
   socket.on('exercises-updated', () => {
     console.log("🔔 Datos actualizados");
@@ -294,13 +325,32 @@ onIonViewWillLeave(() => {
         <ion-chip
           v-for="m in musclesWithEmoji"
           :key="m.name"
-          :color="selectedMuscle === m.name ? 'primary' : 'light'"
-          @click="selectedMuscle = m.name"
+          :color="selectedMuscle.includes(m.name) ? 'primary' : undefined"
+          @click="toggleMuscleFilter(m.name)"
           class="muscle-chip"
+          :class="{ 'chip-inactive': !selectedMuscle.includes(m.name) }"
         >
           <span class="chip-emoji">{{ m.emoji }}</span>
           <ion-label>{{ m.name }}</ion-label>
         </ion-chip>
+      </div>
+
+      <!-- Acciones de filtro -->
+      <div
+        v-if="!selectedMuscle.includes('Todos') && selectedMuscle.length > 0"
+        class="filter-actions"
+      >
+        <ion-button
+          fill="clear"
+          size="small"
+          @click="selectedMuscle = ['Todos']"
+        >
+          <ion-icon
+            slot="start"
+            :icon="closeCircle"
+          ></ion-icon>
+          Eliminar filtros
+        </ion-button>
       </div>
 
       <!-- Contador de resultados -->
@@ -403,20 +453,21 @@ onIonViewWillLeave(() => {
             </div>
           </ion-card-content>
         </ion-card>
-
-        <!-- Mensaje vacío -->
-        <div
-          v-if="filteredExercises.length === 0"
-          class="empty-state"
-        >
-          <ion-icon
-            :icon="fitness"
-            size="large"
-          ></ion-icon>
-          <h3>No hay ejercicios</h3>
-          <p>Agrega tu primer ejercicio con el botón +</p>
-        </div>
       </div>
+
+      <!-- Mensaje vacío -->
+      <div
+        v-if="!isLoading && filteredExercises.length === 0"
+        class="empty-state"
+      >
+        <ion-icon
+          :icon="fitness"
+          size="large"
+        ></ion-icon>
+        <h3>No hay ejercicios</h3>
+        <p>Agrega tu primer ejercicio con el botón +</p>
+      </div>
+
 
       <!-- FAB para agregar -->
       <ion-fab
@@ -555,6 +606,24 @@ onIonViewWillLeave(() => {
 
 .muscle-chip {
   margin: 0;
+  font-weight: 600;
+}
+
+.chip-inactive {
+  --background: #f2f4f8;
+  --color: #111111;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.filter-actions {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.filter-actions ion-button {
+  --color: var(--ion-color-medium);
+  font-weight: 600;
 }
 
 .chip-emoji {
@@ -640,9 +709,8 @@ onIonViewWillLeave(() => {
 }
 
 .empty-state ion-icon {
-  font-size: 64px;
+  font-size: large;
   margin-bottom: 16px;
-  opacity: 0.5;
 }
 
 .empty-state h3 {
