@@ -17,12 +17,12 @@
     "@capacitor/haptics": "8.0.0",
     "@capacitor/keyboard": "8.0.0",
     "@capacitor/status-bar": "8.0.0",
-    "@ionic/vue": "8.0.0",
-    "@ionic/vue-router": "8.0.0",
-    "ionicons": "7.0.0",
+    "@ionic/vue": "8.7.17",
+    "@ionic/vue-router": "8.7.17",
+    "ionicons": "8.0.13",
     "socket.io-client": "4.8.3",
-    "vue": "3.4.0",
-    "vue-router": "4.3.0"
+    "vue": "3.5.26",
+    "vue-router": "4.6.4"
   },
   "devDependencies": {
     "@capacitor/cli": "8.0.1",
