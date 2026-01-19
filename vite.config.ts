@@ -11,6 +11,10 @@ export default defineConfig({
     vue(),
     legacy()
   ],
+  server: {
+    host: true,
+    open: true,
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
