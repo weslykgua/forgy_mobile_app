@@ -1,20 +1,31 @@
 <template>
     <ion-page>
-        <ion-header class="ion-no-border">
-            <ion-toolbar color="primary">
-                <ion-title>
-                    <div class="header-brand">
-                        <span class="brand-icon">💪</span>
-                        <span class="brand-name">Forgy</span>
-                    </div>
-                </ion-title>
-                <ion-buttons slot="end">
-                    <ion-button @click="refreshData">
-                        <ion-icon :icon="refreshOutline"></ion-icon>
-                    </ion-button>
-                </ion-buttons>
-            </ion-toolbar>
-        </ion-header>
+        <ion-header class="forgy-header">
+           
+  <ion-toolbar>
+
+    <!-- IZQUIERDA -->
+    <ion-buttons slot="start">
+      <ion-button fill="clear" class="icon-btn">
+        <span class="logo-emoji">💪</span>
+      </ion-button>
+    </ion-buttons>
+
+    <!-- CENTRO -->
+    <ion-title class="forgy-title">
+      FORGY
+    </ion-title>
+
+    <!-- DERECHA -->
+    <ion-buttons slot="end">
+      <ion-button fill="clear" class="icon-btn" @click="goToCamera">
+        <ion-icon :icon="cameraOutline" />
+      </ion-button>
+    </ion-buttons>
+
+  </ion-toolbar>
+</ion-header>
+
 
         <ion-content
             :fullscreen="true"
@@ -359,9 +370,14 @@ import {
 } from '@ionic/vue';
 import { ref, computed } from 'vue';
 import { refreshOutline, checkmarkCircle, add, chevronForward } from 'ionicons/icons';
+import { cameraOutline } from 'ionicons/icons'
 
 const API_URL = 'http://localhost:3000';
 const router = useIonRouter();
+
+function goToCamera() {
+  router.push('/tabs/tab5');
+}
 
 interface ProgressStats {
     totalWorkouts: number;
@@ -640,6 +656,80 @@ onIonViewWillEnter(() => {
 </script>
 
 <style scoped>
+
+/* Header Styles */
+
+
+.forgy-header {
+  backdrop-filter: blur(12px);
+}
+
+.forgy-header ion-toolbar {
+    
+    --background: transparent;
+  background: transparent;
+  --background: linear-gradient(
+    135deg,
+    #ff6a00,
+    #ff8c1a
+  );
+  --color: rgb(255, 254, 254);
+font-family: 'Permanent Marker', cursive;
+
+
+
+
+
+
+  box-shadow: 0 6px 20px rgba(77, 75, 75, 0.966);
+  
+  
+}
+
+
+/* TÍTULO */
+.forgy-title {
+  
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+
+
+/* BOTONES HEADER */
+.icon-btn {
+  --color: white;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.icon-btn:active {
+  transform: scale(0.9);
+  opacity: 0.8;
+}
+
+/* ICONOS */
+ion-icon {
+  font-size: 26px;
+}
+
+/* LOGO EMOJI */
+.logo-emoji {
+  font-size: 26px;
+}
+
+
+/*FINDE DEL HEADER*/
+
+
+.header-title {
+  text-align: center;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
 .home-content {
     --background: var(--forgy-content-bg);
 }
@@ -663,7 +753,7 @@ onIonViewWillEnter(() => {
 .hero-section {
     position: relative;
     padding: 24px 16px;
-    background: linear-gradient(135deg, var(--ion-color-primary) 0%, #7c4dff 100%);
+    background: linear-gradient(135deg, var(--ion-color-primary) 0%, #ff6a00 100%);
     border-radius: 0 0 32px 32px;
     margin-bottom: 20px;
     overflow: hidden;
@@ -675,7 +765,7 @@ onIonViewWillEnter(() => {
     right: -20%;
     width: 200px;
     height: 200px;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(168, 15, 15, 0.1);
     border-radius: 50%;
 }
 
@@ -884,6 +974,7 @@ onIonViewWillEnter(() => {
     border-radius: 4px;
     overflow: hidden;
     margin-bottom: 16px;
+    
 }
 
 .goal-fill {
@@ -891,11 +982,13 @@ onIonViewWillEnter(() => {
     background: linear-gradient(90deg, var(--ion-color-primary), var(--ion-color-tertiary));
     border-radius: 4px;
     transition: width 0.5s ease;
+    
 }
 
 .goal-actions {
     display: flex;
     justify-content: flex-end;
+    
 }
 
 /* Week Summary */
@@ -908,6 +1001,7 @@ onIonViewWillEnter(() => {
     margin-bottom: 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     color: var(--forgy-text-primary);
+    
 }
 
 .week-day {
