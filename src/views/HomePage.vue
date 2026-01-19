@@ -658,8 +658,6 @@ onIonViewWillEnter(() => {
 <style scoped>
 
 /* Header Styles */
-
-
 .forgy-header {
   backdrop-filter: blur(12px);
 }
@@ -675,17 +673,8 @@ onIonViewWillEnter(() => {
   );
   --color: rgb(255, 254, 254);
 font-family: 'Permanent Marker', cursive;
-
-
-
-
-
-
   box-shadow: 0 6px 20px rgba(77, 75, 75, 0.966);
-  
-  
 }
-
 
 /* TÍTULO */
 .forgy-title {
@@ -696,8 +685,6 @@ font-family: 'Permanent Marker', cursive;
   text-transform: uppercase;
   text-align: center;
 }
-
-
 
 /* BOTONES HEADER */
 .icon-btn {
@@ -720,10 +707,7 @@ ion-icon {
   font-size: 26px;
 }
 
-
 /*FINDE DEL HEADER*/
-
-
 .header-title {
   text-align: center;
   font-weight: 800;
