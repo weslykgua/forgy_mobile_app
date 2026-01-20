@@ -34,7 +34,6 @@
                 </div>
             </div>
 
-
             <div class="quick-stats">
                 <div class="stat-ring" @click="goToProgress">
                     <svg viewBox="0 0 100 100" class="ring-svg">
