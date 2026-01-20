@@ -6,7 +6,7 @@ import path from 'path/win32';
 const routes: Array<RouteRecordRaw> = [
   {
     path: '/',
-    redirect: '/tabs/home'
+    redirect: '/tabs/tab5'
   },
   {
     path: '/tabs/',
@@ -14,7 +14,7 @@ const routes: Array<RouteRecordRaw> = [
     children: [
       {
         path: '',
-        redirect: '/tabs/home'
+        redirect: '/tabs/tab5'
       },
       {
         path: 'home',
