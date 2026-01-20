@@ -11,10 +11,7 @@
         </ion-header>
 
         <ion-content :fullscreen="true" class="home-content">
-            <ion-refresher slot="fixed" @ionRefresh="handleRefresh($event)">
-                <ion-refresher-content></ion-refresher-content>
-            </ion-refresher>
-
+           
             <div class="hero-section">
                 <div class="hero-background"></div>
                 <div class="hero-content">
@@ -227,19 +224,13 @@
 import {
     IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
     IonButton, IonButtons, IonIcon, IonChip, IonLabel,
-    IonRefresher, IonRefresherContent,
     onIonViewWillEnter, toastController, useIonRouter
 } from '@ionic/vue';
 import { ref, computed } from 'vue';
-import { refreshOutline, checkmarkCircle, add, chevronForward } from 'ionicons/icons';
-import { cameraOutline } from 'ionicons/icons'
+import { checkmarkCircle, add, chevronForward } from 'ionicons/icons';
 
 const API_URL = 'http://localhost:3000';
 const router = useIonRouter();
-
-function goToCamera() {
-    router.push('/tabs/tab5');
-}
 
 interface ProgressStats {
     totalWorkouts: number;
@@ -493,16 +484,6 @@ function checkAchievements() {
         achievementText.value = '¡10 entrenamientos completados! 💪';
         showAchievement.value = true;
     }
-}
-
-async function refreshData() {
-    await loadData();
-    showToast('Datos actualizados ✓');
-}
-
-async function handleRefresh(event: CustomEvent) {
-    await loadData();
-    (event.target as any).complete();
 }
 
 async function showToast(message: string, color = 'success') {
