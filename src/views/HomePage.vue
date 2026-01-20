@@ -768,7 +768,6 @@ ion-icon {
     font-weight: 700;
 }
 
-/* Goal Card */
 .goal-card {
     background: var(--forgy-card-bg);
     border-radius: 20px;
@@ -835,7 +834,6 @@ ion-icon {
 
 }
 
-/* Week Summary */
 .week-summary {
     display: flex;
     justify-content: space-between;
@@ -962,7 +960,6 @@ ion-icon {
     color: var(--ion-color-dark);
 }
 
-/* Recommendation Card */
 .recommendation-card {
     display: flex;
     align-items: center;
@@ -1025,7 +1022,6 @@ ion-icon {
     color: var(--ion-color-medium);
 }
 
-/* Quick Actions */
 .quick-actions {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -1061,7 +1057,6 @@ ion-icon {
     color: var(--forgy-text-primary);
 }
 
-/* Achievement Toast */
 .achievement-toast {
     position: fixed;
     top: 100px;
