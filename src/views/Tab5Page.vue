@@ -40,10 +40,11 @@
                             <ion-item lines="none" class="custom-input">
                                 <ion-icon :icon="personOutline" slot="start"></ion-icon>
                                 <ion-input 
-                                    v-model="formData.name" 
+                                    v-model="namee" 
                                     placeholder="Nombre completo" 
                                     type="text"
                                 ></ion-input>
+                                
                             </ion-item>
                         </div>
 
@@ -52,7 +53,7 @@
                             <ion-item lines="none" class="custom-input">
                                 <ion-icon :icon="mailOutline" slot="start"></ion-icon>
                                 <ion-input 
-                                    v-model="formData.email" 
+                                    v-model="email" 
                                     placeholder="Correo electrónico" 
                                     type="email"
                                 ></ion-input>
@@ -64,7 +65,7 @@
                             <ion-item lines="none" class="custom-input">
                                 <ion-icon :icon="lockClosedOutline" slot="start"></ion-icon>
                                 <ion-input 
-                                    v-model="formData.password" 
+                                    v-model="password" 
                                     placeholder="Contraseña" 
                                     type="password"
                                 ></ion-input>
@@ -105,14 +106,21 @@
 </template>
 
 <script setup lang="ts">
+//import { createUser } from '@/';
 import { 
     IonPage, IonContent, IonItem, IonInput, IonButton, IonIcon,
     toastController, useIonRouter
 } from '@ionic/vue';
 import { ref, reactive, onMounted } from 'vue';
 import { personOutline, mailOutline, lockClosedOutline } from 'ionicons/icons';
+import { createUser } from '@/lib/api';
 
 const isLogin = ref(true);
+
+const namee = ref('');
+const email = ref('');
+const password = ref('');
+
 
 const formData = reactive({
     name: '',
@@ -120,33 +128,18 @@ const formData = reactive({
     password: '',
     confirmPassword: ''
 });
+console.log("🚀 ~ formData:", formData)
 
 const router = useIonRouter();
 
 onMounted(() => {
     // Si ya hay sesión iniciada, redirigir al Home (Tab1)
     if (localStorage.getItem('forgy_session')) {
-        router.replace('/tabs/tab1');
+        router.replace('/tabs/c');
     }
 });
 
-async function handleSubmit() {
-    if (isLogin.value) {
-        // Lógica de login
-        console.log('Login:', formData.email);
-        await showToast('Iniciando sesión...');
-        completeAuth();
-    } else {
-        // Lógica de registro
-        if (formData.password !== formData.confirmPassword) {
-            await showToast('Las contraseñas no coinciden', 'danger');
-            return;
-        }
-        console.log('Register:', formData);
-        await showToast('Creando cuenta...');
-        completeAuth();
-    }
-}
+
 
 function completeAuth() {
     localStorage.setItem('forgy_session', 'true');
@@ -155,6 +148,38 @@ function completeAuth() {
 
 async function forgotPassword() {
     await showToast('Funcionalidad de recuperación pendiente', 'medium');
+}
+
+const createUserr = async (name: string, email: string, password: string) => {
+    // Lógica para crear usuario (simulada)
+    
+    try {
+        const res = await createUser(name, email, password);
+    } catch (error) {
+        console.error('Error creating user:', error);
+        throw error;
+    }
+};
+
+async function handleSubmit() {
+    await createUser(email.value, password.value, namee.value); 
+    if (isLogin.value) {
+        // Lógica de login
+        console.log('Login:', email);
+        await showToast('Iniciando sesión...');
+        completeAuth();
+    } else {
+        // Lógica de registro
+        /*
+        if (password !== formData.confirmPassword) {
+            await showToast('Las contraseñas no coinciden', 'danger');
+            return;
+        }
+        console.log('Register:', formData);
+        await showToast('Creando cuenta...');
+        */
+        completeAuth();
+    }
 }
 
 async function showToast(message: string, color = 'primary') {
@@ -219,7 +244,7 @@ async function showToast(message: string, color = 'primary') {
 }
 
 .auth-toggle {
-    background: #f0f0f0;
+    background: #ffffff;
     border-radius: 12px;
     padding: 4px;
     display: flex;
@@ -265,13 +290,13 @@ async function showToast(message: string, color = 'primary') {
 }
 
 .input-wrapper {
-    background: #f8f9fa;
+    background: #185592;
     border-radius: 12px;
     transition: all 0.3s ease;
 }
 
 .input-wrapper:focus-within {
-    background: white;
+    background: rgb(158, 13, 13);
     box-shadow: 0 0 0 2px var(--ion-color-primary);
 }
 
