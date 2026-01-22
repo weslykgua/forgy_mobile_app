@@ -194,148 +194,204 @@ async function showToast(message: string, color = 'primary') {
 </script>
 
 <style scoped>
+/* Contenedor */
 .auth-container {
-    min-height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, var(--ion-color-primary) 0%, #7c4dff 100%);
-    padding: 20px;
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  /* Usamos tu primary + secondary */
+  background: linear-gradient(
+    135deg,
+    var(--ion-color-primary) 0%,
+    var(--ion-color-secondary) 100%
+  );
+
+  padding: 20px;
 }
 
+/* Tarjeta */
 .auth-card {
-    background: white;
-    width: 100%;
-    max-width: 360px;
-    border-radius: 24px;
-    padding: 32px 24px;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  background: white;
+  width: 100%;
+  max-width: 360px;
+  border-radius: 24px;
+  padding: 32px 24px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
 }
 
+/* Header */
 .auth-header {
-    text-align: center;
-    margin-bottom: 24px;
+  text-align: center;
+  margin-bottom: 24px;
 }
 
 .brand-logo {
-    font-size: 48px;
-    margin-bottom: 12px;
-    display: inline-block;
+  font-size: 48px;
+  margin-bottom: 12px;
+  display: inline-block;
+
+  /* pequeño toque con tus colores */
+  filter: drop-shadow(0 6px 14px rgba(var(--ion-color-primary-rgb), 0.35));
 }
 
 .auth-header h2 {
-    margin: 0 0 8px;
-    color: var(--ion-color-dark);
-    font-weight: 800;
-    font-size: 24px;
+  margin: 0 0 8px;
+  color: var(--ion-color-dark);
+  font-weight: 800;
+  font-size: 24px;
 }
 
 .subtitle {
-    margin: 0;
-    color: var(--ion-color-medium);
-    font-size: 14px;
+  margin: 0;
+  color: var(--ion-color-medium);
+  font-size: 14px;
 }
 
 /* Toggle Switch */
 .auth-toggle-container {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 24px;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 24px;
 }
 
 .auth-toggle {
-    background: #ffffff;
-    border-radius: 12px;
-    padding: 4px;
-    display: flex;
-    position: relative;
-    width: 100%;
+  /* más coherente con la paleta */
+  background: rgba(255, 255, 255, 0.65);
+  border-radius: 12px;
+  padding: 4px;
+  display: flex;
+  position: relative;
+  width: 100%;
+
+  /* borde suave con primary */
+  box-shadow: 0 6px 18px rgba(var(--ion-color-primary-rgb), 0.15);
 }
 
 .toggle-bg {
-    position: absolute;
-    top: 4px;
-    left: 4px;
-    width: calc(50% - 4px);
-    height: calc(100% - 8px);
-    background: white;
-    border-radius: 10px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: calc(50% - 4px);
+  height: calc(100% - 8px);
+
+  /* Fondo del “selector” con tu gradiente */
+  background: linear-gradient(
+    135deg,
+    var(--ion-color-primary),
+    var(--ion-color-secondary)
+  );
+
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+  transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
 }
 
 .toggle-btn {
-    flex: 1;
-    background: none;
-    border: none;
-    padding: 10px;
-    z-index: 1;
-    font-weight: 600;
-    font-size: 14px;
-    color: var(--ion-color-medium);
-    transition: color 0.3s;
-    cursor: pointer;
-    outline: none;
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 10px;
+  z-index: 1;
+  font-weight: 700;
+  font-size: 14px;
+
+  /* Por defecto más sobrio */
+  color: rgba(0, 0, 0, 0.55);
+
+  transition: color 0.25s ease;
+  cursor: pointer;
+  outline: none;
 }
 
 .toggle-btn.active {
-    color: var(--ion-color-primary);
+  /* Cuando está “activo”, va encima del gradiente, por eso blanco */
+  color: #ffffff;
 }
 
 /* Form */
 .auth-form {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
+/* Inputs wrapper - antes estaba azul fijo (#185592) */
 .input-wrapper {
-    background: #185592;
-    border-radius: 12px;
-    transition: all 0.3s ease;
+  border-radius: 12px;
+  transition: all 0.25s ease;
+
+  /* un fondo suave cálido */
+  background: rgba(var(--ion-color-primary-rgb), 0.10);
+  border: 1px solid rgba(var(--ion-color-primary-rgb), 0.18);
 }
 
 .input-wrapper:focus-within {
-    background: rgb(158, 13, 13);
-    box-shadow: 0 0 0 2px var(--ion-color-primary);
+  /* antes estaba rojo fijo */
+  background: rgba(var(--ion-color-primary-rgb), 0.16);
+  border-color: rgba(var(--ion-color-primary-rgb), 0.45);
+  box-shadow: 0 0 0 3px rgba(var(--ion-color-primary-rgb), 0.22);
 }
 
+/* Ion item */
 .custom-input {
-    --background: transparent;
-    --padding-start: 8px;
-    --inner-padding-end: 8px;
+  --background: transparent;
+  --padding-start: 8px;
+  --inner-padding-end: 8px;
+
+  /* mejora visual del item */
+  --border-radius: 12px;
 }
 
+/* Iconos */
 .custom-input ion-icon {
-    color: var(--ion-color-medium);
-    margin-right: 8px;
+  color: rgba(var(--ion-color-primary-rgb), 0.85);
+  margin-right: 8px;
 }
 
+/* Input texto (importante en iOS/Android) */
+.custom-input ion-input {
+  --placeholder-color: rgba(0, 0, 0, 0.45);
+  --color: #111;
+}
+
+/* Forgot Password */
 .forgot-password {
-    text-align: right;
+  text-align: right;
 }
 
 .forgot-password span {
-    color: var(--ion-color-primary);
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
+  color: var(--ion-color-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
+/* Botón submit (usa primary por defecto, pero lo reforzamos) */
 .submit-btn {
-    margin-top: 8px;
-    --border-radius: 12px;
-    font-weight: 700;
-    height: 48px;
-    --box-shadow: 0 4px 12px rgba(var(--ion-color-primary-rgb), 0.3);
+  margin-top: 8px;
+  --border-radius: 12px;
+  font-weight: 800;
+  height: 48px;
+
+  /* Gradiente con tu paleta */
+  --background: linear-gradient(
+    135deg,
+    var(--ion-color-primary),
+    var(--ion-color-secondary)
+  );
+
+  --box-shadow: 0 10px 22px rgba(var(--ion-color-primary-rgb), 0.30);
 }
 
+/* Animación */
 .fade-in {
-    animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 0.3s ease-out;
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 </style>
