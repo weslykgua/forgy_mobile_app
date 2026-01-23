@@ -1,21 +1,18 @@
 <script setup lang="ts">
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
-  IonList, IonItem, IonLabel, IonThumbnail, IonButton,
+  IonList, IonItem, IonLabel, IonButton,
   IonSearchbar, IonSegment, IonSegmentButton, IonChip,
   IonIcon, IonCard, IonCardHeader, IonCardTitle, IonCardContent,
-  IonFab, IonFabButton, IonModal, IonButtons, IonInput,
-  IonTextarea, IonSelect, IonSelectOption, IonAlert,
-  IonRefresher, IonRefresherContent, IonSkeletonText,
-  IonBadge, IonItemSliding, IonItemOptions, IonItemOption,
+  IonFab, IonFabButton, IonModal, IonButtons, IonInput, IonTextarea,
+  IonSelect, IonSelectOption, IonRefresher, IonRefresherContent,
+  IonSkeletonText, IonBadge,
   onIonViewWillEnter, onIonViewWillLeave, alertController, toastController
 } from '@ionic/vue';
 import { ref, computed } from 'vue';
 import { io } from 'socket.io-client';
 import {
-  add, trash, create, fitness, barbell,
-  search, filterOutline, closeCircle, checkmarkCircle,
-  bodyOutline, chevronDown, videocam, list, bookmark
+  add, fitness, barbell, closeCircle, videocam, list, bookmark
 } from 'ionicons/icons';
 
 interface Exercise {
@@ -136,11 +133,6 @@ const getDifficultyColor = (difficulty: string) => {
     case 'Avanzado': return 'danger';
     default: return 'medium';
   }
-};
-
-// Icono por músculo
-const getMuscleIcon = (muscle: string) => {
-  return bodyOutline;
 };
 
 // Cargar ejercicios
