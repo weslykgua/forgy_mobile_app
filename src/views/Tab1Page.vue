@@ -15,7 +15,7 @@ import { io } from 'socket.io-client';
 import {
   add, trash, create, fitness, barbell,
   search, filterOutline, closeCircle, checkmarkCircle,
-  bodyOutline, chevronDown
+  bodyOutline, chevronDown, videocam, list, bookmark
 } from 'ionicons/icons';
 
 interface Exercise {
@@ -30,14 +30,24 @@ interface Exercise {
   createdAt: string;
 }
 
+interface Routine {
+  id: string;
+  name: string;
+  exercises: Exercise[];
+}
+
 const API_URL = 'http://localhost:3000';
 const exercises = ref<Exercise[]>([]);
+const routines = ref<Routine[]>([]);
 const isLoading = ref(true);
 const searchText = ref('');
 const selectedMuscle = ref<string[]>(['Todos']);
 const isModalOpen = ref(false);
-const isEditing = ref(false);
-const currentExercise = ref<Exercise | null>(null);
+const isDetailModalOpen = ref(false);
+const selectedExercise = ref<Exercise | null>(null);
+const viewMode = ref<'exercises' | 'routines'>('exercises');
+const selectedRoutine = ref<Routine | null>(null);
+const isRoutineDetailOpen = ref(false);
 
 let socket: any = null;
 
@@ -147,6 +157,16 @@ const loadExercises = async () => {
   }
 };
 
+// Cargar rutinas
+const loadRoutines = async () => {
+  try {
+    const response = await fetch(`${API_URL}/routines`);
+    routines.value = await response.json();
+  } catch (error) {
+    console.error("Error fetching routines", error);
+  }
+};
+
 // Mostrar toast
 const showToast = async (message: string, color: string = 'success') => {
   const toast = await toastController.create({
@@ -160,8 +180,6 @@ const showToast = async (message: string, color: string = 'success') => {
 
 // Abrir modal para crear
 const openCreateModal = () => {
-  isEditing.value = false;
-  currentExercise.value = null;
   form.value = {
     name: '',
     muscle: 'Pecho',
@@ -174,20 +192,15 @@ const openCreateModal = () => {
   isModalOpen.value = true;
 };
 
-// Abrir modal para editar
-const openEditModal = (exercise: Exercise) => {
-  isEditing.value = true;
-  currentExercise.value = exercise;
-  form.value = {
-    name: exercise.name,
-    muscle: exercise.muscle,
-    video: exercise.video,
-    description: exercise.description || '',
-    difficulty: exercise.difficulty,
-    equipment: exercise.equipment || '',
-    instructions: exercise.instructions?.join('\n') || ''
-  };
-  isModalOpen.value = true;
+
+// Abrir modal de detalles
+const openDetailModal = (exercise: Exercise) => {
+  selectedExercise.value = exercise;
+  isDetailModalOpen.value = true;
+};
+
+const openVideo = (url: string) => {
+  window.open(url, '_blank');
 };
 
 // Guardar ejercicio (crear o editar)
@@ -198,27 +211,14 @@ const saveExercise = async () => {
       instructions: form.value.instructions.split('\n').filter(i => i.trim())
     };
 
-    if (isEditing.value && currentExercise.value) {
-      // Actualizar
-      const response = await fetch(`${API_URL}/exercises/${currentExercise.value.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(exerciseData)
-      });
+    const response = await fetch(`${API_URL}/exercises`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(exerciseData)
+    });
 
-      if (!response.ok) throw new Error('Error al actualizar');
-      showToast('¡Ejercicio actualizado!', 'success');
-    } else {
-      // Crear
-      const response = await fetch(`${API_URL}/exercises`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(exerciseData)
-      });
-
-      if (!response.ok) throw new Error('Error al crear');
-      showToast('¡Ejercicio creado!', 'success');
-    }
+    if (!response.ok) throw new Error('Error al crear');
+    showToast('¡Ejercicio creado!', 'success');
 
     isModalOpen.value = false;
     loadExercises();
@@ -228,48 +228,84 @@ const saveExercise = async () => {
   }
 };
 
-// Confirmar eliminación
-const confirmDelete = async (exercise: Exercise) => {
+// Crear nueva rutina
+const createRoutine = async () => {
   const alert = await alertController.create({
-    header: '¿Eliminar ejercicio?',
-    message: `¿Estás seguro de eliminar "${exercise.name}"?`,
-    buttons: [
-      { text: 'Cancelar', role: 'cancel' },
+    header: 'Nueva Rutina',
+    inputs: [
       {
-        text: 'Eliminar',
-        role: 'destructive',
-        handler: () => deleteExercise(exercise.id)
+        name: 'name',
+        type: 'text',
+        placeholder: 'Nombre de la rutina (ej. Pierna Lunes)'
+      }
+    ],
+    buttons: [
+      'Cancelar',
+      {
+        text: 'Crear',
+        handler: async (data) => {
+          if (!data.name) return;
+          try {
+            const response = await fetch(`${API_URL}/routines`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: data.name })
+            });
+            if (response.ok) {
+              showToast('Rutina creada');
+              loadRoutines();
+            }
+          } catch (e) {
+            showToast('Error al crear rutina', 'danger');
+          }
+        }
       }
     ]
   });
   await alert.present();
 };
 
-// Eliminar ejercicio
-const deleteExercise = async (id: string) => {
-  try {
-    const response = await fetch(`${API_URL}/exercises/${id}`, {
-      method: 'DELETE'
-    });
-
-    if (!response.ok) throw new Error('Error al eliminar');
-
-    showToast('Ejercicio eliminado', 'warning');
-    loadExercises();
-  } catch (error) {
-    console.error(error);
-    showToast('Error al eliminar', 'danger');
+// Agregar ejercicio a rutina
+const addToRoutine = async (exercise: Exercise) => {
+  if (routines.value.length === 0) {
+    showToast('Crea una rutina primero', 'warning');
+    return;
   }
+
+  const alert = await alertController.create({
+    header: 'Guardar en Rutina',
+    inputs: routines.value.map(r => ({
+      type: 'radio',
+      label: r.name,
+      value: r.id
+    })),
+    buttons: ['Cancelar', {
+      text: 'Guardar',
+      handler: async (routineId) => {
+        if (!routineId) return;
+        await fetch(`${API_URL}/routines/${routineId}/exercises`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ exerciseId: exercise.id })
+        });
+        showToast(`Agregado a rutina`, 'success');
+        isDetailModalOpen.value = false;
+      }
+    }]
+  });
+  await alert.present();
 };
 
 // Refrescar
 const handleRefresh = async (event: CustomEvent) => {
   await loadExercises();
+  await loadRoutines();
   (event.target as any).complete();
 };
 
 onIonViewWillEnter(() => {
   loadExercises();
+  loadRoutines();
   selectedMuscle.value = ['Todos']; // Opcional: Reinicia los filtros
   searchText.value = ''; // Opcional: Limpia la búsqueda
   socket = io(API_URL);
@@ -286,31 +322,46 @@ onIonViewWillLeave(() => {
 
 <template>
   <ion-page>
-    <ion-header>
+    <ion-header class="ion-no-border">
       <ion-toolbar color="primary">
         <ion-title>
           <ion-icon
             :icon="fitness"
             style="margin-right: 8px;"
           ></ion-icon>
-          Ejercicios
+          Biblioteca
         </ion-title>
       </ion-toolbar>
 
+      <!-- Segmento para cambiar vista -->
+      <ion-toolbar>
+        <ion-segment v-model="viewMode">
+          <ion-segment-button value="exercises">
+            <ion-label>Ejercicios</ion-label>
+          </ion-segment-button>
+          <ion-segment-button value="routines">
+            <ion-label>Mis Rutinas</ion-label>
+          </ion-segment-button>
+        </ion-segment>
+      </ion-toolbar>
+
       <!-- Barra de búsqueda -->
-      <ion-toolbar color="primary">
+      <ion-toolbar v-if="viewMode === 'exercises'">
         <ion-searchbar
           v-model="searchText"
           placeholder="Buscar ejercicios..."
           :animated="true"
           show-clear-button="focus"
+          class="custom-searchbar"
         ></ion-searchbar>
       </ion-toolbar>
     </ion-header>
 
+    <!-- VISTA DE EJERCICIOS -->
     <ion-content
       :fullscreen="true"
       class="ion-padding"
+      v-if="viewMode === 'exercises'"
     >
       <!-- Pull to refresh -->
       <ion-refresher
@@ -390,6 +441,8 @@ onIonViewWillLeave(() => {
           v-for="ex in filteredExercises"
           :key="ex.id"
           class="exercise-card"
+          button
+          @click="openDetailModal(ex)"
         >
           <ion-card-header>
             <div class="card-header-content">
@@ -425,32 +478,6 @@ onIonViewWillLeave(() => {
               <ion-icon :icon="barbell"></ion-icon>
               <span>{{ ex.equipment }}</span>
             </div>
-
-            <div class="card-actions">
-              <ion-button
-                fill="clear"
-                size="small"
-                @click="openEditModal(ex)"
-              >
-                <ion-icon
-                  slot="start"
-                  :icon="create"
-                ></ion-icon>
-                Editar
-              </ion-button>
-              <ion-button
-                fill="clear"
-                size="small"
-                color="danger"
-                @click="confirmDelete(ex)"
-              >
-                <ion-icon
-                  slot="start"
-                  :icon="trash"
-                ></ion-icon>
-                Eliminar
-              </ion-button>
-            </div>
           </ion-card-content>
         </ion-card>
       </div>
@@ -468,7 +495,6 @@ onIonViewWillLeave(() => {
         <p>Agrega tu primer ejercicio con el botón +</p>
       </div>
 
-
       <!-- FAB para agregar -->
       <ion-fab
         slot="fixed"
@@ -482,116 +508,309 @@ onIonViewWillLeave(() => {
           <ion-icon :icon="add"></ion-icon>
         </ion-fab-button>
       </ion-fab>
-
-      <!-- Modal crear/editar -->
-      <ion-modal
-        :is-open="isModalOpen"
-        @didDismiss="isModalOpen = false"
-      >
-        <ion-header>
-          <ion-toolbar color="primary">
-            <ion-buttons slot="start">
-              <ion-button @click="isModalOpen = false">Cancelar</ion-button>
-            </ion-buttons>
-            <ion-title>{{ isEditing ? 'Editar' : 'Nuevo' }} Ejercicio</ion-title>
-            <ion-buttons slot="end">
-              <ion-button
-                strong
-                @click="saveExercise"
-              >Guardar</ion-button>
-            </ion-buttons>
-          </ion-toolbar>
-        </ion-header>
-
-        <ion-content class="ion-padding">
-          <ion-list>
-            <ion-item>
-              <ion-input
-                v-model="form.name"
-                label="Nombre"
-                label-placement="stacked"
-                placeholder="Ej: Press de banca"
-                required
-              ></ion-input>
-            </ion-item>
-
-            <ion-item>
-              <ion-select
-                v-model="form.muscle"
-                label="Músculo"
-                label-placement="stacked"
-                interface="action-sheet"
-              >
-                <ion-select-option
-                  v-for="m in muscles.slice(1)"
-                  :key="m"
-                  :value="m"
-                >
-                  {{ m }}
-                </ion-select-option>
-              </ion-select>
-            </ion-item>
-
-            <ion-item>
-              <ion-select
-                v-model="form.difficulty"
-                label="Dificultad"
-                label-placement="stacked"
-                interface="action-sheet"
-              >
-                <ion-select-option
-                  v-for="d in difficulties"
-                  :key="d"
-                  :value="d"
-                >
-                  {{ d }}
-                </ion-select-option>
-              </ion-select>
-            </ion-item>
-
-            <ion-item>
-              <ion-input
-                v-model="form.equipment"
-                label="Equipamiento"
-                label-placement="stacked"
-                placeholder="Ej: Barra y mancuernas"
-              ></ion-input>
-            </ion-item>
-
-            <ion-item>
-              <ion-textarea
-                v-model="form.description"
-                label="Descripción"
-                label-placement="stacked"
-                placeholder="Describe el ejercicio..."
-                :auto-grow="true"
-              ></ion-textarea>
-            </ion-item>
-
-            <ion-item>
-              <ion-textarea
-                v-model="form.instructions"
-                label="Instrucciones (una por línea)"
-                label-placement="stacked"
-                placeholder="1. Primer paso&#10;2. Segundo paso..."
-                :auto-grow="true"
-                :rows="4"
-              ></ion-textarea>
-            </ion-item>
-
-            <ion-item>
-              <ion-input
-                v-model="form.video"
-                label="URL del Video"
-                label-placement="stacked"
-                placeholder="https://youtube.com/..."
-                type="url"
-              ></ion-input>
-            </ion-item>
-          </ion-list>
-        </ion-content>
-      </ion-modal>
     </ion-content>
+
+    <!-- VISTA DE RUTINAS -->
+    <ion-content
+      :fullscreen="true"
+      class="ion-padding"
+      v-if="viewMode === 'routines'"
+    >
+      <ion-refresher
+        slot="fixed"
+        @ionRefresh="handleRefresh($event)"
+      >
+        <ion-refresher-content></ion-refresher-content>
+      </ion-refresher>
+
+      <div v-if="routines.length > 0">
+        <ion-card
+          v-for="routine in routines"
+          :key="routine.id"
+          button
+          @click="selectedRoutine = routine; isRoutineDetailOpen = true"
+        >
+          <ion-card-header>
+            <ion-card-title>{{ routine.name }}</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <ion-icon
+              :icon="list"
+              style="vertical-align: middle;"
+            ></ion-icon>
+            {{ routine.exercises?.length || 0 }} ejercicios
+          </ion-card-content>
+        </ion-card>
+      </div>
+
+      <div
+        v-else
+        class="empty-state"
+      >
+        <ion-icon
+          :icon="list"
+          size="large"
+        ></ion-icon>
+        <h3>No tienes rutinas</h3>
+        <p>Crea una playlist de ejercicios para organizar tus entrenamientos.</p>
+      </div>
+
+      <ion-fab
+        slot="fixed"
+        vertical="bottom"
+        horizontal="end"
+      >
+        <ion-fab-button
+          @click="createRoutine"
+          color="secondary"
+        >
+          <ion-icon :icon="add"></ion-icon>
+        </ion-fab-button>
+      </ion-fab>
+    </ion-content>
+
+    <!-- Modal crear/editar -->
+    <ion-modal
+      :is-open="isModalOpen"
+      @didDismiss="isModalOpen = false"
+    >
+      <ion-header>
+        <ion-toolbar color="primary">
+          <ion-buttons slot="start">
+            <ion-button @click="isModalOpen = false">Cancelar</ion-button>
+          </ion-buttons>
+          <ion-title>Nuevo Ejercicio</ion-title>
+          <ion-buttons slot="end">
+            <ion-button
+              strong
+              @click="saveExercise"
+            >Guardar</ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+
+      <ion-content class="ion-padding">
+        <ion-list>
+          <ion-item>
+            <ion-input
+              v-model="form.name"
+              label="Nombre"
+              label-placement="stacked"
+              placeholder="Ej: Press de banca"
+              required
+            ></ion-input>
+          </ion-item>
+
+          <ion-item>
+            <ion-select
+              v-model="form.muscle"
+              label="Músculo"
+              label-placement="stacked"
+              interface="action-sheet"
+            >
+              <ion-select-option
+                v-for="m in muscles.slice(1)"
+                :key="m"
+                :value="m"
+              >
+                {{ m }}
+              </ion-select-option>
+            </ion-select>
+          </ion-item>
+
+          <ion-item>
+            <ion-select
+              v-model="form.difficulty"
+              label="Dificultad"
+              label-placement="stacked"
+              interface="action-sheet"
+            >
+              <ion-select-option
+                v-for="d in difficulties"
+                :key="d"
+                :value="d"
+              >
+                {{ d }}
+              </ion-select-option>
+            </ion-select>
+          </ion-item>
+
+          <ion-item>
+            <ion-input
+              v-model="form.equipment"
+              label="Equipamiento"
+              label-placement="stacked"
+              placeholder="Ej: Barra y mancuernas"
+            ></ion-input>
+          </ion-item>
+
+          <ion-item>
+            <ion-textarea
+              v-model="form.description"
+              label="Descripción"
+              label-placement="stacked"
+              placeholder="Describe el ejercicio..."
+              :auto-grow="true"
+            ></ion-textarea>
+          </ion-item>
+
+          <ion-item>
+            <ion-textarea
+              v-model="form.instructions"
+              label="Instrucciones (una por línea)"
+              label-placement="stacked"
+              placeholder="1. Primer paso&#10;2. Segundo paso..."
+              :auto-grow="true"
+              :rows="4"
+            ></ion-textarea>
+          </ion-item>
+
+          <ion-item>
+            <ion-input
+              v-model="form.video"
+              label="URL del Video"
+              label-placement="stacked"
+              placeholder="https://youtube.com/..."
+              type="url"
+            ></ion-input>
+          </ion-item>
+        </ion-list>
+      </ion-content>
+    </ion-modal>
+
+    <!-- Modal de Detalle -->
+    <ion-modal
+      :is-open="isDetailModalOpen"
+      @didDismiss="isDetailModalOpen = false"
+      :initial-breakpoint="0.85"
+      :breakpoints="[0, 0.5, 0.85, 1]"
+    >
+      <ion-header>
+        <ion-toolbar>
+          <ion-title>Detalles</ion-title>
+          <ion-buttons slot="end">
+            <ion-button @click="isDetailModalOpen = false">Cerrar</ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+
+      <ion-content
+        class="ion-padding"
+        v-if="selectedExercise"
+      >
+        <div class="ion-text-center ion-margin-bottom">
+          <h1>{{ selectedExercise.name }}</h1>
+          <ion-chip color="tertiary">
+            {{ getMuscleEmoji(selectedExercise.muscle) }} {{ selectedExercise.muscle }}
+          </ion-chip>
+          <ion-chip :color="getDifficultyColor(selectedExercise.difficulty)">
+            {{ difficultyEmoji[selectedExercise.difficulty] }} {{ selectedExercise.difficulty }}
+          </ion-chip>
+        </div>
+
+        <div class="ion-margin-bottom">
+          <h3>Descripción</h3>
+          <p style="line-height: 1.6; color: var(--forgy-text-secondary);">
+            {{ selectedExercise.description || 'Sin descripción detallada.' }}
+          </p>
+        </div>
+
+        <div
+          v-if="selectedExercise.equipment"
+          class="ion-margin-bottom"
+        >
+          <h3><ion-icon
+              :icon="barbell"
+              style="vertical-align: text-bottom;"
+            ></ion-icon> Equipamiento</h3>
+          <p>{{ selectedExercise.equipment }}</p>
+        </div>
+
+        <div
+          v-if="selectedExercise.instructions && selectedExercise.instructions.length"
+          class="ion-margin-bottom"
+        >
+          <h3>Instrucciones</h3>
+          <ol style="padding-left: 20px; line-height: 1.6;">
+            <li
+              v-for="(step, i) in selectedExercise.instructions"
+              :key="i"
+              style="margin-bottom: 8px;"
+            >
+              {{ step }}
+            </li>
+          </ol>
+        </div>
+
+        <div class="ion-margin-top">
+          <ion-button
+            expand="block"
+            @click="openVideo(selectedExercise.video || 'https://www.youtube.com/results?search_query=' + selectedExercise.name + ' exercise')"
+          >
+            <ion-icon
+              slot="start"
+              :icon="videocam"
+            ></ion-icon>
+            {{ selectedExercise.video ? 'Ver Video Tutorial' : 'Buscar Video en YouTube' }}
+          </ion-button>
+
+          <div class="ion-text-center ion-margin-top">
+            <ion-button
+              expand="block"
+              fill="outline"
+              @click="addToRoutine(selectedExercise!)"
+            >
+              <ion-icon
+                slot="start"
+                :icon="bookmark"
+              ></ion-icon>
+              Guardar en Rutina
+            </ion-button>
+          </div>
+        </div>
+      </ion-content>
+    </ion-modal>
+
+    <!-- Modal Detalle de Rutina -->
+    <ion-modal
+      :is-open="isRoutineDetailOpen"
+      @didDismiss="isRoutineDetailOpen = false"
+    >
+      <ion-header>
+        <ion-toolbar>
+          <ion-title>{{ selectedRoutine?.name }}</ion-title>
+          <ion-buttons slot="end">
+            <ion-button @click="isRoutineDetailOpen = false">Cerrar</ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+      <ion-content class="ion-padding">
+        <ion-list v-if="selectedRoutine?.exercises && selectedRoutine.exercises.length > 0">
+          <ion-item
+            v-for="ex in selectedRoutine.exercises"
+            :key="ex.id"
+          >
+            <ion-label>
+              <h2>{{ ex.name }}</h2>
+              <p>{{ ex.muscle }} • {{ ex.difficulty }}</p>
+            </ion-label>
+          </ion-item>
+        </ion-list>
+        <div
+          v-else
+          class="ion-text-center ion-padding"
+        >
+          <p>Esta rutina está vacía.</p>
+          <ion-button
+            fill="clear"
+            @click="isRoutineDetailOpen = false; viewMode = 'exercises'"
+          >
+            Ir a agregar ejercicios
+          </ion-button>
+        </div>
+      </ion-content>
+    </ion-modal>
+
   </ion-page>
 </template>
 
@@ -721,5 +940,10 @@ onIonViewWillLeave(() => {
 ion-card-title {
   font-size: 18px;
   font-weight: 600;
+}
+
+.custom-searchbar {
+  padding-top: 0;
+  padding-bottom: 10px;
 }
 </style>
