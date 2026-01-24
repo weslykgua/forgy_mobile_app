@@ -2,7 +2,7 @@
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
   IonList, IonItem, IonLabel, IonButton,
-  IonSearchbar, IonSegment, IonSegmentButton, IonChip,
+  IonSearchbar, IonSegment, IonSegmentButton, IonChip, IonGrid, IonRow, IonCol,
   IonIcon, IonCard, IonCardHeader, IonCardTitle, IonCardContent,
   IonFab, IonFabButton, IonModal, IonButtons, IonInput, IonTextarea,
   IonSelect, IonSelectOption, IonRefresher, IonRefresherContent,
@@ -12,7 +12,7 @@ import {
 import { ref, computed } from 'vue';
 import { io } from 'socket.io-client';
 import {
-  add, fitness, barbell, closeCircle, videocam, list, bookmark
+  add, fitness, barbell, closeCircle, videocam, list, bookmark, albums, reorderThreeOutline
 } from 'ionicons/icons';
 
 interface Exercise {
@@ -45,6 +45,7 @@ const selectedExercise = ref<Exercise | null>(null);
 const viewMode = ref<'exercises' | 'routines'>('exercises');
 const selectedRoutine = ref<Routine | null>(null);
 const isRoutineDetailOpen = ref(false);
+const isReorderMode = ref(false);
 
 let socket: any = null;
 
@@ -241,7 +242,7 @@ const createRoutine = async () => {
             const response = await fetch(`${API_URL}/routines`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ name: data.name })
+              body: JSON.stringify({ name: data.name, userId: 'clrt1j8k5000008l34w0o2q66' }) // Hardcoded user ID for now
             });
             if (response.ok) {
               showToast('Rutina creada');
@@ -293,6 +294,37 @@ const handleRefresh = async (event: CustomEvent) => {
   await loadExercises();
   await loadRoutines();
   (event.target as any).complete();
+};
+
+// Reordenar ejercicios en una rutina
+const handleExerciseReorder = async (event: CustomEvent) => {
+  if (!selectedRoutine.value) return;
+
+  // Aplica el reordenamiento al array local y lo devuelve
+  const reorderedExercises = event.detail.complete(selectedRoutine.value.exercises);
+  selectedRoutine.value.exercises = reorderedExercises;
+
+  // Extrae la lista ordenada de IDs de ejercicios
+  const exerciseIds = reorderedExercises.map((ex: Exercise) => ex.id);
+
+  try {
+    const routineId = selectedRoutine.value.id;
+    // Asumimos un endpoint en el backend para actualizar el orden
+    const response = await fetch(`${API_URL}/routines/${routineId}/reorder`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ exerciseIds })
+    });
+
+    if (!response.ok) {
+      throw new Error('Falló al guardar el nuevo orden');
+    }
+
+    await showToast('Orden de ejercicios actualizado', 'success');
+  } catch (error) {
+    console.error("Error reordenando ejercicios:", error);
+    await showToast('Error al guardar el nuevo orden', 'danger');
+  }
 };
 
 onIonViewWillEnter(() => {
@@ -515,32 +547,43 @@ onIonViewWillLeave(() => {
         <ion-refresher-content></ion-refresher-content>
       </ion-refresher>
 
-      <div v-if="routines.length > 0">
-        <ion-card
-          v-for="routine in routines"
-          :key="routine.id"
-          button
-          @click="selectedRoutine = routine; isRoutineDetailOpen = true"
-        >
-          <ion-card-header>
-            <ion-card-title>{{ routine.name }}</ion-card-title>
-          </ion-card-header>
-          <ion-card-content>
-            <ion-icon
-              :icon="list"
-              style="vertical-align: middle;"
-            ></ion-icon>
-            {{ routine.exercises?.length || 0 }} ejercicios
-          </ion-card-content>
-        </ion-card>
-      </div>
+      <ion-grid v-if="routines.length > 0">
+        <ion-row>
+          <ion-col
+            size="6"
+            v-for="routine in routines"
+            :key="routine.id"
+          >
+            <ion-card
+              button
+              @click="selectedRoutine = routine; isRoutineDetailOpen = true"
+              class="routine-card"
+            >
+              <img
+                alt="Routine image"
+                src="https://ionicframework.com/docs/img/demos/card-media.png"
+              />
+              <ion-card-header>
+                <ion-card-title>{{ routine.name }}</ion-card-title>
+              </ion-card-header>
+              <ion-card-content>
+                <ion-icon
+                  :icon="albums"
+                  style="vertical-align: middle;"
+                ></ion-icon>
+                {{ routine.exercises?.length || 0 }} ejercicios
+              </ion-card-content>
+            </ion-card>
+          </ion-col>
+        </ion-row>
+      </ion-grid>
 
       <div
         v-else
         class="empty-state"
       >
         <ion-icon
-          :icon="list"
+          :icon="albums"
           size="large"
         ></ion-icon>
         <h3>No tienes rutinas</h3>
@@ -766,10 +809,18 @@ onIonViewWillLeave(() => {
     <!-- Modal Detalle de Rutina -->
     <ion-modal
       :is-open="isRoutineDetailOpen"
-      @didDismiss="isRoutineDetailOpen = false"
+      @didDismiss="isRoutineDetailOpen = false; isReorderMode = false"
     >
       <ion-header>
         <ion-toolbar>
+          <ion-buttons slot="start">
+            <ion-button
+              v-if="selectedRoutine?.exercises && selectedRoutine.exercises.length > 0"
+              @click="isReorderMode = !isReorderMode"
+            >
+              {{ isReorderMode ? 'Hecho' : 'Ordenar' }}
+            </ion-button>
+          </ion-buttons>
           <ion-title>{{ selectedRoutine?.name }}</ion-title>
           <ion-buttons slot="end">
             <ion-button @click="isRoutineDetailOpen = false">Cerrar</ion-button>
@@ -777,7 +828,11 @@ onIonViewWillLeave(() => {
         </ion-toolbar>
       </ion-header>
       <ion-content class="ion-padding">
-        <ion-list v-if="selectedRoutine?.exercises && selectedRoutine.exercises.length > 0">
+        <ion-reorder-group
+          v-if="selectedRoutine?.exercises && selectedRoutine.exercises.length > 0"
+          :disabled="!isReorderMode"
+          @ionItemReorder="handleExerciseReorder($event)"
+        >
           <ion-item
             v-for="ex in selectedRoutine.exercises"
             :key="ex.id"
@@ -786,8 +841,11 @@ onIonViewWillLeave(() => {
               <h2>{{ ex.name }}</h2>
               <p>{{ ex.muscle }} • {{ ex.difficulty }}</p>
             </ion-label>
+            <ion-reorder slot="end">
+              <ion-icon :icon="reorderThreeOutline"></ion-icon>
+            </ion-reorder>
           </ion-item>
-        </ion-list>
+        </ion-reorder-group>
         <div
           v-else
           class="ion-text-center ion-padding"
@@ -937,5 +995,20 @@ ion-card-title {
 .custom-searchbar {
   padding-top: 0;
   padding-bottom: 10px;
+}
+
+.routine-card {
+  margin: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.routine-card ion-card-header {
+  padding-bottom: 8px;
+}
+
+.routine-card ion-card-content {
+  flex-grow: 1;
 }
 </style>
