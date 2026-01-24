@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
-  IonList, IonItem, IonLabel, IonButton,
-  IonSearchbar, IonSegment, IonSegmentButton, IonChip, IonGrid, IonRow, IonCol, IonReorder, IonReorderGroup,
+  IonList, IonItem, IonLabel, IonButton, IonCheckbox,
+  IonSearchbar, IonSegment, IonSegmentButton, IonChip, IonGrid, IonRow, IonCol, IonReorder, IonReorderGroup, IonItemSliding, IonItemOptions, IonItemOption,
   IonIcon, IonCard, IonCardHeader, IonCardTitle, IonCardContent,
   IonFab, IonFabButton, IonModal, IonButtons, IonInput, IonTextarea,
   IonSelect, IonSelectOption, IonRefresher, IonRefresherContent, actionSheetController,
@@ -13,7 +13,7 @@ import { ref, computed } from 'vue';
 import { io } from 'socket.io-client';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import {
-  add, fitness, barbell, closeCircle, videocam, list, bookmark, albums, reorderThreeOutline, ellipsisVertical, imageOutline, camera
+  add, fitness, barbell, closeCircle, videocam, list, bookmark, albums, reorderThreeOutline, ellipsisVertical, imageOutline, camera, addCircleOutline, trash, removeCircleOutline
 } from 'ionicons/icons';
 
 interface Exercise {
@@ -51,6 +51,17 @@ const isReorderMode = ref(false);
 const isImagePickerOpen = ref(false);
 const routineForImageChange = ref<Routine | null>(null);
 const isCreateRoutineModalOpen = ref(false);
+const isTrainingMode = ref(false);
+const isExerciseLogModalOpen = ref(false);
+const exerciseToLog = ref<Exercise | null>(null);
+const isAddExerciseModalOpen = ref(false);
+const addExerciseSearchText = ref('');
+const currentTrainingSessionId = ref<string | null>(null);
+const workoutLogs = ref<Record<string, {
+    sets: { reps: string; weight: string; completed: boolean }[];
+    notes: string;
+    duration: string;
+}>>({});
 const newRoutineForm = ref({ name: '', imageUrl: '' });
 const predefinedImages = ref([
   'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=870&q=80',
@@ -138,6 +149,24 @@ const filteredExercises = computed(() => {
   }
 
   return result;
+});
+
+const exercisesAvailableToAdd = computed(() => {
+  if (!selectedRoutine.value) return [];
+  
+  const exerciseIdsInRoutine = selectedRoutine.value.exercises.map(ex => ex.id);
+  
+  let available = exercises.value.filter(ex => !exerciseIdsInRoutine.includes(ex.id));
+
+  if (addExerciseSearchText.value) {
+    const search = addExerciseSearchText.value.toLowerCase();
+    available = available.filter(ex => 
+      ex.name.toLowerCase().includes(search) ||
+      ex.description?.toLowerCase().includes(search)
+    );
+  }
+
+  return available;
 });
 
 // Colores por dificultad
@@ -304,9 +333,12 @@ const addToRoutine = async (exercise: Exercise) => {
     return; // Detiene la ejecución aquí
   }
 
-  const availableRoutines = routines.value.filter(routine =>
-    !routine.exercises?.some(ex => ex.id === exercise.id)
-  );
+  const availableRoutines = routines.value.filter(routine => {
+    // A routine's `exercises` property is an array of join-table objects like { exerciseId: '...' }
+    const exerciseIdsInRoutine = (routine.exercises as any[] || []).map(re => re.exerciseId);
+    // We only want to show routines that DO NOT already include the exercise.
+    return !exerciseIdsInRoutine.includes(exercise.id);
+  });
 
   if (availableRoutines.length === 0) {
     showToast('Este ejercicio ya está en todas tus rutinas.', 'info');
@@ -357,6 +389,44 @@ const addToRoutine = async (exercise: Exercise) => {
 await alert.present();
 };
 
+const openAddExerciseModal = () => {
+  addExerciseSearchText.value = ''; // Reset search on open
+  isAddExerciseModalOpen.value = true;
+};
+
+const addExerciseToCurrentRoutine = async (exercise: Exercise) => {
+  if (!selectedRoutine.value) return;
+
+  const routineId = selectedRoutine.value.id;
+  const newOrder = selectedRoutine.value.exercises.length;
+
+  try {
+    const response = await fetch(`${API_URL}/routines/${routineId}/exercises`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ exerciseId: exercise.id, order: newOrder })
+    });
+
+    if (!response.ok) {
+      throw new Error('No se pudo agregar el ejercicio.');
+    }
+
+    // Update UI immediately
+    selectedRoutine.value.exercises.push(exercise);
+    
+    const routineInList = routines.value.find(r => r.id === routineId);
+    if (routineInList) {
+        (routineInList.exercises as any[]).push({ exerciseId: exercise.id, order: newOrder });
+    }
+
+    showToast(`${exercise.name} agregado a la rutina`, 'success');
+
+  } catch (error) {
+    console.error('Error adding exercise to routine:', error);
+    showToast((error as Error).message || 'Error al agregar', 'danger');
+  }
+};
+
 // Refrescar
 const handleRefresh = async (event: CustomEvent) => {
   await loadExercises();
@@ -396,6 +466,220 @@ const handleExerciseReorder = async (event: CustomEvent) => {
     console.error("Error reordenando ejercicios:", error);
     await showToast('Error al guardar el nuevo orden', 'danger');
   }
+};
+
+const confirmDeleteExerciseFromRoutine = async (exerciseId: string) => {
+  const alert = await alertController.create({
+    header: 'Confirmar',
+    message: '¿Seguro que quieres eliminar este ejercicio de la rutina?',
+    buttons: [
+      {
+        text: 'Cancelar',
+        role: 'cancel',
+        handler: () => {
+          // Close sliding item if it exists
+          const slidingItem = document.querySelector('ion-item-sliding.item-sliding-active');
+          if (slidingItem) {
+            (slidingItem as any).close();
+          }
+        }
+      },
+      {
+        text: 'Eliminar',
+        role: 'destructive',
+        handler: () => {
+          deleteExerciseFromRoutine(exerciseId);
+        }
+      }
+    ]
+  });
+  await alert.present();
+};
+
+const deleteExerciseFromRoutine = async (exerciseId: string) => {
+  if (!selectedRoutine.value) return;
+
+  const routineId = selectedRoutine.value.id;
+
+  try {
+    // This endpoint needs to be created in the backend.
+    // DELETE /api/routines/:routineId/exercises/:exerciseId
+    const response = await fetch(`${API_URL}/routines/${routineId}/exercises/${exerciseId}`, {
+      method: 'DELETE'
+    });
+
+    if (!response.ok) {
+      throw new Error('No se pudo eliminar el ejercicio.');
+    }
+
+    // Update UI immediately
+    selectedRoutine.value.exercises = selectedRoutine.value.exercises.filter(ex => ex.id !== exerciseId);
+    const routineInList = routines.value.find(r => r.id === routineId);
+    if (routineInList) {
+        (routineInList.exercises as any[]) = (routineInList.exercises as any[]).filter(re => re.exerciseId !== exerciseId);
+    }
+    showToast('Ejercicio eliminado de la rutina', 'success');
+  } catch (error) {
+    console.error('Error deleting exercise from routine:', error);
+    showToast((error as Error).message || 'Error al eliminar', 'danger');
+  }
+};
+
+const startTrainingSession = () => {
+  if (!selectedRoutine.value) return;
+
+  // Initialize logs for each exercise
+  const initialLogs: Record<string, any> = {};
+  selectedRoutine.value.exercises.forEach(ex => {
+    initialLogs[ex.id] = {
+      sets: [{ reps: '', weight: '', completed: false }],
+      notes: '',
+      duration: ''
+    };
+  });
+  workoutLogs.value = initialLogs;
+
+  isTrainingMode.value = true;
+  isReorderMode.value = false; // Ensure reorder mode is off
+  currentTrainingSessionId.value = null; // We don't have a session ID at the start anymore.
+};
+
+const addSet = (exerciseId: string) => {
+  if (workoutLogs.value[exerciseId]) {
+    workoutLogs.value[exerciseId].sets.push({ reps: '', weight: '', completed: false });
+  }
+};
+
+const removeSet = (exerciseId: string, setIndex: number) => {
+  if (workoutLogs.value[exerciseId] && workoutLogs.value[exerciseId].sets.length > 1) {
+    workoutLogs.value[exerciseId].sets.splice(setIndex, 1);
+  } else {
+    showToast('Cada ejercicio debe tener al menos una serie.', 'warning');
+  }
+};
+
+const finishWorkout = async () => {
+  if (!isTrainingMode.value) return;
+
+  const alert = await alertController.create({
+    header: 'Finalizar Entreno',
+    message: '¿Quieres guardar este entrenamiento?',
+    buttons: [
+      { text: 'Cancelar', role: 'cancel' },
+      {
+        text: 'Guardar',
+        handler: async () => {
+          try {
+            const finalLogs = Object.entries(workoutLogs.value)
+              .map(([exerciseId, logData]) => {
+                const completedSets = logData.sets
+                  .filter(set => set.reps && set.weight && set.completed)
+                  .map(set => ({
+                    reps: Number(set.reps),
+                    weight: Number(set.weight),
+                    completed: set.completed,
+                  }));
+
+                if (completedSets.length > 0) {
+                  return {
+                    exerciseId: exerciseId,
+                    sets: completedSets,
+                    notes: logData.notes,
+                    duration: logData.duration ? parseInt(logData.duration, 10) : null,
+                  };
+                }
+                return null;
+              })
+              .filter(Boolean);
+
+            if (finalLogs.length === 0) {
+              showToast('No se registraron series completas.', 'info');
+              // Still reset the state
+              isTrainingMode.value = false;
+              isRoutineDetailOpen.value = false;
+              workoutLogs.value = {};
+              currentTrainingSessionId.value = null;
+              return;
+            }
+
+            const totalDuration = finalLogs.reduce((sum, log) => sum + (log?.duration || 0), 0);
+
+            const workoutPayload = {
+              userId: 'clrt1j8k5000008l34w0o2q66', // Hardcoded user ID
+              routineId: selectedRoutine.value?.id,
+              duration: totalDuration > 0 ? totalDuration : null,
+              workouts: finalLogs,
+            };
+
+            const response = await fetch(`${API_URL}/workouts`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(workoutPayload),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to save workout');
+            }
+            
+            await showToast('¡Entrenamiento guardado con éxito!', 'success');
+
+            // Reset state and close modal
+            isTrainingMode.value = false;
+            isRoutineDetailOpen.value = false;
+            currentTrainingSessionId.value = null;
+            workoutLogs.value = {};
+
+          } catch (error) {
+            console.error('Error finishing workout:', error);
+            showToast((error as Error).message || 'Error al guardar el entrenamiento.', 'danger');
+          }
+        },
+      },
+    ],
+  });
+  await alert.present();
+};
+
+const canDismissRoutineDetail = async () => {
+  if (!isTrainingMode.value) return true;
+
+  return new Promise(async (resolve) => {
+    const alert = await alertController.create({
+      header: 'Descartar Entreno',
+      message: 'Tienes un entrenamiento en progreso. ¿Estás seguro?',
+      buttons: [
+        { text: 'Continuar', role: 'cancel', handler: () => resolve(false) },
+        { text: 'Descartar', role: 'destructive', handler: () => {
+            isTrainingMode.value = false;
+            currentTrainingSessionId.value = null;
+            workoutLogs.value = {};
+            resolve(true);
+        }},
+      ],
+    });
+    await alert.present();
+  });
+};
+
+const handleExerciseClick = (exercise: Exercise) => {
+  // Do nothing if we are in reorder mode
+  if (isReorderMode.value) {
+    return;
+  }
+
+  // If training session has not started, start it now.
+  if (!isTrainingMode.value) {
+    startTrainingSession();
+  }
+
+  // Now that session is started, open the log modal for the exercise.
+  openExerciseLogModal(exercise);
+};
+
+const openExerciseLogModal = (exercise: Exercise) => {
+  exerciseToLog.value = exercise;
+  isExerciseLogModalOpen.value = true;
 };
 
 const presentRoutineOptions = async (routine: Routine) => {
@@ -1117,70 +1401,223 @@ onIonViewWillLeave(() => {
     <!-- Modal Detalle de Rutina -->
     <ion-modal
       :is-open="isRoutineDetailOpen"
-      @didDismiss="isRoutineDetailOpen = false; isReorderMode = false"
+      @didDismiss="isReorderMode = false"
+      :can-dismiss="canDismissRoutineDetail"
     >
       <ion-header>
         <ion-toolbar>
           <ion-buttons slot="start">
-            <ion-button
-              v-if="selectedRoutine?.exercises && selectedRoutine.exercises.length > 0"
+            <ion-button v-if="selectedRoutine?.exercises && selectedRoutine.exercises.length > 0"
               @click="isReorderMode = !isReorderMode"
+              :disabled="isTrainingMode"
             >
               {{ isReorderMode ? 'Hecho' : 'Ordenar' }}
             </ion-button>
           </ion-buttons>
           <ion-title>{{ selectedRoutine?.name }}</ion-title>
           <ion-buttons slot="end">
+            <ion-button
+              v-if="isTrainingMode"
+              @click="finishWorkout"
+              color="success"
+              strong
+            >Finalizar</ion-button>
             <ion-button @click="isRoutineDetailOpen = false">Cerrar</ion-button>
           </ion-buttons>
         </ion-toolbar>
       </ion-header>
       <ion-content class="ion-padding">
-        <ion-reorder-group
-          v-if="selectedRoutine?.exercises && selectedRoutine.exercises.length > 0"
+        <template v-if="selectedRoutine">
+          <ion-reorder-group
+          v-if="selectedRoutine.exercises && selectedRoutine.exercises.length > 0"
           :disabled="!isReorderMode"
           @ionItemReorder="handleExerciseReorder($event)"
         >
-          <ion-item
+          <ion-item-sliding
             v-for="ex in selectedRoutine.exercises"
             :key="ex.id"
-            lines="full"
-            class="exercise-list-item"
+            :disabled="isReorderMode"
           >
-            <div
-              slot="start"
-              class="exercise-avatar"
+            <ion-item
+              lines="full"
+              class="exercise-list-item"
+              :button="!isReorderMode"
+              @click="handleExerciseClick(ex)"
+              :detail="!isReorderMode"
             >
-              {{ getMuscleEmoji(ex.muscle) }}
-            </div>
-            <ion-label>
-              <h2>{{ ex.name }}</h2>
-              <p>
-                {{ ex.muscle }} •
-                <ion-chip
-                  :color="getDifficultyColor(ex.difficulty)"
-                  size="small"
-                  class="inline-chip"
-                >{{ ex.difficulty }}</ion-chip>
-              </p>
-            </ion-label>
-            <ion-reorder slot="end">
-              <ion-icon :icon="reorderThreeOutline"></ion-icon>
-            </ion-reorder>
-          </ion-item>
+              <ion-button v-if="isReorderMode" slot="start" fill="clear" color="danger" @click.stop="confirmDeleteExerciseFromRoutine(ex.id)">
+                <ion-icon :icon="removeCircleOutline" slot="icon-only"></ion-icon>
+              </ion-button>
+              <div v-if="!isReorderMode" slot="start" class="exercise-avatar">
+                {{ getMuscleEmoji(ex.muscle) }}
+              </div>
+              <ion-label>
+                <h2>{{ ex.name }}</h2>
+                <p v-if="isTrainingMode && workoutLogs[ex.id]">
+                  {{ workoutLogs[ex.id].sets.filter(s => s.completed).length }} de {{ workoutLogs[ex.id].sets.length }} series
+                </p>
+                <p v-else>
+                  {{ ex.muscle }}
+                </p>
+              </ion-label>
+              <ion-reorder v-if="isReorderMode" slot="end">
+                <ion-icon :icon="reorderThreeOutline"></ion-icon>
+              </ion-reorder>
+            </ion-item>
+            <ion-item-options side="end">
+              <ion-item-option color="danger" @click="confirmDeleteExerciseFromRoutine(ex.id)">
+                <ion-icon :icon="trash" slot="icon-only"></ion-icon>
+              </ion-item-option>
+            </ion-item-options>
+          </ion-item-sliding>
         </ion-reorder-group>
+
         <div
           v-else
           class="ion-text-center ion-padding"
         >
           <p>Esta rutina está vacía.</p>
-          <ion-button
-            fill="clear"
-            @click="isRoutineDetailOpen = false; viewMode = 'exercises'"
-          >
-            Ir a agregar ejercicios
+          <ion-button fill="clear" @click="openAddExerciseModal">
+            <ion-icon :icon="add" slot="start"></ion-icon>
+            Agregar Ejercicios
           </ion-button>
         </div>
+        </template>
+        <ion-fab
+          v-if="selectedRoutine && selectedRoutine.exercises.length > 0 && !isReorderMode && !isTrainingMode"
+          slot="fixed"
+          vertical="bottom"
+          horizontal="end"
+        >
+          <ion-fab-button @click="openAddExerciseModal">
+            <ion-icon :icon="add"></ion-icon>
+          </ion-fab-button>
+        </ion-fab>
+      </ion-content>
+    </ion-modal>
+
+    <!-- Modal para agregar ejercicio a la rutina -->
+    <ion-modal :is-open="isAddExerciseModalOpen" @didDismiss="isAddExerciseModalOpen = false">
+      <ion-header>
+        <ion-toolbar>
+          <ion-title>Agregar Ejercicio</ion-title>
+          <ion-buttons slot="end">
+            <ion-button @click="isAddExerciseModalOpen = false">Cerrar</ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+        <ion-toolbar>
+            <ion-searchbar v-model="addExerciseSearchText" placeholder="Buscar ejercicio para agregar..."></ion-searchbar>
+        </ion-toolbar>
+      </ion-header>
+      <ion-content class="ion-padding">
+        <ion-list>
+          <ion-item v-for="ex in exercisesAvailableToAdd" :key="ex.id" lines="full">
+            <div slot="start" class="exercise-avatar">{{ getMuscleEmoji(ex.muscle) }}</div>
+            <ion-label>
+              <h2>{{ ex.name }}</h2>
+              <p>{{ ex.muscle }}</p>
+            </ion-label>
+            <ion-button slot="end" fill="clear" @click="addExerciseToCurrentRoutine(ex)">
+              <ion-icon slot="icon-only" :icon="addCircleOutline"></ion-icon>
+            </ion-button>
+          </ion-item>
+        </ion-list>
+        <div v-if="exercisesAvailableToAdd.length === 0" class="empty-state">
+            <h3>Todo Agregado</h3>
+            <p>No hay más ejercicios para agregar o que coincidan con tu búsqueda.</p>
+        </div>
+      </ion-content>
+    </ion-modal>
+
+    <!-- Modal para registrar series de un ejercicio -->
+    <ion-modal
+      :is-open="isExerciseLogModalOpen"
+      @didDismiss="isExerciseLogModalOpen = false"
+    >
+      <ion-header>
+        <ion-toolbar>
+          <ion-title>{{ exerciseToLog?.name }}</ion-title>
+          <ion-buttons slot="end">
+            <ion-button
+              strong
+              @click="isExerciseLogModalOpen = false"
+            >Hecho</ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+      <ion-content
+        class="ion-padding"
+        v-if="exerciseToLog && workoutLogs[exerciseToLog.id]"
+      >
+        <div class="sets-header">
+          <ion-label>Set</ion-label>
+          <ion-label>Peso (kg)</ion-label>
+          <ion-label>Reps</ion-label>
+          <ion-label>Hecho</ion-label>
+          <span />
+        </div>
+        <div
+          v-for="(set, index) in workoutLogs[exerciseToLog.id].sets"
+          :key="index"
+          class="set-row"
+        >
+          <ion-label class="set-number">{{ index + 1 }}</ion-label>
+          <ion-input
+            type="number"
+            v-model="set.weight"
+            placeholder="0"
+          ></ion-input>
+          <ion-input
+            type="number"
+            v-model="set.reps"
+            placeholder="0"
+          ></ion-input>
+          <ion-checkbox v-model="set.completed"></ion-checkbox>
+          <ion-button
+            fill="clear"
+            color="danger"
+            @click="removeSet(exerciseToLog!.id, index)"
+          >
+            <ion-icon
+              slot="icon-only"
+              :icon="trash"
+            ></ion-icon>
+          </ion-button>
+        </div>
+        <ion-button
+          expand="block"
+          fill="clear"
+          @click="addSet(exerciseToLog!.id)"
+          class="ion-margin-bottom"
+        >
+          <ion-icon
+            slot="start"
+            :icon="addCircleOutline"
+          ></ion-icon>
+          Añadir Serie
+        </ion-button>
+
+        <ion-item>
+          <ion-input
+            label="Duración (minutos)"
+            label-placement="stacked"
+            type="number"
+            v-model="workoutLogs[exerciseToLog.id].duration"
+            placeholder="Ej: 15"
+          ></ion-input>
+        </ion-item>
+
+        <ion-item>
+          <ion-textarea
+            label="Notas del ejercicio"
+            label-placement="stacked"
+            v-model="workoutLogs[exerciseToLog.id].notes"
+            placeholder="¿Cómo te sentiste? ¿Alguna observación?"
+            :auto-grow="true"
+            :rows="3"
+          ></ion-textarea>
+        </ion-item>
+
       </ion-content>
     </ion-modal>
 
@@ -1476,5 +1913,45 @@ ion-card-title {
   font-size: 10px;
   margin-left: 4px;
   vertical-align: middle;
+}
+
+.training-exercise-card {
+  margin-bottom: 20px;
+}
+
+.sets-header,
+.set-row {
+  display: grid;
+  grid-template-columns: 0.5fr 1fr 1fr 0.7fr 0.5fr;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.sets-header {
+  font-weight: bold;
+  color: var(--ion-color-medium);
+  font-size: 12px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--ion-color-step-150, #e0e0e0);
+  padding-bottom: 8px;
+}
+
+.set-row ion-input {
+  background: var(--ion-color-step-100, #f2f2f2);
+  border-radius: 6px;
+  --padding-start: 8px;
+  --padding-end: 8px;
+  text-align: center;
+}
+
+.set-number {
+  text-align: center;
+  font-weight: bold;
+  color: var(--ion-color-medium);
+}
+
+.set-row ion-checkbox {
+  justify-self: center;
 }
 </style>
