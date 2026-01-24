@@ -2,7 +2,7 @@
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
   IonList, IonItem, IonLabel, IonButton,
-  IonSearchbar, IonSegment, IonSegmentButton, IonChip, IonGrid, IonRow, IonCol,
+  IonSearchbar, IonSegment, IonSegmentButton, IonChip, IonGrid, IonRow, IonCol, IonReorder, IonReorderGroup,
   IonIcon, IonCard, IonCardHeader, IonCardTitle, IonCardContent,
   IonFab, IonFabButton, IonModal, IonButtons, IonInput, IonTextarea,
   IonSelect, IonSelectOption, IonRefresher, IonRefresherContent, actionSheetController,
@@ -11,8 +11,9 @@ import {
 } from '@ionic/vue';
 import { ref, computed } from 'vue';
 import { io } from 'socket.io-client';
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import {
-  add, fitness, barbell, closeCircle, videocam, list, bookmark, albums, reorderThreeOutline, ellipsisVertical, imageOutline
+  add, fitness, barbell, closeCircle, videocam, list, bookmark, albums, reorderThreeOutline, ellipsisVertical, imageOutline, camera
 } from 'ionicons/icons';
 
 interface Exercise {
@@ -49,6 +50,8 @@ const isRoutineDetailOpen = ref(false);
 const isReorderMode = ref(false);
 const isImagePickerOpen = ref(false);
 const routineForImageChange = ref<Routine | null>(null);
+const isCreateRoutineModalOpen = ref(false);
+const newRoutineForm = ref({ name: '', imageUrl: '' });
 const predefinedImages = ref([
   'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=870&q=80',
   'https://images.unsplash.com/photo-1581009137042-c552e485697a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=870&q=80',
@@ -165,14 +168,23 @@ const loadExercises = async () => {
 const loadRoutines = async () => {
   try {
     const response = await fetch(`${API_URL}/routines`);
-    routines.value = await response.json();
+    const data = await response.json();
+    if (Array.isArray(data)) {
+      routines.value = data;
+    } else {
+      console.error("La respuesta de la API para rutinas no es un array:", data);
+      routines.value = []; // Asegurarse de que siempre sea un array
+    }
   } catch (error) {
     console.error("Error fetching routines", error);
+    routines.value = []; // Resetear en caso de error de red
   }
 };
 
-// Mostrar toast
-const showToast = async (message: string, color: string = 'success') => {
+const showToast = async (
+  message: string,
+  color: string = 'success'
+) => {
   const toast = await toastController.create({
     message,
     duration: 2000,
@@ -184,6 +196,7 @@ const showToast = async (message: string, color: string = 'success') => {
 
 // Abrir modal para crear
 const openCreateModal = () => {
+  (document.activeElement as HTMLElement)?.blur();
   form.value = {
     name: '',
     muscle: 'Pecho',
@@ -199,6 +212,7 @@ const openCreateModal = () => {
 
 // Abrir modal de detalles
 const openDetailModal = (exercise: Exercise) => {
+  (document.activeElement as HTMLElement)?.blur();
   selectedExercise.value = exercise;
   isDetailModalOpen.value = true;
 };
@@ -234,51 +248,74 @@ const saveExercise = async () => {
 
 // Crear nueva rutina
 const createRoutine = async () => {
-  const alert = await alertController.create({
-    header: 'Nueva Rutina',
-    inputs: [
-      {
-        name: 'name',
-        type: 'text',
-        placeholder: 'Nombre de la rutina (ej. Pierna Lunes)'
-      }
-    ],
-    buttons: [
-      'Cancelar',
-      {
-        text: 'Crear',
-        handler: async (data) => {
-          if (!data.name) return;
-          try {
-            const response = await fetch(`${API_URL}/routines`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ name: data.name, userId: 'clrt1j8k5000008l34w0o2q66' }) // Hardcoded user ID for now
-            });
-            if (response.ok) {
-              showToast('Rutina creada');
-              loadRoutines();
-            }
-          } catch (e) {
-            showToast('Error al crear rutina', 'danger');
-          }
-        }
-      }
-    ]
-  });
-  await alert.present();
+  (document.activeElement as HTMLElement)?.blur();
+  newRoutineForm.value = { name: '', imageUrl: '' };
+  isCreateRoutineModalOpen.value = true;
+};
+
+// Guardar la nueva rutina creada desde el modal
+const saveNewRoutine = async () => {
+  if (!newRoutineForm.value.name) {
+    showToast('Por favor, dale un nombre a la rutina', 'warning');
+    return;
+  }
+  try {
+    const response = await fetch(`${API_URL}/routines`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...newRoutineForm.value,
+        userId: 'clrt1j8k5000008l34w0o2q66' // Hardcoded user ID for now
+      })
+    });
+    if (response.ok) {
+      showToast('Rutina creada con éxito');
+      loadRoutines();
+      isCreateRoutineModalOpen.value = false;
+    } else {
+      throw new Error('Error en la respuesta del servidor');
+    }
+  } catch (e) {
+    showToast('Error al crear la rutina', 'danger');
+  }
 };
 
 // Agregar ejercicio a rutina
 const addToRoutine = async (exercise: Exercise) => {
-  if (routines.value.length === 0) {
-    showToast('Crea una rutina primero', 'warning');
+  if (!Array.isArray(routines.value) || routines.value.length === 0) {
+    const alert = await alertController.create({
+      header: 'No Tienes Rutinas',
+      message: 'Para guardar un ejercicio, primero necesitas una rutina. ¿Quieres crear una ahora?',
+      buttons: [
+        {
+          text: 'Ahora no',
+          role: 'cancel',
+        },
+        {
+          text: 'Crear Rutina',
+          handler: () => {
+            isDetailModalOpen.value = false; // Cierra el modal de detalle del ejercicio
+            createRoutine(); // Abre el modal para crear una nueva rutina
+          },
+        },
+      ],
+    });
+    await alert.present();
+    return; // Detiene la ejecución aquí
+  }
+
+  const availableRoutines = routines.value.filter(routine =>
+    !routine.exercises?.some(ex => ex.id === exercise.id)
+  );
+
+  if (availableRoutines.length === 0) {
+    showToast('Este ejercicio ya está en todas tus rutinas.', 'info');
     return;
   }
 
   const alert = await alertController.create({
     header: 'Guardar en Rutina',
-    inputs: routines.value.map(r => ({
+    inputs: availableRoutines.map(r => ({
       type: 'radio',
       label: r.name,
       value: r.id
@@ -287,17 +324,37 @@ const addToRoutine = async (exercise: Exercise) => {
       text: 'Guardar',
       handler: async (routineId) => {
         if (!routineId) return;
-        await fetch(`${API_URL}/routines/${routineId}/exercises`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ exerciseId: exercise.id })
-        });
-        showToast(`Agregado a rutina`, 'success');
-        isDetailModalOpen.value = false;
+        const targetRoutine = routines.value.find(r => r.id === routineId);
+        const newOrder = targetRoutine?.exercises?.length || 0;
+
+        try {
+          const response = await fetch(`${API_URL}/routines/${routineId}/exercises`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ exerciseId: exercise.id, order: newOrder })
+          });
+          if (!response.ok) {
+            let errorMessage = 'No se pudo agregar el ejercicio a la rutina.';
+            try {
+              const errorData = await response.json();
+              if (errorData && errorData.message) errorMessage = errorData.message;
+            } catch (e) {
+              // Ignore if parsing fails, use generic message
+            }
+            throw new Error(errorMessage);
+          }
+
+          showToast(`Agregado a rutina`, 'success');
+          isDetailModalOpen.value = false;
+          loadRoutines(); // Recargar las rutinas para actualizar el contador
+        } catch (error: any) {
+          console.error(error);
+          showToast((error as Error).message, 'danger');
+        }
       }
-    }]
-  });
-  await alert.present();
+    }
+  ]});
+await alert.present();
 };
 
 // Refrescar
@@ -316,15 +373,18 @@ const handleExerciseReorder = async (event: CustomEvent) => {
   selectedRoutine.value.exercises = reorderedExercises;
 
   // Extrae la lista ordenada de IDs de ejercicios
-  const exerciseIds = reorderedExercises.map((ex: Exercise) => ex.id);
+  const exercisesWithOrder = reorderedExercises.map((ex: Exercise, index: number) => ({
+    exerciseId: ex.id,
+    order: index,
+  }));
 
   try {
     const routineId = selectedRoutine.value.id;
-    // Asumimos un endpoint en el backend para actualizar el orden
-    const response = await fetch(`${API_URL}/routines/${routineId}/reorder`, {
+    // Actualizamos la rutina principal con la nueva lista ordenada de ejercicios
+    const response = await fetch(`${API_URL}/routines/${routineId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ exerciseIds })
+      body: JSON.stringify({ exercises: exercisesWithOrder })
     });
 
     if (!response.ok) {
@@ -339,6 +399,7 @@ const handleExerciseReorder = async (event: CustomEvent) => {
 };
 
 const presentRoutineOptions = async (routine: Routine) => {
+  (document.activeElement as HTMLElement)?.blur();
   const actionSheet = await actionSheetController.create({
     header: routine.name,
     buttons: [
@@ -352,7 +413,7 @@ const presentRoutineOptions = async (routine: Routine) => {
         text: 'Cambiar Imagen',
         icon: imageOutline,
         handler: () => {
-          openImagePicker(routine);
+          openImagePicker(routine); // Pasamos la rutina para editarla
         },
       },
       {
@@ -421,9 +482,15 @@ const confirmDeleteRoutine = async (routine: Routine) => {
         text: 'Eliminar',
         role: 'destructive',
         handler: async () => {
-          await fetch(`${API_URL}/routines/${routine.id}`, { method: 'DELETE' });
-          showToast('Rutina eliminada', 'success');
-          loadRoutines();
+          try {
+            const response = await fetch(`${API_URL}/routines/${routine.id}`, { method: 'DELETE' });
+            if (!response.ok) throw new Error('No se pudo eliminar la rutina.');
+            showToast('Rutina eliminada', 'success');
+            loadRoutines();
+          } catch (error: any) {
+            console.error(error);
+            showToast(error.message, 'danger');
+          }
         },
       },
     ],
@@ -431,34 +498,85 @@ const confirmDeleteRoutine = async (routine: Routine) => {
   await alert.present();
 };
 
-const openImagePicker = (routine: Routine) => {
+const openRoutineDetail = (routine: Routine) => {
+  (document.activeElement as HTMLElement)?.blur();
+
+  // The 'routine' object from the list has an 'exercises' array of {exerciseId, order}.
+  // We need to map these to the full Exercise objects from our `exercises` ref.
+  const hydratedExercises = (routine.exercises as any[])
+    .map(routineExercise => {
+      const fullExercise = exercises.value.find(e => e.id === routineExercise.exerciseId);
+      // We also need to preserve the order from the routine
+      if (fullExercise) {
+        return { ...fullExercise, order: routineExercise.order };
+      }
+      return null; // Return null if exercise not found
+    })
+    .filter(Boolean) // Remove any nulls
+    .sort((a, b) => (a?.order || 0) - (b?.order || 0)); // Sort by the order property
+
+  selectedRoutine.value = {
+    ...routine,
+    exercises: hydratedExercises as Exercise[],
+  };
+  isRoutineDetailOpen.value = true;
+};
+
+const openImagePicker = (routine: Routine | null) => {
   routineForImageChange.value = routine;
   isImagePickerOpen.value = true;
 };
 
 const updateRoutineImage = async (imageUrl: string) => {
-  if (!routineForImageChange.value) return;
+  // Si 'routineForImageChange' tiene valor, estamos editando una rutina existente.
+  if (routineForImageChange.value) {
+    const routine = routineForImageChange.value;
+    try {
+      const response = await fetch(`${API_URL}/routines/${routine.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl: imageUrl }),
+      });
+      if (!response.ok) throw new Error('Error al cambiar la imagen');
 
-  const routine = routineForImageChange.value;
-  try {
-    const response = await fetch(`${API_URL}/routines/${routine.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ imageUrl: imageUrl }),
-    });
-    if (!response.ok) throw new Error('Error al cambiar la imagen');
+      // Actualizar datos locales para feedback inmediato
+      const routineInList = routines.value.find(r => r.id === routine.id);
+      if (routineInList) {
+        routineInList.imageUrl = imageUrl;
+      }
 
-    // Update local data for immediate UI feedback
-    const routineInList = routines.value.find(r => r.id === routine.id);
-    if (routineInList) {
-      routineInList.imageUrl = imageUrl;
+      await showToast('Imagen de rutina actualizada', 'success');
+      isImagePickerOpen.value = false;
+    } catch (error) {
+      console.error(error);
+      await showToast('No se pudo cambiar la imagen', 'danger');
     }
-
-    await showToast('Imagen de rutina actualizada', 'success');
+  } else {
+    // Si no, estamos creando una nueva rutina. Solo actualizamos el formulario.
+    newRoutineForm.value.imageUrl = imageUrl;
     isImagePickerOpen.value = false;
+  }
+};
+
+const selectImageFromDevice = async () => {
+  try {
+    const image = await Camera.getPhoto({
+      quality: 90,
+      allowEditing: true,
+      resultType: CameraResultType.Uri,
+      source: CameraSource.Prompt, // Pregunta al usuario si quiere usar Cámara o Galería
+      promptLabelHeader: 'Seleccionar Imagen',
+      promptLabelPhoto: 'Desde la Galería',
+      promptLabelPicture: 'Tomar Foto'
+    });
+
+    if (image.webPath) {
+      // Esta función se encargará de si estamos creando o editando
+      updateRoutineImage(image.webPath);
+    }
   } catch (error) {
-    console.error(error);
-    await showToast('No se pudo cambiar la imagen', 'danger');
+    console.error('Error al seleccionar imagen', error);
+    showToast('No se pudo seleccionar la imagen. Revisa los permisos.', 'warning');
   }
 };
 
@@ -691,7 +809,7 @@ onIonViewWillLeave(() => {
           >
             <ion-card
               button
-              @click="selectedRoutine = routine; isRoutineDetailOpen = true"
+              @click="openRoutineDetail(routine)"
               class="routine-card"
             >
               <ion-button
@@ -748,6 +866,51 @@ onIonViewWillLeave(() => {
         </ion-fab-button>
       </ion-fab>
     </ion-content>
+
+    <!-- Modal Crear Rutina -->
+    <ion-modal
+      :is-open="isCreateRoutineModalOpen"
+      @didDismiss="isCreateRoutineModalOpen = false"
+    >
+      <ion-header>
+        <ion-toolbar color="primary">
+          <ion-buttons slot="start">
+            <ion-button @click="isCreateRoutineModalOpen = false">Cancelar</ion-button>
+          </ion-buttons>
+          <ion-title>Nueva Rutina</ion-title>
+          <ion-buttons slot="end">
+            <ion-button
+              strong
+              @click="saveNewRoutine"
+            >Crear</ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+      <ion-content>
+        <div class="routine-image-preview-container">
+          <div
+            class="routine-image-preview"
+            @click="openImagePicker(null)"
+          >
+            <img
+              :src="newRoutineForm.imageUrl || '/assets/placeholder-image.png'"
+              alt="Routine preview"
+            />
+            <div class="edit-overlay">Elegir Imagen</div>
+          </div>
+        </div>
+        <ion-list>
+          <ion-item>
+            <ion-input
+              v-model="newRoutineForm.name"
+              label="Nombre de la rutina"
+              label-placement="stacked"
+              placeholder="Ej: Día de Piernas"
+            ></ion-input>
+          </ion-item>
+        </ion-list>
+      </ion-content>
+    </ion-modal>
 
     <!-- Modal crear/editar -->
     <ion-modal
@@ -981,10 +1144,25 @@ onIonViewWillLeave(() => {
           <ion-item
             v-for="ex in selectedRoutine.exercises"
             :key="ex.id"
+            lines="full"
+            class="exercise-list-item"
           >
+            <div
+              slot="start"
+              class="exercise-avatar"
+            >
+              {{ getMuscleEmoji(ex.muscle) }}
+            </div>
             <ion-label>
               <h2>{{ ex.name }}</h2>
-              <p>{{ ex.muscle }} • {{ ex.difficulty }}</p>
+              <p>
+                {{ ex.muscle }} •
+                <ion-chip
+                  :color="getDifficultyColor(ex.difficulty)"
+                  size="small"
+                  class="inline-chip"
+                >{{ ex.difficulty }}</ion-chip>
+              </p>
             </ion-label>
             <ion-reorder slot="end">
               <ion-icon :icon="reorderThreeOutline"></ion-icon>
@@ -1020,6 +1198,17 @@ onIonViewWillLeave(() => {
         </ion-toolbar>
       </ion-header>
       <ion-content class="ion-padding">
+        <ion-button
+          expand="block"
+          @click="selectImageFromDevice"
+          class="ion-margin-bottom"
+        >
+          <ion-icon
+            slot="start"
+            :icon="camera"
+          ></ion-icon>
+          Subir desde el dispositivo
+        </ion-button>
         <ion-grid>
           <ion-row>
             <ion-col
@@ -1225,5 +1414,67 @@ ion-card-title {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.routine-image-preview-container {
+  padding: 16px;
+}
+
+.routine-image-preview {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  background-color: var(--forgy-input-bg);
+}
+
+.routine-image-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.edit-overlay {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.routine-image-preview:hover .edit-overlay {
+  opacity: 1;
+}
+
+.exercise-list-item {
+  --padding-start: 0;
+}
+
+.exercise-avatar {
+  width: 50px;
+  height: 50px;
+  background-color: var(--forgy-input-bg);
+  border-radius: 12px;
+  margin-right: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.inline-chip {
+  --padding-start: 6px;
+  --padding-end: 6px;
+  height: 20px;
+  font-size: 10px;
+  margin-left: 4px;
+  vertical-align: middle;
 }
 </style>
