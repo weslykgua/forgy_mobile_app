@@ -618,17 +618,18 @@ const finishWorkout = async () => {
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to save workout');
+                const errorData = await response.json().catch(() => ({})); // Handle cases where response is not json
+                console.error("Backend error details:", errorData);
+                const errorMessage = errorData.details || errorData.error || `Error: ${response.statusText}`;
+                throw new Error(errorMessage);
             }
             
             await showToast('¡Entrenamiento guardado con éxito!', 'success');
 
-            // Reset state and close modal
+            // Bypass the canDismiss confirmation by resetting training mode before closing
             isTrainingMode.value = false;
+
             isRoutineDetailOpen.value = false;
-            currentTrainingSessionId.value = null;
-            workoutLogs.value = {};
 
           } catch (error) {
             console.error('Error finishing workout:', error);
@@ -641,25 +642,31 @@ const finishWorkout = async () => {
   await alert.present();
 };
 
-const canDismissRoutineDetail = async () => {
-  if (!isTrainingMode.value) return true;
+const onRoutineDetailDismiss = () => {
+  isReorderMode.value = false;
+  isTrainingMode.value = false;
+  workoutLogs.value = {};
+  currentTrainingSessionId.value = null;
+};
 
-  return new Promise(async (resolve) => {
-    const alert = await alertController.create({
-      header: 'Descartar Entreno',
-      message: 'Tienes un entrenamiento en progreso. ¿Estás seguro?',
-      buttons: [
-        { text: 'Continuar', role: 'cancel', handler: () => resolve(false) },
-        { text: 'Descartar', role: 'destructive', handler: () => {
-            isTrainingMode.value = false;
-            currentTrainingSessionId.value = null;
-            workoutLogs.value = {};
-            resolve(true);
-        }},
-      ],
-    });
-    await alert.present();
+const canDismissRoutineDetail = async () => {
+  if (!isTrainingMode.value) {
+    return true;
+  }
+
+  const alert = await alertController.create({
+    header: 'Salir sin Guardar',
+    message: 'Tienes un entrenamiento en progreso. Si sales, no se guardarán los registros. ¿Estás seguro?',
+    buttons: [
+      { text: 'Continuar Entreno', role: 'cancel' },
+      { text: 'Salir', role: 'destructive' }
+    ]
   });
+  await alert.present();
+  const { role } = await alert.onDidDismiss();
+
+  // Only allow dismiss if the user explicitly chose to exit ('destructive' role)
+  return role === 'destructive';
 };
 
 const handleExerciseClick = (exercise: Exercise) => {
@@ -1401,7 +1408,7 @@ onIonViewWillLeave(() => {
     <!-- Modal Detalle de Rutina -->
     <ion-modal
       :is-open="isRoutineDetailOpen"
-      @didDismiss="isReorderMode = false"
+      @didDismiss="onRoutineDetailDismiss"
       :can-dismiss="canDismissRoutineDetail"
     >
       <ion-header>
