@@ -558,6 +558,19 @@ const removeSet = (exerciseId: string, setIndex: number) => {
   }
 };
 
+const validateSetCompletion = (event: CustomEvent, set: { reps: string; weight: string; completed: boolean }) => {
+  const isChecked = event.detail.checked;
+  if (isChecked) {
+    if (!set.weight || !set.reps || Number(set.weight) <= 0 || Number(set.reps) <= 0) {
+      showToast('Ingresa peso y repeticiones válidos antes de marcar.', 'warning');
+      // Revert the checkbox state if validation fails
+      setTimeout(() => {
+        set.completed = false;
+      }, 10);
+    }
+  }
+};
+
 const finishWorkout = async () => {
   if (!isTrainingMode.value) return;
 
@@ -1579,7 +1592,10 @@ onIonViewWillLeave(() => {
             v-model="set.reps"
             placeholder="0"
           ></ion-input>
-          <ion-checkbox v-model="set.completed"></ion-checkbox>
+          <ion-checkbox
+            v-model="set.completed"
+            @ionChange="validateSetCompletion($event, set)"
+          ></ion-checkbox>
           <ion-button
             fill="clear"
             color="danger"
