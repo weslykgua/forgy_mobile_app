@@ -113,7 +113,7 @@ import {
 } from '@ionic/vue';
 import { ref, reactive, onMounted } from 'vue';
 import { personOutline, mailOutline, lockClosedOutline } from 'ionicons/icons';
-import { createUser } from '@/lib/api';
+import { createUser, loginUser } from '@/lib/api';
 
 const isLogin = ref(true);
 
@@ -143,7 +143,7 @@ onMounted(() => {
 
 function completeAuth() {
     localStorage.setItem('forgy_session', 'true');
-    router.replace('/tabs/tab1');
+    router.replace('/tabs/home');
 }
 
 async function forgotPassword() {
@@ -162,22 +162,23 @@ const createUserr = async (name: string, email: string, password: string) => {
 };
 
 async function handleSubmit() {
-    await createUser(email.value, password.value, namee.value); 
     if (isLogin.value) {
+
+        await loginUser(email.value, password.value);
+        console.log('login exitoso');
+        
         // Lógica de login
         console.log('Login:', email);
         await showToast('Iniciando sesión...');
         completeAuth();
+
+        
     } else {
         // Lógica de registro
-        /*
-        if (password !== formData.confirmPassword) {
-            await showToast('Las contraseñas no coinciden', 'danger');
-            return;
-        }
-        console.log('Register:', formData);
+        await createUser(email.value, password.value, namee.value);
+        
         await showToast('Creando cuenta...');
-        */
+        
         completeAuth();
     }
 }

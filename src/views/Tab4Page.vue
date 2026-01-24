@@ -165,12 +165,17 @@
                     lines="none"
                     class="logout-item"
                 >
+                <button
+                @click="logout"
+                >
+
                     <ion-icon
-                        :icon="logOutOutline"
-                        slot="start"
-                        color="danger"
+                    :icon="logOutOutline"
+                    slot="start"
+                    color="danger"
                     ></ion-icon>
                     <ion-label color="danger">Cerrar Sesión</ion-label>
+                </button>
                 </ion-item>
             </ion-list>
 
@@ -196,6 +201,8 @@ import {
     notificationsOutline, settingsOutline, moonOutline,
     helpCircleOutline, chatbubbleOutline, starOutline, logOutOutline
 } from 'ionicons/icons';
+import { R } from 'vue-router/dist/router-CWoNjPRp.mjs';
+import router from '@/router';
 
 const API_URL = 'http://localhost:3000';
 
@@ -231,6 +238,14 @@ onIonViewWillEnter(() => {
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     darkMode.value = document.body.classList.contains('dark') || prefersDark;
 });
+
+const logout = () => {
+    // Implement logout logic
+    localStorage.removeItem('forgy_session');
+    router.replace('/tabs/tab5');
+    console.log('Logging out...');
+};
+
 </script>
 
 <style scoped>
