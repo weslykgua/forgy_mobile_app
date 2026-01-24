@@ -30,8 +30,8 @@
                         <ion-icon :icon="camera"></ion-icon>
                     </ion-button>
                 </div>
-                <h2 class="user-name">Usuario Forgy</h2>
-                <p class="user-email">usuario@forgy.app</p>
+                <h2 class="user-name">{{ userName }}</h2>
+                <p class="user-email">{{ userEmail }}</p>
                 <ion-chip color="primary">
                     <ion-icon :icon="star"></ion-icon>
                     <ion-label>Premium</ion-label>
@@ -165,17 +165,19 @@
                     lines="none"
                     class="logout-item"
                 >
-                <button
-                @click="logout"
-                >
-
-                    <ion-icon
-                    :icon="logOutOutline"
-                    slot="start"
-                    color="danger"
-                    ></ion-icon>
-                    <ion-label color="danger">Cerrar Sesión</ion-label>
-                </button>
+                    <ion-button
+                        class="logout-button"
+                        expand="block"
+                        fill="outline"
+                        color="danger"
+                        @click="logout"
+                    >
+                        <ion-icon
+                            :icon="logOutOutline"
+                            slot="start"
+                        ></ion-icon>
+                        <span class="logout-text">Cerrar Sesión</span>
+                    </ion-button>
                 </ion-item>
             </ion-list>
 
@@ -208,6 +210,8 @@ const API_URL = 'http://localhost:3000';
 
 const darkMode = ref(false);
 const stats = ref({ totalWorkouts: 0, totalVolume: 0, streakDays: 0 });
+const userName = ref('Usuario Forgy');
+const userEmail = ref('usuario@forgy.app');
 
 const savedWorkouts = computed(() => stats.value.totalWorkouts);
 const totalDays = computed(() => stats.value.streakDays || 0);
@@ -227,12 +231,30 @@ const loadStats = async () => {
     }
 };
 
+const loadSessionUser = () => {
+    const rawSession = localStorage.getItem('forgy_session');
+    if (!rawSession) return;
+
+    try {
+        const session = JSON.parse(rawSession);
+        if (session?.user?.name) {
+            userName.value = String(session.user.name);
+        }
+        if (session?.user?.email) {
+            userEmail.value = String(session.user.email);
+        }
+    } catch (error) {
+        console.warn('Sesion invalida en localStorage', error);
+    }
+};
+
 const toggleDarkMode = () => {
     document.body.classList.toggle('dark', darkMode.value);
     document.body.classList.toggle('light', !darkMode.value);
 };
 
 onIonViewWillEnter(() => {
+    loadSessionUser();
     loadStats();
     // Check system preference
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -358,6 +380,27 @@ const logout = () => {
 
 .logout-item {
     --background: rgba(235, 68, 90, 0.05);
+}
+
+.logout-button {
+    width: 100%;
+    --border-radius: 14px;
+    --border-width: 2px;
+    --border-color: rgba(235, 68, 90, 0.45);
+    --padding-top: 12px;
+    --padding-bottom: 12px;
+    --box-shadow: 0 10px 18px rgba(235, 68, 90, 0.15);
+}
+
+.logout-button::part(native) {
+    text-transform: none;
+    letter-spacing: 0.2px;
+    font-weight: 600;
+}
+
+.logout-text {
+    display: inline-block;
+    font-size: 15px;
 }
 
 .app-version {

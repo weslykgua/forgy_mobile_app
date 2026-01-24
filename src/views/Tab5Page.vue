@@ -141,8 +141,8 @@ onMounted(() => {
 
 
 
-function completeAuth() {
-    localStorage.setItem('forgy_session', 'true');
+function completeAuth(session: { token?: string; user?: unknown; tokenData?: unknown }) {
+    localStorage.setItem('forgy_session', JSON.stringify(session));
     router.replace('/tabs/home');
 }
 
@@ -164,22 +164,22 @@ const createUserr = async (name: string, email: string, password: string) => {
 async function handleSubmit() {
     if (isLogin.value) {
 
-        await loginUser(email.value, password.value);
+        const res = await loginUser(email.value, password.value);
         console.log('login exitoso');
         
         // Lógica de login
         console.log('Login:', email);
         await showToast('Iniciando sesión...');
-        completeAuth();
+        completeAuth({ token: res?.token, user: res?.user, tokenData: res?.tokenData });
 
         
     } else {
         // Lógica de registro
-        await createUser(email.value, password.value, namee.value);
+        const res = await createUser(email.value, password.value, namee.value);
         
         await showToast('Creando cuenta...');
         
-        completeAuth();
+        completeAuth({ token: res?.token, user: res?.user, tokenData: res?.tokenData });
     }
 }
 
