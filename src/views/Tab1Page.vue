@@ -5,14 +5,14 @@ import {
   IonSearchbar, IonSegment, IonSegmentButton, IonChip, IonGrid, IonRow, IonCol,
   IonIcon, IonCard, IonCardHeader, IonCardTitle, IonCardContent,
   IonFab, IonFabButton, IonModal, IonButtons, IonInput, IonTextarea,
-  IonSelect, IonSelectOption, IonRefresher, IonRefresherContent,
+  IonSelect, IonSelectOption, IonRefresher, IonRefresherContent, actionSheetController,
   IonSkeletonText, IonBadge,
   onIonViewWillEnter, onIonViewWillLeave, alertController, toastController
 } from '@ionic/vue';
 import { ref, computed } from 'vue';
 import { io } from 'socket.io-client';
 import {
-  add, fitness, barbell, closeCircle, videocam, list, bookmark, albums, reorderThreeOutline
+  add, fitness, barbell, closeCircle, videocam, list, bookmark, albums, reorderThreeOutline, ellipsisVertical, imageOutline
 } from 'ionicons/icons';
 
 interface Exercise {
@@ -31,6 +31,7 @@ interface Routine {
   id: string;
   name: string;
   exercises: Exercise[];
+  imageUrl?: string;
 }
 
 const API_URL = 'http://localhost:3000';
@@ -46,6 +47,16 @@ const viewMode = ref<'exercises' | 'routines'>('exercises');
 const selectedRoutine = ref<Routine | null>(null);
 const isRoutineDetailOpen = ref(false);
 const isReorderMode = ref(false);
+const isImagePickerOpen = ref(false);
+const routineForImageChange = ref<Routine | null>(null);
+const predefinedImages = ref([
+  'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=870&q=80',
+  'https://images.unsplash.com/photo-1581009137042-c552e485697a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=870&q=80',
+  'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=869&q=80',
+  'https://images.unsplash.com/photo-1599058917212-d750089bc07e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=869&q=80',
+  'https://images.unsplash.com/photo-1574680096145-f846b5a6abc4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=869&q=80',
+  'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=870&q=80'
+]);
 
 let socket: any = null;
 
@@ -327,6 +338,130 @@ const handleExerciseReorder = async (event: CustomEvent) => {
   }
 };
 
+const presentRoutineOptions = async (routine: Routine) => {
+  const actionSheet = await actionSheetController.create({
+    header: routine.name,
+    buttons: [
+      {
+        text: 'Renombrar',
+        handler: () => {
+          renameRoutine(routine);
+        },
+      },
+      {
+        text: 'Cambiar Imagen',
+        icon: imageOutline,
+        handler: () => {
+          openImagePicker(routine);
+        },
+      },
+      {
+        text: 'Eliminar',
+        role: 'destructive',
+        handler: () => {
+          confirmDeleteRoutine(routine);
+        },
+      },
+      {
+        text: 'Cancelar',
+        role: 'cancel',
+      },
+    ],
+  });
+  await actionSheet.present();
+};
+
+const renameRoutine = async (routine: Routine) => {
+  const alert = await alertController.create({
+    header: 'Renombrar Rutina',
+    inputs: [
+      {
+        name: 'name',
+        type: 'text',
+        value: routine.name,
+        placeholder: 'Nuevo nombre de la rutina',
+      },
+    ],
+    buttons: [
+      {
+        text: 'Cancelar',
+        role: 'cancel',
+      },
+      {
+        text: 'Guardar',
+        handler: async (data) => {
+          if (!data.name || data.name === routine.name) return;
+          try {
+            const response = await fetch(`${API_URL}/routines/${routine.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: data.name }),
+            });
+            if (!response.ok) throw new Error('Error al renombrar');
+            await showToast('Rutina renombrada con éxito', 'success');
+            await loadRoutines();
+          } catch (error) {
+            console.error(error);
+            await showToast('No se pudo renombrar la rutina', 'danger');
+          }
+        },
+      },
+    ],
+  });
+  await alert.present();
+};
+
+const confirmDeleteRoutine = async (routine: Routine) => {
+  const alert = await alertController.create({
+    header: 'Confirmar Eliminación',
+    message: `¿Estás seguro de que quieres eliminar la rutina "${routine.name}"? Esta acción no se puede deshacer.`,
+    buttons: [
+      { text: 'Cancelar', role: 'cancel' },
+      {
+        text: 'Eliminar',
+        role: 'destructive',
+        handler: async () => {
+          await fetch(`${API_URL}/routines/${routine.id}`, { method: 'DELETE' });
+          showToast('Rutina eliminada', 'success');
+          loadRoutines();
+        },
+      },
+    ],
+  });
+  await alert.present();
+};
+
+const openImagePicker = (routine: Routine) => {
+  routineForImageChange.value = routine;
+  isImagePickerOpen.value = true;
+};
+
+const updateRoutineImage = async (imageUrl: string) => {
+  if (!routineForImageChange.value) return;
+
+  const routine = routineForImageChange.value;
+  try {
+    const response = await fetch(`${API_URL}/routines/${routine.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageUrl: imageUrl }),
+    });
+    if (!response.ok) throw new Error('Error al cambiar la imagen');
+
+    // Update local data for immediate UI feedback
+    const routineInList = routines.value.find(r => r.id === routine.id);
+    if (routineInList) {
+      routineInList.imageUrl = imageUrl;
+    }
+
+    await showToast('Imagen de rutina actualizada', 'success');
+    isImagePickerOpen.value = false;
+  } catch (error) {
+    console.error(error);
+    await showToast('No se pudo cambiar la imagen', 'danger');
+  }
+};
+
 onIonViewWillEnter(() => {
   loadExercises();
   loadRoutines();
@@ -559,9 +694,19 @@ onIonViewWillLeave(() => {
               @click="selectedRoutine = routine; isRoutineDetailOpen = true"
               class="routine-card"
             >
+              <ion-button
+                fill="clear"
+                class="routine-options-button"
+                @click.stop="presentRoutineOptions(routine)"
+              >
+                <ion-icon
+                  slot="icon-only"
+                  :icon="ellipsisVertical"
+                ></ion-icon>
+              </ion-button>
               <img
                 alt="Routine image"
-                src="https://ionicframework.com/docs/img/demos/card-media.png"
+                :src="routine.imageUrl || 'https://ionicframework.com/docs/img/demos/card-media.png'"
               />
               <ion-card-header>
                 <ion-card-title>{{ routine.name }}</ion-card-title>
@@ -861,6 +1006,41 @@ onIonViewWillLeave(() => {
       </ion-content>
     </ion-modal>
 
+    <!-- Modal para seleccionar imagen -->
+    <ion-modal
+      :is-open="isImagePickerOpen"
+      @didDismiss="isImagePickerOpen = false"
+    >
+      <ion-header>
+        <ion-toolbar>
+          <ion-title>Elegir Fondo</ion-title>
+          <ion-buttons slot="end">
+            <ion-button @click="isImagePickerOpen = false">Cerrar</ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+      <ion-content class="ion-padding">
+        <ion-grid>
+          <ion-row>
+            <ion-col
+              size="6"
+              v-for="img in predefinedImages"
+              :key="img"
+            >
+              <div
+                class="image-picker-item"
+                @click="updateRoutineImage(img)"
+              >
+                <img
+                  :src="img"
+                  alt="Predefined background"
+                />
+              </div>
+            </ion-col>
+          </ion-row>
+        </ion-grid>
+      </ion-content>
+    </ion-modal>
   </ion-page>
 </template>
 
@@ -1002,6 +1182,21 @@ ion-card-title {
   height: 100%;
   display: flex;
   flex-direction: column;
+  position: relative;
+}
+
+.routine-options-button {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 10;
+  --color: white;
+  background-color: rgba(0, 0, 0, 0.4);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  --padding-start: 0;
+  --padding-end: 0;
 }
 
 .routine-card ion-card-header {
@@ -1010,5 +1205,25 @@ ion-card-title {
 
 .routine-card ion-card-content {
   flex-grow: 1;
+}
+
+.image-picker-item {
+  cursor: pointer;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 3px solid transparent;
+  transition: border-color 0.2s ease-in-out;
+  aspect-ratio: 4 / 3;
+}
+
+.image-picker-item:hover {
+  border-color: var(--ion-color-primary-tint);
+}
+
+.image-picker-item img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 </style>
