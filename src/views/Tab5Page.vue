@@ -40,11 +40,11 @@
                             <ion-item lines="none" class="custom-input">
                                 <ion-icon :icon="personOutline" slot="start"></ion-icon>
                                 <ion-input 
-                                    v-model="namee" 
+                                    v-model="name" 
                                     placeholder="Nombre completo" 
                                     type="text"
+                                    required
                                 ></ion-input>
-                                
                             </ion-item>
                         </div>
 
@@ -56,6 +56,7 @@
                                     v-model="email" 
                                     placeholder="Correo electrónico" 
                                     type="email"
+                                    required
                                 ></ion-input>
                             </ion-item>
                         </div>
@@ -68,6 +69,7 @@
                                     v-model="password" 
                                     placeholder="Contraseña" 
                                     type="password"
+                                    required
                                 ></ion-input>
                             </ion-item>
                         </div>
@@ -77,9 +79,10 @@
                             <ion-item lines="none" class="custom-input">
                                 <ion-icon :icon="lockClosedOutline" slot="start"></ion-icon>
                                 <ion-input 
-                                    v-model="formData.confirmPassword" 
+                                    v-model="confirmPassword" 
                                     placeholder="Confirmar contraseña" 
                                     type="password"
+                                    required
                                 ></ion-input>
                             </ion-item>
                         </div>
@@ -94,8 +97,10 @@
                             expand="block" 
                             type="submit" 
                             class="submit-btn"
+                            :disabled="loading"
                         >
-                            {{ isLogin ? 'Iniciar Sesión' : 'Crear Cuenta' }}
+                            <ion-spinner v-if="loading" name="crescent"></ion-spinner>
+                            <span v-else>{{ isLogin ? 'Iniciar Sesión' : 'Crear Cuenta' }}</span>
                         </ion-button>
 
                     </form>
@@ -106,94 +111,180 @@
 </template>
 
 <script setup lang="ts">
-//import { createUser } from '@/';
 import { 
-    IonPage, IonContent, IonItem, IonInput, IonButton, IonIcon,
+    IonPage, IonContent, IonItem, IonInput, IonButton, IonIcon, IonSpinner,
     toastController, useIonRouter
 } from '@ionic/vue';
-import { ref, reactive, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { personOutline, mailOutline, lockClosedOutline } from 'ionicons/icons';
-import { createUser, loginUser } from '@/lib/api';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const isLogin = ref(true);
+const loading = ref(false);
 
-const namee = ref('');
+const name = ref('');
 const email = ref('');
 const password = ref('');
-
-
-const formData = reactive({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: ''
-});
-console.log("🚀 ~ formData:", formData)
+const confirmPassword = ref('');
 
 const router = useIonRouter();
 
 onMounted(() => {
-    // Si ya hay sesión iniciada, redirigir al Home (Tab1)
-    if (localStorage.getItem('forgy_session')) {
-        router.replace('/tabs/c');
+    // Si ya hay sesión iniciada, redirigir al Home
+    const session = localStorage.getItem('forgy_token');
+    if (session) {
+        router.replace('/tabs/home');
     }
 });
 
+/**
+ * Registrar nuevo usuario
+ */
+async function register() {
+    // Validaciones
+    if (!name.value || !email.value || !password.value) {
+        await showToast('Por favor completa todos los campos', 'warning');
+        return;
+    }
 
+    if (password.value.length < 6) {
+        await showToast('La contraseña debe tener al menos 6 caracteres', 'warning');
+        return;
+    }
 
-function completeAuth(session: { token?: string; user?: unknown; tokenData?: unknown }) {
-    localStorage.setItem('forgy_session', JSON.stringify(session));
-    router.replace('/tabs/home');
+    if (password.value !== confirmPassword.value) {
+        await showToast('Las contraseñas no coinciden', 'warning');
+        return;
+    }
+
+    loading.value = true;
+
+    try {
+        const response = await fetch(`${API_URL}/auth/register`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                email: email.value.trim(),
+                password: password.value,
+                name: name.value.trim(),
+            }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Error al registrar usuario');
+        }
+
+        // Guardar sesión
+        saveSession(data);
+        
+        await showToast('¡Cuenta creada exitosamente! Bienvenido a Forgy 💪', 'success');
+        
+        // Redirigir al home
+        setTimeout(() => {
+            router.replace('/tabs/home');
+        }, 500);
+
+    } catch (error: any) {
+        console.error('Error en registro:', error);
+        await showToast(error.message || 'Error al crear la cuenta', 'danger');
+    } finally {
+        loading.value = false;
+    }
 }
 
+/**
+ * Iniciar sesión
+ */
+async function login() {
+    // Validaciones
+    if (!email.value || !password.value) {
+        await showToast('Por favor ingresa tu email y contraseña', 'warning');
+        return;
+    }
+
+    loading.value = true;
+
+    try {
+        const response = await fetch(`${API_URL}/auth/login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                email: email.value.trim(),
+                password: password.value,
+            }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Error al iniciar sesión');
+        }
+
+        // Guardar sesión
+        saveSession(data);
+        
+        await showToast(`¡Bienvenido de nuevo, ${data.user.name}! 💪`, 'success');
+        
+        // Redirigir al home
+        setTimeout(() => {
+            router.replace('/tabs/home');
+        }, 500);
+
+    } catch (error: any) {
+        console.error('Error en login:', error);
+        await showToast(error.message || 'Error al iniciar sesión', 'danger');
+    } finally {
+        loading.value = false;
+    }
+}
+
+/**
+ * Guardar sesión en localStorage
+ */
+function saveSession(data: any) {
+    localStorage.setItem('forgy_token', data.token);
+    localStorage.setItem('forgy_user', JSON.stringify(data.user));
+    localStorage.setItem('forgy_token_data', JSON.stringify(data.tokenData));
+}
+
+/**
+ * Manejar envío del formulario
+ */
+async function handleSubmit() {
+    if (isLogin.value) {
+        await login();
+    } else {
+        await register();
+    }
+}
+
+/**
+ * Recuperar contraseña
+ */
 async function forgotPassword() {
     await showToast('Funcionalidad de recuperación pendiente', 'medium');
 }
 
-const createUserr = async (name: string, email: string, password: string) => {
-    // Lógica para crear usuario (simulada)
-    
-    try {
-        const res = await createUser(name, email, password);
-    } catch (error) {
-        console.error('Error creating user:', error);
-        throw error;
-    }
-};
-
-async function handleSubmit() {
-    if (isLogin.value) {
-
-        const res = await loginUser(email.value, password.value);
-        console.log('login exitoso');
-        
-        // Lógica de login
-        console.log('Login:', email);
-        await showToast('Iniciando sesión...');
-        completeAuth({ token: res?.token, user: res?.user, tokenData: res?.tokenData });
-
-        
-    } else {
-        // Lógica de registro
-        const res = await createUser(email.value, password.value, namee.value);
-        
-        await showToast('Creando cuenta...');
-        
-        completeAuth({ token: res?.token, user: res?.user, tokenData: res?.tokenData });
-    }
-}
-
-async function showToast(message: string, color = 'primary') {
+/**
+ * Mostrar toast
+ */
+async function showToast(message: string, color: 'primary' | 'success' | 'warning' | 'danger' | 'medium' = 'primary') {
     const toast = await toastController.create({
         message,
-        duration: 2000,
+        duration: 3000,
         color,
         position: 'bottom'
     });
     await toast.present();
 }
 </script>
-
 <style scoped>
 /* Contenedor */
 .auth-container {
