@@ -22,12 +22,12 @@
                             <button 
                                 class="toggle-btn" 
                                 :class="{ active: isLogin }" 
-                                @click="isLogin = true"
+                                @click="switchToLogin"
                             >Ingresar</button>
                             <button 
                                 class="toggle-btn" 
                                 :class="{ active: !isLogin }" 
-                                @click="isLogin = false"
+                                @click="switchToRegister"
                             >Registrarse</button>
                         </div>
                     </div>
@@ -44,8 +44,10 @@
                                     placeholder="Nombre completo" 
                                     type="text"
                                     required
+                                    @ionBlur="validateName"
                                 ></ion-input>
                             </ion-item>
+                            <div v-if="errors.name" class="error-message">{{ errors.name }}</div>
                         </div>
 
                         <!-- Email Field -->
@@ -57,8 +59,10 @@
                                     placeholder="Correo electrónico" 
                                     type="email"
                                     required
+                                    @ionBlur="validateEmail"
                                 ></ion-input>
                             </ion-item>
+                            <div v-if="errors.email" class="error-message">{{ errors.email }}</div>
                         </div>
 
                         <!-- Password Field -->
@@ -67,11 +71,58 @@
                                 <ion-icon :icon="lockClosedOutline" slot="start"></ion-icon>
                                 <ion-input 
                                     v-model="password" 
-                                    placeholder="Contraseña" 
-                                    type="password"
+                                    :placeholder="isLogin ? 'Contraseña' : 'Contraseña (min. 8 caracteres)'"
+                                    :type="showPassword ? 'text' : 'password'"
                                     required
+                                    @ionBlur="validatePassword"
                                 ></ion-input>
+                                <ion-icon 
+                                    slot="end" 
+                                    :icon="showPassword ? eyeOffOutline : eyeOutline"
+                                    @click="togglePasswordVisibility"
+                                    class="eye-icon"
+                                ></ion-icon>
                             </ion-item>
+                            <div v-if="errors.password" class="error-message">{{ errors.password }}</div>
+                            
+                            <!-- Password strength indicator (Register only) -->
+                            <div v-if="!isLogin && password" class="password-strength">
+                                <div class="strength-bar">
+                                    <div 
+                                        class="strength-fill" 
+                                        :class="passwordStrength.class"
+                                        :style="{ width: passwordStrength.width }"
+                                    ></div>
+                                </div>
+                                <p class="strength-text" :class="passwordStrength.class">
+                                    {{ passwordStrength.text }}
+                                </p>
+                            </div>
+
+                            <!-- Password requirements (Register only) -->
+                            <div v-if="!isLogin && password" class="password-requirements fade-in">
+                                <p class="requirements-title">La contraseña debe contener:</p>
+                                <div class="requirement" :class="{ valid: passwordChecks.length }">
+                                    <ion-icon :icon="passwordChecks.length ? checkmarkCircle : closeCircle"></ion-icon>
+                                    <span>Mínimo 8 caracteres</span>
+                                </div>
+                                <div class="requirement" :class="{ valid: passwordChecks.uppercase }">
+                                    <ion-icon :icon="passwordChecks.uppercase ? checkmarkCircle : closeCircle"></ion-icon>
+                                    <span>Una letra mayúscula</span>
+                                </div>
+                                <div class="requirement" :class="{ valid: passwordChecks.lowercase }">
+                                    <ion-icon :icon="passwordChecks.lowercase ? checkmarkCircle : closeCircle"></ion-icon>
+                                    <span>Una letra minúscula</span>
+                                </div>
+                                <div class="requirement" :class="{ valid: passwordChecks.number }">
+                                    <ion-icon :icon="passwordChecks.number ? checkmarkCircle : closeCircle"></ion-icon>
+                                    <span>Un número</span>
+                                </div>
+                                <div class="requirement" :class="{ valid: passwordChecks.special }">
+                                    <ion-icon :icon="passwordChecks.special ? checkmarkCircle : closeCircle"></ion-icon>
+                                    <span>Un carácter especial (!@#$%^&*)</span>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Confirm Password (Register only) -->
@@ -81,10 +132,18 @@
                                 <ion-input 
                                     v-model="confirmPassword" 
                                     placeholder="Confirmar contraseña" 
-                                    type="password"
+                                    :type="showConfirmPassword ? 'text' : 'password'"
                                     required
+                                    @ionBlur="validateConfirmPassword"
                                 ></ion-input>
+                                <ion-icon 
+                                    slot="end" 
+                                    :icon="showConfirmPassword ? eyeOffOutline : eyeOutline"
+                                    @click="toggleConfirmPasswordVisibility"
+                                    class="eye-icon"
+                                ></ion-icon>
                             </ion-item>
+                            <div v-if="errors.confirmPassword" class="error-message">{{ errors.confirmPassword }}</div>
                         </div>
 
                         <!-- Forgot Password Link -->
@@ -97,7 +156,7 @@
                             expand="block" 
                             type="submit" 
                             class="submit-btn"
-                            :disabled="loading"
+                            :disabled="loading || (!isLogin && !isPasswordValid)"
                         >
                             <ion-spinner v-if="loading" name="crescent"></ion-spinner>
                             <span v-else>{{ isLogin ? 'Iniciar Sesión' : 'Crear Cuenta' }}</span>
@@ -113,48 +172,201 @@
 <script setup lang="ts">
 import { 
     IonPage, IonContent, IonItem, IonInput, IonButton, IonIcon, IonSpinner,
-    toastController, useIonRouter
+    toastController, useIonRouter, alertController
 } from '@ionic/vue';
-import { ref, onMounted } from 'vue';
-import { personOutline, mailOutline, lockClosedOutline } from 'ionicons/icons';
+import { ref, onMounted, computed, reactive } from 'vue';
+import { 
+    personOutline, mailOutline, lockClosedOutline, 
+    eyeOutline, eyeOffOutline, checkmarkCircle, closeCircle 
+} from 'ionicons/icons';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const isLogin = ref(true);
 const loading = ref(false);
+const showPassword = ref(false);
+const showConfirmPassword = ref(false);
 
 const name = ref('');
 const email = ref('');
 const password = ref('');
 const confirmPassword = ref('');
 
+const errors = reactive({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: ''
+});
+
 const router = useIonRouter();
 
 onMounted(() => {
-    // Si ya hay sesión iniciada, redirigir al Home
-    const session = localStorage.getItem('forgy_token');
-    if (session) {
-        router.replace('/tabs/home');
+    checkExistingSession();
+});
+
+/**
+ * Verificar si ya hay sesión activa
+ */
+async function checkExistingSession() {
+    const token = localStorage.getItem('forgy_token');
+    const tokenData = localStorage.getItem('forgy_token_data');
+    
+    if (token && tokenData) {
+        const data = JSON.parse(tokenData);
+        const now = new Date();
+        const until = new Date(data.until);
+        
+        // Si el token no ha expirado, redirigir
+        if (now <= until) {
+            router.replace('/tabs/home');
+        } else {
+            // Token expirado, limpiar
+            clearSession();
+        }
+    }
+}
+
+/**
+ * Verificaciones de contraseña
+ */
+const passwordChecks = computed(() => ({
+    length: password.value.length >= 8,
+    uppercase: /[A-Z]/.test(password.value),
+    lowercase: /[a-z]/.test(password.value),
+    number: /[0-9]/.test(password.value),
+    special: /[!@#$%^&*(),.?":{}|<>]/.test(password.value)
+}));
+
+/**
+ * Validez completa de la contraseña
+ */
+const isPasswordValid = computed(() => {
+    if (isLogin.value) return true;
+    return Object.values(passwordChecks.value).every(check => check);
+});
+
+/**
+ * Fuerza de la contraseña
+ */
+const passwordStrength = computed(() => {
+    const checks = Object.values(passwordChecks.value).filter(Boolean).length;
+    
+    if (checks === 0) {
+        return { text: '', width: '0%', class: '' };
+    } else if (checks <= 2) {
+        return { text: 'Débil', width: '33%', class: 'weak' };
+    } else if (checks <= 4) {
+        return { text: 'Media', width: '66%', class: 'medium' };
+    } else {
+        return { text: 'Fuerte', width: '100%', class: 'strong' };
     }
 });
+
+/**
+ * Validaciones individuales
+ */
+function validateName() {
+    if (!isLogin.value && name.value.trim().length < 2) {
+        errors.name = 'El nombre debe tener al menos 2 caracteres';
+        return false;
+    }
+    errors.name = '';
+    return true;
+}
+
+function validateEmail() {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.value)) {
+        errors.email = 'Por favor ingresa un email válido';
+        return false;
+    }
+    errors.email = '';
+    return true;
+}
+
+function validatePassword() {
+    if (isLogin.value) {
+        if (password.value.length === 0) {
+            errors.password = 'La contraseña es requerida';
+            return false;
+        }
+    } else {
+        if (!isPasswordValid.value) {
+            errors.password = 'La contraseña no cumple con los requisitos de seguridad';
+            return false;
+        }
+    }
+    errors.password = '';
+    return true;
+}
+
+function validateConfirmPassword() {
+    if (!isLogin.value && password.value !== confirmPassword.value) {
+        errors.confirmPassword = 'Las contraseñas no coinciden';
+        return false;
+    }
+    errors.confirmPassword = '';
+    return true;
+}
+
+/**
+ * Validar todo el formulario
+ */
+function validateForm(): boolean {
+    let isValid = true;
+
+    if (!isLogin.value) {
+        isValid = validateName() && isValid;
+    }
+    
+    isValid = validateEmail() && isValid;
+    isValid = validatePassword() && isValid;
+    
+    if (!isLogin.value) {
+        isValid = validateConfirmPassword() && isValid;
+    }
+
+    return isValid;
+}
+
+/**
+ * Cambiar entre login y registro
+ */
+function switchToLogin() {
+    isLogin.value = true;
+    clearErrors();
+}
+
+function switchToRegister() {
+    isLogin.value = false;
+    clearErrors();
+}
+
+function clearErrors() {
+    errors.name = '';
+    errors.email = '';
+    errors.password = '';
+    errors.confirmPassword = '';
+}
+
+/**
+ * Toggle visibilidad de contraseña
+ */
+function togglePasswordVisibility() {
+    showPassword.value = !showPassword.value;
+}
+
+function toggleConfirmPasswordVisibility() {
+    showConfirmPassword.value = !showConfirmPassword.value;
+}
 
 /**
  * Registrar nuevo usuario
  */
 async function register() {
-    // Validaciones
-    if (!name.value || !email.value || !password.value) {
-        await showToast('Por favor completa todos los campos', 'warning');
-        return;
-    }
-
-    if (password.value.length < 6) {
-        await showToast('La contraseña debe tener al menos 6 caracteres', 'warning');
-        return;
-    }
-
-    if (password.value !== confirmPassword.value) {
-        await showToast('Las contraseñas no coinciden', 'warning');
+    if (!validateForm()) {
+        await showToast('Por favor corrige los errores en el formulario', 'warning');
         return;
     }
 
@@ -167,7 +379,7 @@ async function register() {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                email: email.value.trim(),
+                email: email.value.trim().toLowerCase(),
                 password: password.value,
                 name: name.value.trim(),
             }),
@@ -182,12 +394,11 @@ async function register() {
         // Guardar sesión
         saveSession(data);
         
-        await showToast('¡Cuenta creada exitosamente! Bienvenido a Forgy 💪', 'success');
+        // Mostrar bienvenida
+        await showWelcomeAlert(data.user.name);
         
         // Redirigir al home
-        setTimeout(() => {
-            router.replace('/tabs/home');
-        }, 500);
+        router.replace('/tabs/home');
 
     } catch (error: any) {
         console.error('Error en registro:', error);
@@ -201,9 +412,7 @@ async function register() {
  * Iniciar sesión
  */
 async function login() {
-    // Validaciones
-    if (!email.value || !password.value) {
-        await showToast('Por favor ingresa tu email y contraseña', 'warning');
+    if (!validateForm()) {
         return;
     }
 
@@ -216,7 +425,7 @@ async function login() {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                email: email.value.trim(),
+                email: email.value.trim().toLowerCase(),
                 password: password.value,
             }),
         });
@@ -239,7 +448,7 @@ async function login() {
 
     } catch (error: any) {
         console.error('Error en login:', error);
-        await showToast(error.message || 'Error al iniciar sesión', 'danger');
+        await showToast(error.message || 'Credenciales inválidas', 'danger');
     } finally {
         loading.value = false;
     }
@@ -252,6 +461,27 @@ function saveSession(data: any) {
     localStorage.setItem('forgy_token', data.token);
     localStorage.setItem('forgy_user', JSON.stringify(data.user));
     localStorage.setItem('forgy_token_data', JSON.stringify(data.tokenData));
+}
+
+/**
+ * Limpiar sesión
+ */
+function clearSession() {
+    localStorage.removeItem('forgy_token');
+    localStorage.removeItem('forgy_user');
+    localStorage.removeItem('forgy_token_data');
+}
+
+/**
+ * Mostrar alerta de bienvenida para nuevos usuarios
+ */
+async function showWelcomeAlert(userName: string) {
+    const alert = await alertController.create({
+        header: '¡Bienvenido a Forgy! 💪',
+        message: `Hola ${userName}, tu cuenta ha sido creada exitosamente. ¡Comienza tu viaje fitness ahora!`,
+        buttons: ['¡Empecemos!']
+    });
+    await alert.present();
 }
 
 /**
@@ -269,7 +499,12 @@ async function handleSubmit() {
  * Recuperar contraseña
  */
 async function forgotPassword() {
-    await showToast('Funcionalidad de recuperación pendiente', 'medium');
+    const alert = await alertController.create({
+        header: 'Recuperar Contraseña',
+        message: 'Esta funcionalidad estará disponible próximamente.',
+        buttons: ['OK']
+    });
+    await alert.present();
 }
 
 /**
