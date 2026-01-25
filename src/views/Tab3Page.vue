@@ -520,7 +520,10 @@ function getGreeting() {
 }
 
 function formatWater(ml: number) { return (ml / 1000).toFixed(1); }
-function formatVolume(vol: number) { return vol >= 1000 ? (vol / 1000).toFixed(1) + 'k' : vol.toString(); }
+function formatVolume(vol: number | undefined | null) {
+  if (vol === undefined || vol === null) return '0';
+  return vol >= 1000 ? (vol / 1000).toFixed(1) + 'k' : vol.toString();
+}
 function formatShortDate(dateStr: string) { return new Date(dateStr + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric' }); }
 function formatDayName(dateStr: string) { return new Date(dateStr + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long' }); }
 function formatFullDate(dateStr: string) { return new Date(dateStr + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }); }
