@@ -502,8 +502,6 @@ const deleteExerciseFromRoutine = async (exerciseId: string) => {
   const routineId = selectedRoutine.value.id;
 
   try {
-    // This endpoint needs to be created in the backend.
-    // DELETE /api/routines/:routineId/exercises/:exerciseId
     const response = await fetch(`${API_URL}/routines/${routineId}/exercises/${exerciseId}`, {
       method: 'DELETE'
     });
