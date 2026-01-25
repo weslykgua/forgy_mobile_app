@@ -443,7 +443,7 @@ import {
   add, scaleOutline, waterOutline, moonOutline, barbell, flame, fitness
 } from 'ionicons/icons';
 
-const API_URL = 'http://localhost:3000';
+const API_URL = 'http://localhost:3000/api';
 
 interface DailyProgress {
   id: string;

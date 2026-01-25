@@ -207,7 +207,7 @@ import {
 import { R } from 'vue-router/dist/router-CWoNjPRp.mjs';
 import router from '@/router';
 
-const API_URL = 'http://localhost:3000';
+const API_URL = 'http://localhost:3000/api';
 
 const darkMode = ref(false);
 const stats = ref({ totalWorkouts: 0, totalVolume: 0, streakDays: 0 });

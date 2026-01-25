@@ -434,7 +434,7 @@ import {
   checkmarkCircle
 } from 'ionicons/icons';
 
-const API_URL = 'http://localhost:3000';
+const API_URL = 'http://localhost:3000/api';
 
 interface Exercise {
   id: string;
