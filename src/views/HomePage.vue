@@ -1,33 +1,17 @@
 <template>
     <ion-page>
-        <ion-header class="ion-no-border">
-            <ion-toolbar color="primary">
-                <ion-title>
-                    <div class="header-brand">
-                        <span class="brand-icon">💪</span>
-                        <span class="brand-name">Forgy</span>
-                    </div>
+        <ion-header class="forgy-header">
+
+            <ion-toolbar>
+                <ion-title class="forgy-title">
+                    FORGY
                 </ion-title>
-                <ion-buttons slot="end">
-                    <ion-button @click="refreshData">
-                        <ion-icon :icon="refreshOutline"></ion-icon>
-                    </ion-button>
-                </ion-buttons>
+
             </ion-toolbar>
         </ion-header>
 
-        <ion-content
-            :fullscreen="true"
-            class="home-content"
-        >
-            <ion-refresher
-                slot="fixed"
-                @ionRefresh="handleRefresh($event)"
-            >
-                <ion-refresher-content></ion-refresher-content>
-            </ion-refresher>
-
-            <!-- Hero Section con saludo -->
+        <ion-content :fullscreen="true" class="home-content">
+           
             <div class="hero-section">
                 <div class="hero-background"></div>
                 <div class="hero-content">
@@ -39,10 +23,7 @@
                         </div>
                     </div>
 
-                    <div
-                        class="motivation-card"
-                        @click="changeQuote"
-                    >
+                    <div class="motivation-card" @click="changeQuote">
                         <span class="quote-icon">💬</span>
                         <p class="quote-text">"{{ currentQuote.text }}"</p>
                         <span class="quote-author">— {{ currentQuote.author }}</span>
@@ -50,29 +31,12 @@
                 </div>
             </div>
 
-            <!-- Quick Stats Ring -->
             <div class="quick-stats">
-                <div
-                    class="stat-ring"
-                    @click="goToProgress"
-                >
-                    <svg
-                        viewBox="0 0 100 100"
-                        class="ring-svg"
-                    >
-                        <circle
-                            cx="50"
-                            cy="50"
-                            r="45"
-                            class="ring-bg"
-                        />
-                        <circle
-                            cx="50"
-                            cy="50"
-                            r="45"
-                            class="ring-progress"
-                            :style="{ strokeDashoffset: streakOffset }"
-                        />
+                <div class="stat-ring" @click="goToProgress">
+                    <svg viewBox="0 0 100 100" class="ring-svg">
+                        <circle cx="50" cy="50" r="45" class="ring-bg" />
+                        <circle cx="50" cy="50" r="45" class="ring-progress"
+                            :style="{ strokeDashoffset: streakOffset }" />
                     </svg>
                     <div class="ring-content">
                         <span class="ring-value">{{ stats.streakDays }}</span>
@@ -81,27 +45,11 @@
                     <span class="ring-title">🔥 Racha</span>
                 </div>
 
-                <div
-                    class="stat-ring"
-                    @click="goToProgress"
-                >
-                    <svg
-                        viewBox="0 0 100 100"
-                        class="ring-svg"
-                    >
-                        <circle
-                            cx="50"
-                            cy="50"
-                            r="45"
-                            class="ring-bg"
-                        />
-                        <circle
-                            cx="50"
-                            cy="50"
-                            r="45"
-                            class="ring-progress water"
-                            :style="{ strokeDashoffset: waterOffset }"
-                        />
+                <div class="stat-ring" @click="goToProgress">
+                    <svg viewBox="0 0 100 100" class="ring-svg">
+                        <circle cx="50" cy="50" r="45" class="ring-bg" />
+                        <circle cx="50" cy="50" r="45" class="ring-progress water"
+                            :style="{ strokeDashoffset: waterOffset }" />
                     </svg>
                     <div class="ring-content">
                         <span class="ring-value">{{ formatLiters(todayWater) }}</span>
@@ -110,27 +58,11 @@
                     <span class="ring-title">💧 Agua</span>
                 </div>
 
-                <div
-                    class="stat-ring"
-                    @click="goToWorkout"
-                >
-                    <svg
-                        viewBox="0 0 100 100"
-                        class="ring-svg"
-                    >
-                        <circle
-                            cx="50"
-                            cy="50"
-                            r="45"
-                            class="ring-bg"
-                        />
-                        <circle
-                            cx="50"
-                            cy="50"
-                            r="45"
-                            class="ring-progress workouts"
-                            :style="{ strokeDashoffset: workoutsOffset }"
-                        />
+                <div class="stat-ring" @click="goToWorkout">
+                    <svg viewBox="0 0 100 100" class="ring-svg">
+                        <circle cx="50" cy="50" r="45" class="ring-bg" />
+                        <circle cx="50" cy="50" r="45" class="ring-progress workouts"
+                            :style="{ strokeDashoffset: workoutsOffset }" />
                     </svg>
                     <div class="ring-content">
                         <span class="ring-value">{{ stats.totalWorkouts }}</span>
@@ -140,14 +72,11 @@
                 </div>
             </div>
 
-            <!-- Today's Goal Card -->
+
             <div class="section-container">
                 <div class="section-title">
                     <span>🎯 Meta del día</span>
-                    <ion-chip
-                        color="success"
-                        v-if="goalProgress >= 100"
-                    >
+                    <ion-chip color="success" v-if="goalProgress >= 100">
                         <ion-icon :icon="checkmarkCircle"></ion-icon>
                         <ion-label>Completado</ion-label>
                     </ion-chip>
@@ -164,21 +93,11 @@
                         </div>
                     </div>
                     <div class="goal-bar">
-                        <div
-                            class="goal-fill"
-                            :style="{ width: Math.min(goalProgress, 100) + '%' }"
-                        ></div>
+                        <div class="goal-fill" :style="{ width: Math.min(goalProgress, 100) + '%' }"></div>
                     </div>
                     <div class="goal-actions">
-                        <ion-button
-                            fill="outline"
-                            size="small"
-                            @click="goToWorkout"
-                        >
-                            <ion-icon
-                                :icon="add"
-                                slot="start"
-                            ></ion-icon>
+                        <ion-button fill="outline" size="small" @click="goToWorkout">
+                            <ion-icon :icon="add" slot="start"></ion-icon>
                             Registrar entreno
                         </ion-button>
                     </div>
@@ -192,27 +111,15 @@
                 </div>
 
                 <div class="week-summary">
-                    <div
-                        v-for="(day, idx) in weekSummary"
-                        :key="idx"
-                        class="week-day"
-                        :class="{
-                            'active': day.hasWorkout,
-                            'today': day.isToday,
-                            'future': day.isFuture
-                        }"
-                    >
+                    <div v-for="(day, idx) in weekSummary" :key="idx" class="week-day" :class="{
+                        'active': day.hasWorkout,
+                        'today': day.isToday,
+                        'future': day.isFuture
+                    }">
                         <span class="day-letter">{{ day.letter }}</span>
                         <div class="day-indicator">
-                            <ion-icon
-                                v-if="day.hasWorkout"
-                                :icon="checkmarkCircle"
-                                color="success"
-                            ></ion-icon>
-                            <span
-                                v-else-if="day.isToday"
-                                class="today-dot"
-                            ></span>
+                            <ion-icon v-if="day.hasWorkout" :icon="checkmarkCircle" color="success"></ion-icon>
+                            <span v-else-if="day.isToday" class="today-dot"></span>
                         </div>
                     </div>
                 </div>
@@ -234,25 +141,14 @@
             </div>
 
             <!-- Personal Records Highlight -->
-            <div
-                class="section-container"
-                v-if="topPRs.length > 0"
-            >
+            <div class="section-container" v-if="topPRs.length > 0">
                 <div class="section-title">
                     <span>🏆 Tus Records</span>
-                    <ion-button
-                        fill="clear"
-                        size="small"
-                        @click="goToRecords"
-                    >Ver todos</ion-button>
+                    <ion-button fill="clear" size="small" @click="goToRecords">Ver todos</ion-button>
                 </div>
 
                 <div class="pr-showcase">
-                    <div
-                        v-for="(pr, idx) in topPRs"
-                        :key="idx"
-                        class="pr-item"
-                    >
+                    <div v-for="(pr, idx) in topPRs" :key="idx" class="pr-item">
                         <div class="pr-medal">{{ getMedal(idx) }}</div>
                         <div class="pr-details">
                             <span class="pr-exercise">{{ pr.exerciseName }}</span>
@@ -268,26 +164,16 @@
                     <span>💡 Recomendación de hoy</span>
                 </div>
 
-                <div
-                    class="recommendation-card"
-                    @click="goToWorkout"
-                >
+                <div class="recommendation-card" @click="goToWorkout">
                     <div class="rec-icon">{{ recommendation.icon }}</div>
                     <div class="rec-content">
                         <h4>{{ recommendation.title }}</h4>
                         <p>{{ recommendation.description }}</p>
                         <div class="rec-tags">
-                            <span
-                                class="rec-tag"
-                                v-for="tag in recommendation.tags"
-                                :key="tag"
-                            >{{ tag }}</span>
+                            <span class="rec-tag" v-for="tag in recommendation.tags" :key="tag">{{ tag }}</span>
                         </div>
                     </div>
-                    <ion-icon
-                        :icon="chevronForward"
-                        class="rec-arrow"
-                    ></ion-icon>
+                    <ion-icon :icon="chevronForward" class="rec-arrow"></ion-icon>
                 </div>
             </div>
 
@@ -298,31 +184,19 @@
                 </div>
 
                 <div class="quick-actions">
-                    <div
-                        class="action-card"
-                        @click="quickAddWater"
-                    >
+                    <div class="action-card" @click="quickAddWater">
                         <span class="action-icon">💧</span>
                         <span class="action-label">+500ml agua</span>
                     </div>
-                    <div
-                        class="action-card"
-                        @click="goToWorkout"
-                    >
+                    <div class="action-card" @click="goToWorkout">
                         <span class="action-icon">🏋️</span>
                         <span class="action-label">Nuevo entreno</span>
                     </div>
-                    <div
-                        class="action-card"
-                        @click="goToProgress"
-                    >
+                    <div class="action-card" @click="goToProgress">
                         <span class="action-icon">⚖️</span>
                         <span class="action-label">Registrar peso</span>
                     </div>
-                    <div
-                        class="action-card"
-                        @click="goToExercises"
-                    >
+                    <div class="action-card" @click="goToExercises">
                         <span class="action-icon">📚</span>
                         <span class="action-label">Ver ejercicios</span>
                     </div>
@@ -330,11 +204,7 @@
             </div>
 
             <!-- Achievement Unlock Animation -->
-            <div
-                class="achievement-toast"
-                v-if="showAchievement"
-                @click="showAchievement = false"
-            >
+            <div class="achievement-toast" v-if="showAchievement" @click="showAchievement = false">
                 <div class="achievement-content">
                     <span class="achievement-icon">🎉</span>
                     <div class="achievement-text">
@@ -354,11 +224,10 @@
 import {
     IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
     IonButton, IonButtons, IonIcon, IonChip, IonLabel,
-    IonRefresher, IonRefresherContent,
     onIonViewWillEnter, toastController, useIonRouter
 } from '@ionic/vue';
 import { ref, computed } from 'vue';
-import { refreshOutline, checkmarkCircle, add, chevronForward } from 'ionicons/icons';
+import { checkmarkCircle, add, chevronForward } from 'ionicons/icons';
 
 const API_URL = 'http://localhost:3000';
 const router = useIonRouter();
@@ -617,16 +486,6 @@ function checkAchievements() {
     }
 }
 
-async function refreshData() {
-    await loadData();
-    showToast('Datos actualizados ✓');
-}
-
-async function handleRefresh(event: CustomEvent) {
-    await loadData();
-    (event.target as any).complete();
-}
-
 async function showToast(message: string, color = 'success') {
     const toast = await toastController.create({ message, duration: 2000, color, position: 'bottom' });
     await toast.present();
@@ -640,6 +499,61 @@ onIonViewWillEnter(() => {
 </script>
 
 <style scoped>
+/* Header Styles */
+.forgy-header {
+    backdrop-filter: blur(12px);
+}
+
+.forgy-header ion-toolbar {
+
+    --background: transparent;
+    background: transparent;
+    --background: linear-gradient(135deg,
+            #ff6a00,
+            #ff8c1a);
+    --color: rgb(255, 254, 254);
+    font-family: 'Permanent Marker', cursive;
+    box-shadow: 0 6px 20px rgba(77, 75, 75, 0.966);
+}
+
+/* TÍTULO */
+.forgy-title {
+
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-align: center;
+}
+
+/* BOTONES HEADER */
+.icon-btn {
+    --color: white;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.icon-btn:active {
+    transform: scale(0.9);
+    opacity: 0.8;
+}
+
+/* ICONOS */
+ion-icon {
+    font-size: 26px;
+}
+
+/* LOGO EMOJI */
+.logo-emoji {
+    font-size: 26px;
+}
+
+/*FINDE DEL HEADER*/
+.header-title {
+    text-align: center;
+    font-weight: 800;
+    letter-spacing: 1px;
+}
+
 .home-content {
     --background: var(--forgy-content-bg);
 }
@@ -663,7 +577,7 @@ onIonViewWillEnter(() => {
 .hero-section {
     position: relative;
     padding: 24px 16px;
-    background: linear-gradient(135deg, var(--ion-color-primary) 0%, #7c4dff 100%);
+    background: linear-gradient(135deg, var(--ion-color-primary) 0%, #ff6a00 100%);
     border-radius: 0 0 32px 32px;
     margin-bottom: 20px;
     overflow: hidden;
@@ -675,7 +589,7 @@ onIonViewWillEnter(() => {
     right: -20%;
     width: 200px;
     height: 200px;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(168, 15, 15, 0.1);
     border-radius: 50%;
 }
 
@@ -834,7 +748,6 @@ onIonViewWillEnter(() => {
     font-weight: 700;
 }
 
-/* Goal Card */
 .goal-card {
     background: var(--forgy-card-bg);
     border-radius: 20px;
@@ -884,6 +797,7 @@ onIonViewWillEnter(() => {
     border-radius: 4px;
     overflow: hidden;
     margin-bottom: 16px;
+
 }
 
 .goal-fill {
@@ -891,14 +805,15 @@ onIonViewWillEnter(() => {
     background: linear-gradient(90deg, var(--ion-color-primary), var(--ion-color-tertiary));
     border-radius: 4px;
     transition: width 0.5s ease;
+
 }
 
 .goal-actions {
     display: flex;
     justify-content: flex-end;
+
 }
 
-/* Week Summary */
 .week-summary {
     display: flex;
     justify-content: space-between;
@@ -908,6 +823,7 @@ onIonViewWillEnter(() => {
     margin-bottom: 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     color: var(--forgy-text-primary);
+
 }
 
 .week-day {
@@ -1024,7 +940,6 @@ onIonViewWillEnter(() => {
     color: var(--ion-color-dark);
 }
 
-/* Recommendation Card */
 .recommendation-card {
     display: flex;
     align-items: center;
@@ -1087,7 +1002,6 @@ onIonViewWillEnter(() => {
     color: var(--ion-color-medium);
 }
 
-/* Quick Actions */
 .quick-actions {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -1123,7 +1037,6 @@ onIonViewWillEnter(() => {
     color: var(--forgy-text-primary);
 }
 
-/* Achievement Toast */
 .achievement-toast {
     position: fixed;
     top: 100px;
