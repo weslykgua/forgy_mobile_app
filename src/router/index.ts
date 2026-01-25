@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from '@ionic/vue-router';
 import { RouteRecordRaw } from 'vue-router';
-import TabsPage from '../views/TabsPage.vue';
+import TabsPage from '../views/NavBarView.vue';
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -11,7 +11,7 @@ const routes: Array<RouteRecordRaw> = [
   // ✅ Login fuera de Tabs (SIN navbar)
   {
     path: '/auth',
-    component: () => import('@/views/Tab5Page.vue'),
+    component: () => import('@/views/AuthView.vue'),
   },
 
   // ✅ Tabs con navbar
@@ -29,24 +29,22 @@ const routes: Array<RouteRecordRaw> = [
       },
       {
         path: 'tab1',
-        component: () => import('@/views/Tab1Page.vue'),
+        component: () => import('@/views/ExercisesView.vue'),
       },
       {
         path: 'tab2',
-        component: () => import('@/views/Tab2Page.vue'),
+        component: () => import('@/views/TrainView.vue'),
       },
       {
         path: 'tab3',
-        component: () => import('@/views/Tab3Page.vue'),
+        component: () => import('@/views/ProgressView.vue'),
       },
       {
         path: 'tab4',
-        component: () => import('@/views/Tab4Page.vue'),
+        component: () => import('@/views/ProfileView.vue'),
       },
     ],
   },
-
-  // (opcional) si alguien entra a /tabs/tab5 por error, lo mandas al auth
   {
     path: '/tabs/tab5',
     redirect: '/auth',
