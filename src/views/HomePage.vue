@@ -10,8 +10,11 @@
             </ion-toolbar>
         </ion-header>
 
-        <ion-content :fullscreen="true" class="home-content">
-           
+        <ion-content
+            :fullscreen="true"
+            class="home-content"
+        >
+
             <div class="hero-section">
                 <div class="hero-background"></div>
                 <div class="hero-content">
@@ -23,7 +26,10 @@
                         </div>
                     </div>
 
-                    <div class="motivation-card" @click="changeQuote">
+                    <div
+                        class="motivation-card"
+                        @click="changeQuote"
+                    >
                         <span class="quote-icon">💬</span>
                         <p class="quote-text">"{{ currentQuote.text }}"</p>
                         <span class="quote-author">— {{ currentQuote.author }}</span>
@@ -32,24 +38,56 @@
             </div>
 
             <div class="quick-stats">
-                <div class="stat-ring" @click="goToProgress">
-                    <svg viewBox="0 0 100 100" class="ring-svg">
-                        <circle cx="50" cy="50" r="45" class="ring-bg" />
-                        <circle cx="50" cy="50" r="45" class="ring-progress"
-                            :style="{ strokeDashoffset: streakOffset }" />
+                <div
+                    class="stat-ring"
+                    @click="goToProgress"
+                >
+                    <svg
+                        viewBox="0 0 100 100"
+                        class="ring-svg"
+                    >
+                        <circle
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            class="ring-bg"
+                        />
+                        <circle
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            class="ring-progress"
+                            :style="{ strokeDashoffset: streakOffset }"
+                        />
                     </svg>
                     <div class="ring-content">
-                        <span class="ring-value">{{ stats.streakDays }}</span>
+                        <span class="ring-value">{{ stats.currentStreak }}</span>
                         <span class="ring-label">días</span>
                     </div>
                     <span class="ring-title">🔥 Racha</span>
                 </div>
 
-                <div class="stat-ring" @click="goToProgress">
-                    <svg viewBox="0 0 100 100" class="ring-svg">
-                        <circle cx="50" cy="50" r="45" class="ring-bg" />
-                        <circle cx="50" cy="50" r="45" class="ring-progress water"
-                            :style="{ strokeDashoffset: waterOffset }" />
+                <div
+                    class="stat-ring"
+                    @click="goToProgress"
+                >
+                    <svg
+                        viewBox="0 0 100 100"
+                        class="ring-svg"
+                    >
+                        <circle
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            class="ring-bg"
+                        />
+                        <circle
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            class="ring-progress water"
+                            :style="{ strokeDashoffset: waterOffset }"
+                        />
                     </svg>
                     <div class="ring-content">
                         <span class="ring-value">{{ formatLiters(todayWater) }}</span>
@@ -58,11 +96,27 @@
                     <span class="ring-title">💧 Agua</span>
                 </div>
 
-                <div class="stat-ring" @click="goToWorkout">
-                    <svg viewBox="0 0 100 100" class="ring-svg">
-                        <circle cx="50" cy="50" r="45" class="ring-bg" />
-                        <circle cx="50" cy="50" r="45" class="ring-progress workouts"
-                            :style="{ strokeDashoffset: workoutsOffset }" />
+                <div
+                    class="stat-ring"
+                    @click="goToWorkout"
+                >
+                    <svg
+                        viewBox="0 0 100 100"
+                        class="ring-svg"
+                    >
+                        <circle
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            class="ring-bg"
+                        />
+                        <circle
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            class="ring-progress workouts"
+                            :style="{ strokeDashoffset: workoutsOffset }"
+                        />
                     </svg>
                     <div class="ring-content">
                         <span class="ring-value">{{ stats.totalWorkouts }}</span>
@@ -76,7 +130,10 @@
             <div class="section-container">
                 <div class="section-title">
                     <span>🎯 Meta del día</span>
-                    <ion-chip color="success" v-if="goalProgress >= 100">
+                    <ion-chip
+                        color="success"
+                        v-if="goalProgress >= 100"
+                    >
                         <ion-icon :icon="checkmarkCircle"></ion-icon>
                         <ion-label>Completado</ion-label>
                     </ion-chip>
@@ -93,11 +150,21 @@
                         </div>
                     </div>
                     <div class="goal-bar">
-                        <div class="goal-fill" :style="{ width: Math.min(goalProgress, 100) + '%' }"></div>
+                        <div
+                            class="goal-fill"
+                            :style="{ width: Math.min(goalProgress, 100) + '%' }"
+                        ></div>
                     </div>
                     <div class="goal-actions">
-                        <ion-button fill="outline" size="small" @click="goToWorkout">
-                            <ion-icon :icon="add" slot="start"></ion-icon>
+                        <ion-button
+                            fill="outline"
+                            size="small"
+                            @click="goToWorkout"
+                        >
+                            <ion-icon
+                                :icon="add"
+                                slot="start"
+                            ></ion-icon>
                             Registrar entreno
                         </ion-button>
                     </div>
@@ -111,15 +178,27 @@
                 </div>
 
                 <div class="week-summary">
-                    <div v-for="(day, idx) in weekSummary" :key="idx" class="week-day" :class="{
-                        'active': day.hasWorkout,
-                        'today': day.isToday,
-                        'future': day.isFuture
-                    }">
+                    <div
+                        v-for="(day, idx) in weekSummary"
+                        :key="idx"
+                        class="week-day"
+                        :class="{
+                            'active': day.hasWorkout,
+                            'today': day.isToday,
+                            'future': day.isFuture
+                        }"
+                    >
                         <span class="day-letter">{{ day.letter }}</span>
                         <div class="day-indicator">
-                            <ion-icon v-if="day.hasWorkout" :icon="checkmarkCircle" color="success"></ion-icon>
-                            <span v-else-if="day.isToday" class="today-dot"></span>
+                            <ion-icon
+                                v-if="day.hasWorkout"
+                                :icon="checkmarkCircle"
+                                color="success"
+                            ></ion-icon>
+                            <span
+                                v-else-if="day.isToday"
+                                class="today-dot"
+                            ></span>
                         </div>
                     </div>
                 </div>
@@ -141,18 +220,29 @@
             </div>
 
             <!-- Personal Records Highlight -->
-            <div class="section-container" v-if="topPRs.length > 0">
+            <div
+                class="section-container"
+                v-if="topPRs.length > 0"
+            >
                 <div class="section-title">
                     <span>🏆 Tus Records</span>
-                    <ion-button fill="clear" size="small" @click="goToRecords">Ver todos</ion-button>
+                    <ion-button
+                        fill="clear"
+                        size="small"
+                        @click="goToRecords"
+                    >Ver todos</ion-button>
                 </div>
 
                 <div class="pr-showcase">
-                    <div v-for="(pr, idx) in topPRs" :key="idx" class="pr-item">
+                    <div
+                        v-for="(pr, idx) in topPRs"
+                        :key="idx"
+                        class="pr-item"
+                    >
                         <div class="pr-medal">{{ getMedal(idx) }}</div>
                         <div class="pr-details">
                             <span class="pr-exercise">{{ pr.exerciseName }}</span>
-                            <span class="pr-weight">{{ pr.maxWeight }} kg</span>
+                            <span class="pr-weight">{{ pr.value }} kg</span>
                         </div>
                     </div>
                 </div>
@@ -164,16 +254,26 @@
                     <span>💡 Recomendación de hoy</span>
                 </div>
 
-                <div class="recommendation-card" @click="goToWorkout">
+                <div
+                    class="recommendation-card"
+                    @click="goToWorkout"
+                >
                     <div class="rec-icon">{{ recommendation.icon }}</div>
                     <div class="rec-content">
                         <h4>{{ recommendation.title }}</h4>
                         <p>{{ recommendation.description }}</p>
                         <div class="rec-tags">
-                            <span class="rec-tag" v-for="tag in recommendation.tags" :key="tag">{{ tag }}</span>
+                            <span
+                                class="rec-tag"
+                                v-for="tag in recommendation.tags"
+                                :key="tag"
+                            >{{ tag }}</span>
                         </div>
                     </div>
-                    <ion-icon :icon="chevronForward" class="rec-arrow"></ion-icon>
+                    <ion-icon
+                        :icon="chevronForward"
+                        class="rec-arrow"
+                    ></ion-icon>
                 </div>
             </div>
 
@@ -184,19 +284,31 @@
                 </div>
 
                 <div class="quick-actions">
-                    <div class="action-card" @click="quickAddWater">
+                    <div
+                        class="action-card"
+                        @click="quickAddWater"
+                    >
                         <span class="action-icon">💧</span>
                         <span class="action-label">+500ml agua</span>
                     </div>
-                    <div class="action-card" @click="goToWorkout">
+                    <div
+                        class="action-card"
+                        @click="goToWorkout"
+                    >
                         <span class="action-icon">🏋️</span>
                         <span class="action-label">Nuevo entreno</span>
                     </div>
-                    <div class="action-card" @click="goToProgress">
+                    <div
+                        class="action-card"
+                        @click="goToProgress"
+                    >
                         <span class="action-icon">⚖️</span>
                         <span class="action-label">Registrar peso</span>
                     </div>
-                    <div class="action-card" @click="goToExercises">
+                    <div
+                        class="action-card"
+                        @click="goToExercises"
+                    >
                         <span class="action-icon">📚</span>
                         <span class="action-label">Ver ejercicios</span>
                     </div>
@@ -204,7 +316,11 @@
             </div>
 
             <!-- Achievement Unlock Animation -->
-            <div class="achievement-toast" v-if="showAchievement" @click="showAchievement = false">
+            <div
+                class="achievement-toast"
+                v-if="showAchievement"
+                @click="showAchievement = false"
+            >
                 <div class="achievement-content">
                     <span class="achievement-icon">🎉</span>
                     <div class="achievement-text">
@@ -229,23 +345,29 @@ import {
 import { ref, computed } from 'vue';
 import { checkmarkCircle, add, chevronForward } from 'ionicons/icons';
 
-const API_URL = 'http://localhost:3000';
+const API_URL = 'http://localhost:3000/api';
 const router = useIonRouter();
 
+// Función auxiliar para obtener cabeceras con token
+const getHeaders = () => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${localStorage.getItem('token')}`
+});
+
 interface ProgressStats {
+    currentStreak: number;
+    longestStreak: number;
     totalWorkouts: number;
-    totalVolume: number;
-    streakDays: number;
-    currentWeight: number;
+    activeGoals: number;
 }
 
 interface PersonalRecord {
     exerciseName: string;
-    maxWeight: number;
+    value: number;
     date: string;
 }
 
-const stats = ref<ProgressStats>({ totalWorkouts: 0, totalVolume: 0, streakDays: 0, currentWeight: 0 });
+const stats = ref<ProgressStats>({ currentStreak: 0, longestStreak: 0, totalWorkouts: 0, activeGoals: 0 });
 const todayWater = ref(0);
 const topPRs = ref<PersonalRecord[]>([]);
 const workoutHistory = ref<any[]>([]);
@@ -289,7 +411,7 @@ const todayGoal = computed(() => {
 });
 
 const goalProgress = computed(() => {
-    const todayWorkouts = workoutHistory.value.filter(w => w.date === today).length;
+    const todayWorkouts = workoutHistory.value.filter(w => new Date(w.date).toISOString().split('T')[0] === today).length;
     if (todayGoal.value.target === 0) return 100;
     return (todayWorkouts / todayGoal.value.target) * 100;
 });
@@ -297,7 +419,7 @@ const goalProgress = computed(() => {
 // Ring calculations
 const circumference = 2 * Math.PI * 45;
 const streakOffset = computed(() => {
-    const progress = Math.min(stats.value.streakDays / 30, 1);
+    const progress = Math.min(stats.value.currentStreak / 30, 1);
     return circumference * (1 - progress);
 });
 const waterOffset = computed(() => {
@@ -320,8 +442,8 @@ const weekSummary = computed(() => {
     for (let i = 0; i < 7; i++) {
         const date = new Date(startOfWeek);
         date.setDate(startOfWeek.getDate() + i);
-        const dateStr = date.toISOString().split('T')[0];
-        const hasWorkout = workoutHistory.value.some(w => w.date === dateStr);
+        const dateStr = date.toISOString().split('T')[0]; // 'YYYY-MM-DD'
+        const hasWorkout = workoutHistory.value.some(w => new Date(w.date).toISOString().split('T')[0] === dateStr);
 
         result.push({
             letter: days[i],
@@ -337,28 +459,25 @@ const weekSummary = computed(() => {
 const weekWorkouts = computed(() => {
     const startOfWeek = new Date();
     startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-    const startStr = startOfWeek.toISOString().split('T')[0];
-    return workoutHistory.value.filter(w => w.date >= startStr).length;
+    startOfWeek.setHours(0, 0, 0, 0);
+    return workoutHistory.value.filter(w => new Date(w.date) >= startOfWeek).length;
 });
 
 const weekVolume = computed(() => {
     const startOfWeek = new Date();
     startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-    const startStr = startOfWeek.toISOString().split('T')[0];
+    startOfWeek.setHours(0, 0, 0, 0);
     return workoutHistory.value
-        .filter(w => w.date >= startStr)
-        .reduce((sum, w) => {
-            const vol = w.sets?.reduce((s: number, set: any) => s + (set.reps * set.weight), 0) || 0;
-            return sum + vol;
-        }, 0);
+        .filter(w => new Date(w.date) >= startOfWeek)
+        .reduce((sum, w) => sum + (w.totalVolume || 0), 0);
 });
 
 const weekDuration = computed(() => {
     const startOfWeek = new Date();
     startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-    const startStr = startOfWeek.toISOString().split('T')[0];
+    startOfWeek.setHours(0, 0, 0, 0);
     return workoutHistory.value
-        .filter(w => w.date >= startStr)
+        .filter(w => new Date(w.date) >= startOfWeek)
         .reduce((sum, w) => sum + (w.duration || 0), 0);
 });
 
@@ -411,80 +530,98 @@ function formatVolume(vol: number) {
 
 // Navigation
 function goToWorkout() {
-    router.push('/tabs/tab2');
+    router.push('/tabs/exercises');
 }
 
 function goToProgress() {
-    router.push('/tabs/tab3');
+    router.push('/tabs/progress');
 }
 
 function goToRecords() {
-    router.push('/tabs/tab3');
+    router.push('/tabs/progress');
 }
 
 function goToExercises() {
-    router.push('/tabs/tab1');
+    router.push('/tabs/exercises');
 }
 
 // Actions
 async function quickAddWater() {
     try {
-        const progressRes = await fetch(`${API_URL}/progress`);
+        const progressRes = await fetch(`${API_URL}/progress`, { headers: getHeaders() });
+        if (!progressRes.ok) throw new Error('Failed to fetch current progress');
         const progressData = await progressRes.json();
-        const todayProgress = progressData.find((p: any) => p.date === today);
+        const todayProgress = Array.isArray(progressData) ? progressData.find((p: any) => new Date(p.date).toISOString().split('T')[0] === today) : null;
 
-        await fetch(`${API_URL}/progress`, {
+        const response = await fetch(`${API_URL}/progress`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getHeaders(),
             body: JSON.stringify({
                 date: today,
                 waterIntake: (todayProgress?.waterIntake || 0) + 500,
-                weight: todayProgress?.weight || 0,
-                mood: todayProgress?.mood || 'Bien'
             })
         });
+        if (!response.ok) throw new Error('Failed to save water intake');
 
         todayWater.value += 500;
         showToast('+500ml 💧 ¡Sigue así!');
     } catch (error) {
-        showToast('Error al registrar', 'danger');
+        console.error("Error in quickAddWater:", error);
+        showToast('Error al registrar agua', 'danger');
     }
 }
 
 async function loadData() {
     try {
-        const [statsRes, progressRes, historyRes, prsRes, workoutsRes] = await Promise.all([
-            fetch(`${API_URL}/progress/stats`),
-            fetch(`${API_URL}/progress`),
-            fetch(`${API_URL}/workouts/history`),
-            fetch(`${API_URL}/workouts/prs`),
-            fetch(`${API_URL}/workouts`)
+        const [statsRes, progressRes, historyRes, prsRes] = await Promise.all([
+            fetch(`${API_URL}/users/stats`, { headers: getHeaders() }),
+            fetch(`${API_URL}/progress`, { headers: getHeaders() }),
+            fetch(`${API_URL}/workouts/history`, { headers: getHeaders() }),
+            fetch(`${API_URL}/workouts/prs`, { headers: getHeaders() })
         ]);
 
-        stats.value = await statsRes.json();
-        const progressData = await progressRes.json();
-        const todayProgress = progressData.find((p: any) => p.date === today);
+
+        // Verificación robusta de todas las respuestas
+        if (!statsRes.ok || !progressRes.ok || !historyRes.ok || !prsRes.ok) {
+            console.error("Fallo en una o más peticiones al API:", {
+                stats: { status: statsRes.status, ok: statsRes.ok },
+                progress: { status: progressRes.status, ok: progressRes.ok },
+                history: { status: historyRes.status, ok: historyRes.ok },
+                prs: { status: prsRes.status, ok: prsRes.ok },
+            });
+            // Lanza un error específico si la petición de stats falla, ya que es la que da 404
+            if (!statsRes.ok) throw new Error(`Error al cargar estadísticas (ruta: ${statsRes.url}, estado: ${statsRes.status})`);
+            throw new Error('Error al cargar datos del dashboard. Revisa tu conexión o token.');
+        }
+
+        stats.value = (await statsRes.json()).stats;
+        const progressData = progressRes.ok ? await progressRes.json() : [];
+        const todayProgress = Array.isArray(progressData) ? progressData.find((p: any) => new Date(p.date).toISOString().split('T')[0] === today) : null;
         todayWater.value = todayProgress?.waterIntake || 0;
 
-        topPRs.value = (await prsRes.json()).slice(0, 3);
-        workoutHistory.value = await workoutsRes.json();
+        const prsData = prsRes.ok ? await prsRes.json() : {};
+        const prsList: PersonalRecord[] = Object.values(prsData).flatMap((group: any) => Object.values(group.records).map((record: any) => ({ ...record, exerciseName: group.exerciseName }))).sort((a, b) => b.value - a.value);
+        topPRs.value = prsList.filter(pr => pr.recordType === 'max_weight').slice(0, 3);
+
+        const historyData = historyRes.ok ? await historyRes.json() : [];
+        workoutHistory.value = Array.isArray(historyData) ? historyData : [];
 
         // Check for achievements
         checkAchievements();
     } catch (error) {
-        console.error('Error loading data:', error);
+        console.error("Error loading data:", error);
+        showToast((error as Error).message, 'danger');
     }
 }
 
 function checkAchievements() {
-    if (stats.value.streakDays === 7) {
+    if (stats.value.currentStreak === 7) {
         achievementText.value = '¡7 días de racha! 🔥';
-        showAchievement.value = true;
     } else if (stats.value.totalWorkouts === 10) {
         achievementText.value = '¡10 entrenamientos completados! 💪';
-        showAchievement.value = true;
     }
 }
+
 
 async function showToast(message: string, color = 'success') {
     const toast = await toastController.create({ message, duration: 2000, color, position: 'bottom' });

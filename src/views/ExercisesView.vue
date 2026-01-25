@@ -28,14 +28,28 @@ interface Exercise {
   createdAt: string;
 }
 
+// Interfaz para la respuesta de la API (relación ligera)
 interface Routine {
   id: string;
   name: string;
-  exercises: Exercise[];
+  exercises: { exerciseId: string; order: number }[];
   imageUrl?: string;
 }
 
-const API_URL = 'http://localhost:3000';
+// Interfaz para el detalle (ejercicios completos)
+interface RoutineDetail extends Omit<Routine, 'exercises'> {
+  exercises: (Exercise & { order: number })[];
+}
+
+// NOTA: Si usas un dispositivo físico, cambia localhost por tu IP local (ej: 192.168.1.5)
+const API_URL = 'http://localhost:3000/api';
+
+// Función auxiliar para obtener cabeceras con token
+const getHeaders = () => ({
+  'Content-Type': 'application/json',
+  'Authorization': `Bearer ${localStorage.getItem('token')}`
+});
+
 const exercises = ref<Exercise[]>([]);
 const routines = ref<Routine[]>([]);
 const isLoading = ref(true);
@@ -45,7 +59,7 @@ const isModalOpen = ref(false);
 const isDetailModalOpen = ref(false);
 const selectedExercise = ref<Exercise | null>(null);
 const viewMode = ref<'exercises' | 'routines'>('exercises');
-const selectedRoutine = ref<Routine | null>(null);
+const selectedRoutine = ref<RoutineDetail | null>(null);
 const isRoutineDetailOpen = ref(false);
 const isReorderMode = ref(false);
 const isImagePickerOpen = ref(false);
@@ -58,9 +72,9 @@ const isAddExerciseModalOpen = ref(false);
 const addExerciseSearchText = ref('');
 const currentTrainingSessionId = ref<string | null>(null);
 const workoutLogs = ref<Record<string, {
-    sets: { reps: string; weight: string; completed: boolean }[];
-    notes: string;
-    duration: string;
+  sets: { reps: string; weight: string; completed: boolean }[];
+  notes: string;
+  duration: string;
 }>>({});
 const newRoutineForm = ref({ name: '', imageUrl: '' });
 const predefinedImages = ref([
@@ -153,14 +167,14 @@ const filteredExercises = computed(() => {
 
 const exercisesAvailableToAdd = computed(() => {
   if (!selectedRoutine.value) return [];
-  
+
   const exerciseIdsInRoutine = selectedRoutine.value.exercises.map(ex => ex.id);
-  
+
   let available = exercises.value.filter(ex => !exerciseIdsInRoutine.includes(ex.id));
 
   if (addExerciseSearchText.value) {
     const search = addExerciseSearchText.value.toLowerCase();
-    available = available.filter(ex => 
+    available = available.filter(ex =>
       ex.name.toLowerCase().includes(search) ||
       ex.description?.toLowerCase().includes(search)
     );
@@ -184,10 +198,13 @@ const loadExercises = async () => {
   try {
     isLoading.value = true;
     const response = await fetch(`${API_URL}/exercises`);
-    exercises.value = await response.json();
+    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+    const data = await response.json();
+    exercises.value = Array.isArray(data) ? data : [];
   } catch (error) {
     console.error("Error fetching", error);
     showToast('Error al cargar ejercicios', 'danger');
+    exercises.value = [];
   } finally {
     isLoading.value = false;
   }
@@ -196,7 +213,14 @@ const loadExercises = async () => {
 // Cargar rutinas
 const loadRoutines = async () => {
   try {
-    const response = await fetch(`${API_URL}/routines`);
+    const response = await fetch(`${API_URL}/routines`, {
+      headers: getHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error HTTP: ${response.status} al cargar rutinas`);
+    }
+
     const data = await response.json();
     if (Array.isArray(data)) {
       routines.value = data;
@@ -260,7 +284,7 @@ const saveExercise = async () => {
 
     const response = await fetch(`${API_URL}/exercises`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
       body: JSON.stringify(exerciseData)
     });
 
@@ -291,19 +315,16 @@ const saveNewRoutine = async () => {
   try {
     const response = await fetch(`${API_URL}/routines`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
       body: JSON.stringify({
-        ...newRoutineForm.value,
-        userId: 'clrt1j8k5000008l34w0o2q66' // Hardcoded user ID for now
+        ...newRoutineForm.value
       })
     });
-    if (response.ok) {
-      showToast('Rutina creada con éxito');
-      loadRoutines();
-      isCreateRoutineModalOpen.value = false;
-    } else {
-      throw new Error('Error en la respuesta del servidor');
-    }
+    if (!response.ok) throw new Error('Error en la respuesta del servidor');
+
+    showToast('Rutina creada con éxito');
+    loadRoutines();
+    isCreateRoutineModalOpen.value = false;
   } catch (e) {
     showToast('Error al crear la rutina', 'danger');
   }
@@ -335,7 +356,7 @@ const addToRoutine = async (exercise: Exercise) => {
 
   const availableRoutines = routines.value.filter(routine => {
     // A routine's `exercises` property is an array of join-table objects like { exerciseId: '...' }
-    const exerciseIdsInRoutine = (routine.exercises as any[] || []).map(re => re.exerciseId);
+    const exerciseIdsInRoutine = (routine.exercises || []).map(re => re.exerciseId);
     // We only want to show routines that DO NOT already include the exercise.
     return !exerciseIdsInRoutine.includes(exercise.id);
   });
@@ -362,7 +383,7 @@ const addToRoutine = async (exercise: Exercise) => {
         try {
           const response = await fetch(`${API_URL}/routines/${routineId}/exercises`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getHeaders(),
             body: JSON.stringify({ exerciseId: exercise.id, order: newOrder })
           });
           if (!response.ok) {
@@ -385,8 +406,9 @@ const addToRoutine = async (exercise: Exercise) => {
         }
       }
     }
-  ]});
-await alert.present();
+    ]
+  });
+  await alert.present();
 };
 
 const openAddExerciseModal = () => {
@@ -403,7 +425,7 @@ const addExerciseToCurrentRoutine = async (exercise: Exercise) => {
   try {
     const response = await fetch(`${API_URL}/routines/${routineId}/exercises`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
       body: JSON.stringify({ exerciseId: exercise.id, order: newOrder })
     });
 
@@ -412,11 +434,11 @@ const addExerciseToCurrentRoutine = async (exercise: Exercise) => {
     }
 
     // Update UI immediately
-    selectedRoutine.value.exercises.push(exercise);
-    
+    selectedRoutine.value.exercises.push({ ...exercise, order: newOrder });
+
     const routineInList = routines.value.find(r => r.id === routineId);
     if (routineInList) {
-        (routineInList.exercises as any[]).push({ exerciseId: exercise.id, order: newOrder });
+      routineInList.exercises.push({ exerciseId: exercise.id, order: newOrder });
     }
 
     showToast(`${exercise.name} agregado a la rutina`, 'success');
@@ -443,7 +465,7 @@ const handleExerciseReorder = async (event: CustomEvent) => {
   selectedRoutine.value.exercises = reorderedExercises;
 
   // Extrae la lista ordenada de IDs de ejercicios
-  const exercisesWithOrder = reorderedExercises.map((ex: Exercise, index: number) => ({
+  const exercisesWithOrder = reorderedExercises.map((ex: Exercise & { order: number }, index: number) => ({
     exerciseId: ex.id,
     order: index,
   }));
@@ -453,7 +475,7 @@ const handleExerciseReorder = async (event: CustomEvent) => {
     // Actualizamos la rutina principal con la nueva lista ordenada de ejercicios
     const response = await fetch(`${API_URL}/routines/${routineId}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
       body: JSON.stringify({ exercises: exercisesWithOrder })
     });
 
@@ -503,7 +525,8 @@ const deleteExerciseFromRoutine = async (exerciseId: string) => {
 
   try {
     const response = await fetch(`${API_URL}/routines/${routineId}/exercises/${exerciseId}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: getHeaders()
     });
 
     if (!response.ok) {
@@ -514,7 +537,7 @@ const deleteExerciseFromRoutine = async (exerciseId: string) => {
     selectedRoutine.value.exercises = selectedRoutine.value.exercises.filter(ex => ex.id !== exerciseId);
     const routineInList = routines.value.find(r => r.id === routineId);
     if (routineInList) {
-        (routineInList.exercises as any[]) = (routineInList.exercises as any[]).filter(re => re.exerciseId !== exerciseId);
+      routineInList.exercises = routineInList.exercises.filter(re => re.exerciseId !== exerciseId);
     }
     showToast('Ejercicio eliminado de la rutina', 'success');
   } catch (error) {
@@ -616,25 +639,24 @@ const finishWorkout = async () => {
             const totalDuration = finalLogs.reduce((sum, log) => sum + (log?.duration || 0), 0);
 
             const workoutPayload = {
-              userId: 'clrt1j8k5000008l34w0o2q66', // Hardcoded user ID
               routineId: selectedRoutine.value?.id,
               duration: totalDuration > 0 ? totalDuration : null,
               workouts: finalLogs,
             };
 
             const response = await fetch(`${API_URL}/workouts`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+              method: 'POST',
+              headers: getHeaders(),
               body: JSON.stringify(workoutPayload),
             });
 
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({})); // Handle cases where response is not json
-                console.error("Backend error details:", errorData);
-                const errorMessage = errorData.details || errorData.error || `Error: ${response.statusText}`;
-                throw new Error(errorMessage);
+              const errorData = await response.json().catch(() => ({})); // Handle cases where response is not json
+              console.error("Backend error details:", errorData);
+              const errorMessage = errorData.details || errorData.error || `Error: ${response.statusText}`;
+              throw new Error(errorMessage);
             }
-            
+
             await showToast('¡Entrenamiento guardado con éxito!', 'success');
 
             // Bypass the canDismiss confirmation by resetting training mode before closing
@@ -757,7 +779,7 @@ const renameRoutine = async (routine: Routine) => {
           try {
             const response = await fetch(`${API_URL}/routines/${routine.id}`, {
               method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
+              headers: getHeaders(),
               body: JSON.stringify({ name: data.name }),
             });
             if (!response.ok) throw new Error('Error al renombrar');
@@ -785,7 +807,10 @@ const confirmDeleteRoutine = async (routine: Routine) => {
         role: 'destructive',
         handler: async () => {
           try {
-            const response = await fetch(`${API_URL}/routines/${routine.id}`, { method: 'DELETE' });
+            const response = await fetch(`${API_URL}/routines/${routine.id}`, {
+              method: 'DELETE',
+              headers: getHeaders()
+            });
             if (!response.ok) throw new Error('No se pudo eliminar la rutina.');
             showToast('Rutina eliminada', 'success');
             loadRoutines();
@@ -805,7 +830,7 @@ const openRoutineDetail = (routine: Routine) => {
 
   // The 'routine' object from the list has an 'exercises' array of {exerciseId, order}.
   // We need to map these to the full Exercise objects from our `exercises` ref.
-  const hydratedExercises = (routine.exercises as any[])
+  const hydratedExercises = (routine.exercises || [])
     .map(routineExercise => {
       const fullExercise = exercises.value.find(e => e.id === routineExercise.exerciseId);
       // We also need to preserve the order from the routine
@@ -819,7 +844,7 @@ const openRoutineDetail = (routine: Routine) => {
 
   selectedRoutine.value = {
     ...routine,
-    exercises: hydratedExercises as Exercise[],
+    exercises: hydratedExercises as (Exercise & { order: number })[],
   };
   isRoutineDetailOpen.value = true;
 };
@@ -836,7 +861,7 @@ const updateRoutineImage = async (imageUrl: string) => {
     try {
       const response = await fetch(`${API_URL}/routines/${routine.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(),
         body: JSON.stringify({ imageUrl: imageUrl }),
       });
       if (!response.ok) throw new Error('Error al cambiar la imagen');
@@ -887,7 +912,9 @@ onIonViewWillEnter(() => {
   loadRoutines();
   selectedMuscle.value = ['Todos']; // Opcional: Reinicia los filtros
   searchText.value = ''; // Opcional: Limpia la búsqueda
-  socket = io(API_URL);
+  socket = io(API_URL.replace('/api', ''), {
+    auth: { token: localStorage.getItem('token') }
+  });
   socket.on('exercises-updated', () => {
     console.log("🔔 Datos actualizados");
     loadExercises();
@@ -1425,7 +1452,8 @@ onIonViewWillLeave(() => {
       <ion-header>
         <ion-toolbar>
           <ion-buttons slot="start">
-            <ion-button v-if="selectedRoutine?.exercises && selectedRoutine.exercises.length > 0"
+            <ion-button
+              v-if="selectedRoutine?.exercises && selectedRoutine.exercises.length > 0"
               @click="isReorderMode = !isReorderMode"
               :disabled="isTrainingMode"
             >
@@ -1447,59 +1475,88 @@ onIonViewWillLeave(() => {
       <ion-content class="ion-padding">
         <template v-if="selectedRoutine">
           <ion-reorder-group
-          v-if="selectedRoutine.exercises && selectedRoutine.exercises.length > 0"
-          :disabled="!isReorderMode"
-          @ionItemReorder="handleExerciseReorder($event)"
-        >
-          <ion-item-sliding
-            v-for="ex in selectedRoutine.exercises"
-            :key="ex.id"
-            :disabled="isReorderMode"
+            v-if="selectedRoutine.exercises && selectedRoutine.exercises.length > 0"
+            :disabled="!isReorderMode"
+            @ionItemReorder="handleExerciseReorder($event)"
           >
-            <ion-item
-              lines="full"
-              class="exercise-list-item"
-              :button="!isReorderMode"
-              @click="handleExerciseClick(ex)"
-              :detail="!isReorderMode"
+            <ion-item-sliding
+              v-for="ex in selectedRoutine.exercises"
+              :key="ex.id"
+              :disabled="isReorderMode"
             >
-              <ion-button v-if="isReorderMode" slot="start" fill="clear" color="danger" @click.stop="confirmDeleteExerciseFromRoutine(ex.id)">
-                <ion-icon :icon="removeCircleOutline" slot="icon-only"></ion-icon>
-              </ion-button>
-              <div v-if="!isReorderMode" slot="start" class="exercise-avatar">
-                {{ getMuscleEmoji(ex.muscle) }}
-              </div>
-              <ion-label>
-                <h2>{{ ex.name }}</h2>
-                <p v-if="isTrainingMode && workoutLogs[ex.id]">
-                  {{ workoutLogs[ex.id].sets.filter(s => s.completed).length }} de {{ workoutLogs[ex.id].sets.length }} series
-                </p>
-                <p v-else>
-                  {{ ex.muscle }}
-                </p>
-              </ion-label>
-              <ion-reorder v-if="isReorderMode" slot="end">
-                <ion-icon :icon="reorderThreeOutline"></ion-icon>
-              </ion-reorder>
-            </ion-item>
-            <ion-item-options side="end">
-              <ion-item-option color="danger" @click="confirmDeleteExerciseFromRoutine(ex.id)">
-                <ion-icon :icon="trash" slot="icon-only"></ion-icon>
-              </ion-item-option>
-            </ion-item-options>
-          </ion-item-sliding>
-        </ion-reorder-group>
+              <ion-item
+                lines="full"
+                class="exercise-list-item"
+                :button="!isReorderMode"
+                @click="handleExerciseClick(ex)"
+                :detail="!isReorderMode"
+              >
+                <ion-button
+                  v-if="isReorderMode"
+                  slot="start"
+                  fill="clear"
+                  color="danger"
+                  @click.stop="confirmDeleteExerciseFromRoutine(ex.id)"
+                >
+                  <ion-icon
+                    :icon="removeCircleOutline"
+                    slot="icon-only"
+                  ></ion-icon>
+                </ion-button>
+                <div
+                  v-if="!isReorderMode"
+                  slot="start"
+                  class="exercise-avatar"
+                >
+                  {{ getMuscleEmoji(ex.muscle) }}
+                </div>
+                <ion-label>
+                  <h2>{{ ex.name }}</h2>
+                  <p v-if="isTrainingMode && workoutLogs[ex.id]">
+                    {{workoutLogs[ex.id].sets.filter(s => s.completed).length}} de {{ workoutLogs[ex.id].sets.length
+                    }} series
+                  </p>
+                  <p v-else>
+                    {{ ex.muscle }}
+                  </p>
+                </ion-label>
+                <ion-reorder
+                  v-if="isReorderMode"
+                  slot="end"
+                >
+                  <ion-icon :icon="reorderThreeOutline"></ion-icon>
+                </ion-reorder>
+              </ion-item>
+              <ion-item-options side="end">
+                <ion-item-option
+                  color="danger"
+                  @click="confirmDeleteExerciseFromRoutine(ex.id)"
+                >
+                  <ion-icon
+                    :icon="trash"
+                    slot="icon-only"
+                  ></ion-icon>
+                </ion-item-option>
+              </ion-item-options>
+            </ion-item-sliding>
+          </ion-reorder-group>
 
-        <div
-          v-else
-          class="ion-text-center ion-padding"
-        >
-          <p>Esta rutina está vacía.</p>
-          <ion-button fill="clear" @click="openAddExerciseModal">
-            <ion-icon :icon="add" slot="start"></ion-icon>
-            Agregar Ejercicios
-          </ion-button>
-        </div>
+          <div
+            v-else
+            class="ion-text-center ion-padding"
+          >
+            <p>Esta rutina está vacía.</p>
+            <ion-button
+              fill="clear"
+              @click="openAddExerciseModal"
+            >
+              <ion-icon
+                :icon="add"
+                slot="start"
+              ></ion-icon>
+              Agregar Ejercicios
+            </ion-button>
+          </div>
         </template>
         <ion-fab
           v-if="selectedRoutine && selectedRoutine.exercises.length > 0 && !isReorderMode && !isTrainingMode"
@@ -1515,7 +1572,10 @@ onIonViewWillLeave(() => {
     </ion-modal>
 
     <!-- Modal para agregar ejercicio a la rutina -->
-    <ion-modal :is-open="isAddExerciseModalOpen" @didDismiss="isAddExerciseModalOpen = false">
+    <ion-modal
+      :is-open="isAddExerciseModalOpen"
+      @didDismiss="isAddExerciseModalOpen = false"
+    >
       <ion-header>
         <ion-toolbar>
           <ion-title>Agregar Ejercicio</ion-title>
@@ -1524,25 +1584,45 @@ onIonViewWillLeave(() => {
           </ion-buttons>
         </ion-toolbar>
         <ion-toolbar>
-            <ion-searchbar v-model="addExerciseSearchText" placeholder="Buscar ejercicio para agregar..."></ion-searchbar>
+          <ion-searchbar
+            v-model="addExerciseSearchText"
+            placeholder="Buscar ejercicio para agregar..."
+          ></ion-searchbar>
         </ion-toolbar>
       </ion-header>
       <ion-content class="ion-padding">
         <ion-list>
-          <ion-item v-for="ex in exercisesAvailableToAdd" :key="ex.id" lines="full">
-            <div slot="start" class="exercise-avatar">{{ getMuscleEmoji(ex.muscle) }}</div>
+          <ion-item
+            v-for="ex in exercisesAvailableToAdd"
+            :key="ex.id"
+            lines="full"
+          >
+            <div
+              slot="start"
+              class="exercise-avatar"
+            >{{ getMuscleEmoji(ex.muscle) }}</div>
             <ion-label>
               <h2>{{ ex.name }}</h2>
               <p>{{ ex.muscle }}</p>
             </ion-label>
-            <ion-button slot="end" fill="clear" @click="addExerciseToCurrentRoutine(ex)">
-              <ion-icon slot="icon-only" :icon="addCircleOutline"></ion-icon>
+            <ion-button
+              slot="end"
+              fill="clear"
+              @click="addExerciseToCurrentRoutine(ex)"
+            >
+              <ion-icon
+                slot="icon-only"
+                :icon="addCircleOutline"
+              ></ion-icon>
             </ion-button>
           </ion-item>
         </ion-list>
-        <div v-if="exercisesAvailableToAdd.length === 0" class="empty-state">
-            <h3>Todo Agregado</h3>
-            <p>No hay más ejercicios para agregar o que coincidan con tu búsqueda.</p>
+        <div
+          v-if="exercisesAvailableToAdd.length === 0"
+          class="empty-state"
+        >
+          <h3>Todo Agregado</h3>
+          <p>No hay más ejercicios para agregar o que coincidan con tu búsqueda.</p>
         </div>
       </ion-content>
     </ion-modal>

@@ -170,7 +170,7 @@
                         expand="block"
                         fill="outline"
                         color="danger"
-                        @click="logout"
+                        @click="confirmLogout"
                     >
                         <ion-icon
                             :icon="logOutOutline"
@@ -195,7 +195,8 @@ import {
     IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
     IonAvatar, IonButton, IonIcon, IonChip, IonLabel,
     IonList, IonListHeader, IonItem, IonToggle,
-    onIonViewWillEnter
+    onIonViewWillEnter,
+    alertController
 } from '@ionic/vue';
 import { ref, computed } from 'vue';
 import {
@@ -261,12 +262,24 @@ onIonViewWillEnter(() => {
     darkMode.value = document.body.classList.contains('dark') || prefersDark;
 });
 
-const logout = () => {
-    // Implement logout logic
-    localStorage.removeItem('forgy_session');
-    router.replace('/tabs/tab5');
-    console.log('Logging out...');
-};
+function logout() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  localStorage.removeItem('token_data');
+  router.replace('/auth');
+}
+
+async function confirmLogout() {
+  const alert = await alertController.create({
+    header: 'Cerrar Sesión',
+    message: '¿Estás seguro de que quieres cerrar sesión?',
+    buttons: [
+      { text: 'Cancelar', role: 'cancel' },
+      { text: 'Sí, cerrar sesión', role: 'destructive', handler: () => logout() },
+    ],
+  });
+  await alert.present();
+}
 
 </script>
 
