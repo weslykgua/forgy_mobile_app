@@ -4,7 +4,7 @@
    ============================================ */
 
 :root {
-    /* Primary - Blue */
+     /* Primary - Blue */
     --ion-color-primary: #ff7a18;
     --ion-color-primary-rgb: 255, 122, 24;
     --ion-color-primary-contrast: #ffffff;
@@ -19,6 +19,7 @@
     --ion-color-secondary-contrast-rgb: 255, 255, 255;
     --ion-color-secondary-shade: #e04500;
     --ion-color-secondary-tint: #ff6120;
+
 
     /* Tertiary */
     --ion-color-tertiary: #7c4dff;
