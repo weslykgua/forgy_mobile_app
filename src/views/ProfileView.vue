@@ -204,10 +204,14 @@ import {
     notificationsOutline, settingsOutline, moonOutline,
     helpCircleOutline, chatbubbleOutline, starOutline, logOutOutline
 } from 'ionicons/icons';
-import { R } from 'vue-router/dist/router-CWoNjPRp.mjs';
 import router from '@/router';
 
 const API_URL = 'http://localhost:3000/api';
+
+const getHeaders = () => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${localStorage.getItem('token')}`
+});
 
 const darkMode = ref(false);
 const stats = ref({ totalWorkouts: 0, totalVolume: 0, streakDays: 0 });
@@ -225,27 +229,51 @@ const level = computed(() => {
 
 const loadStats = async () => {
     try {
-        const res = await fetch(`${API_URL}/progress/stats`);
+        const res = await fetch(`${API_URL}/progress/stats`, { headers: getHeaders() });
+        if (!res.ok) throw new Error('Failed to load stats');
         stats.value = await res.json();
     } catch (e) {
         console.error(e);
     }
 };
 
-const loadSessionUser = () => {
-    const rawSession = localStorage.getItem('forgy_session');
-    if (!rawSession) return;
-
-    try {
-        const session = JSON.parse(rawSession);
-        if (session?.user?.name) {
-            userName.value = String(session.user.name);
+const loadProfileData = async () => {
+    // Carga inicial desde localStorage para una UI rápida
+    const rawUser = localStorage.getItem('user');
+    if (rawUser) {
+        try {
+            const user = JSON.parse(rawUser);
+            userName.value = user.name || 'Usuario Forgy';
+            userEmail.value = user.email || 'usuario@forgy.app';
+        } catch (e) {
+            console.error("Error al parsear usuario desde localStorage", e);
         }
-        if (session?.user?.email) {
-            userEmail.value = String(session.user.email);
+    }
+
+    // Fetch desde la API para obtener los datos más recientes
+    try {
+        const response = await fetch(`${API_URL}/auth/me`, {
+            headers: getHeaders()
+        });
+
+        if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+                console.log('Sesión expirada o inválida. Cerrando sesión.');
+                logout();
+            }
+            throw new Error('No se pudo obtener los datos del perfil');
+        }
+
+        const user = await response.json();
+
+        if (user) {
+            userName.value = user.name;
+            userEmail.value = user.email;
+            // Actualizar localStorage con los datos frescos
+            localStorage.setItem('user', JSON.stringify(user));
         }
     } catch (error) {
-        console.warn('Sesion invalida en localStorage', error);
+        console.error('Error al obtener datos del perfil desde la API:', error);
     }
 };
 
@@ -255,7 +283,7 @@ const toggleDarkMode = () => {
 };
 
 onIonViewWillEnter(() => {
-    loadSessionUser();
+    loadProfileData();
     loadStats();
     // Check system preference
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -263,22 +291,22 @@ onIonViewWillEnter(() => {
 });
 
 function logout() {
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
-  localStorage.removeItem('token_data');
-  router.replace('/auth');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('token_data');
+    router.replace('/auth');
 }
 
 async function confirmLogout() {
-  const alert = await alertController.create({
-    header: 'Cerrar Sesión',
-    message: '¿Estás seguro de que quieres cerrar sesión?',
-    buttons: [
-      { text: 'Cancelar', role: 'cancel' },
-      { text: 'Sí, cerrar sesión', role: 'destructive', handler: () => logout() },
-    ],
-  });
-  await alert.present();
+    const alert = await alertController.create({
+        header: 'Cerrar Sesión',
+        message: '¿Estás seguro de que quieres cerrar sesión?',
+        buttons: [
+            { text: 'Cancelar', role: 'cancel' },
+            { text: 'Sí, cerrar sesión', role: 'destructive', handler: () => logout() },
+        ],
+    });
+    await alert.present();
 }
 
 </script>
