@@ -61,6 +61,14 @@ const routes: Array<RouteRecordRaw> = [
         path: 'profile',
         component: () => import('@/views/ProfileView.vue'),
       },
+      {
+        path: 'bmi',
+        component: () => import('@/views/BmiTestView.vue'),
+      },
+      {
+        path: 'rm',
+        component: () => import('@/views/RmCalculatorView.vue'),
+      },
     ],
     beforeEnter: (to, from, next) => {
       // Si el usuario no está autenticado, lo redirigimos a la página de login
