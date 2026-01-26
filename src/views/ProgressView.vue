@@ -124,7 +124,7 @@
           <div class="section-header">
             <span class="section-icon">💧</span>
             <h3>Hidratación</h3>
-            <span class="section-value">{{ todayProgress?.waterIntake || 0 }} / 3000 ml</span>
+            <span class="section-value">{{ todayProgress?.waterIntake || 0 }} / 5000 ml</span>
           </div>
           <div class="water-progress">
             <div
@@ -160,25 +160,33 @@
               <span>+1L</span>
             </button>
           </div>
+          <p class="water-status">{{ waterStatusMessage }}</p>
         </div>
 
-        <!-- Estado de ánimo -->
-        <div class="section-card">
+        <!-- Calculadora IMC -->
+        <div class="section-card bmi-card" @click="goToBmiTest">
           <div class="section-header">
-            <span class="section-icon">😊</span>
-            <h3>¿Cómo te sientes?</h3>
+            <span class="section-icon">⚖️</span>
+            <h3>Calculadora de IMC</h3>
+            <span class="section-value" v-if="bmiValue">{{ bmiValue }}</span>
           </div>
-          <div class="mood-grid">
-            <button
-              v-for="mood in moods"
-              :key="mood.value"
-              class="mood-btn"
-              :class="{ active: todayProgress?.mood === mood.value }"
-              @click="setMood(mood.value)"
-            >
-              <span class="mood-emoji">{{ mood.emoji }}</span>
-              <span class="mood-label">{{ mood.label }}</span>
-            </button>
+          <div class="bmi-body">
+            <p class="bmi-label">{{ bmiLabel || 'Sin datos aún' }}</p>
+            <p class="bmi-message">{{ bmiMessage }}</p>
+            <ion-button size="small" fill="outline">Hacer test</ion-button>
+          </div>
+        </div>
+
+        <!-- Calculadora RM -->
+        <div class="section-card rm-card" @click="goToRmCalculator">
+          <div class="section-header">
+            <span class="section-icon">🏋️</span>
+            <h3>Calculadora de RM</h3>
+          </div>
+          <div class="bmi-body">
+            <p class="bmi-label">Calcula tu 1RM estimada</p>
+            <p class="bmi-message">Sirve para estimar tu máximo de 1 repetición según el peso y repeticiones que haces.</p>
+            <ion-button size="small" fill="outline">Abrir calculadora</ion-button>
           </div>
         </div>
 
@@ -382,7 +390,7 @@ import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
   IonButton, IonButtons, IonIcon, IonSegment, IonSegmentButton,
   IonLabel, IonModal, IonRefresher, IonRefresherContent,
-  onIonViewWillEnter, toastController
+  onIonViewWillEnter, toastController, useIonRouter
 } from '@ionic/vue';
 import { ref, computed } from 'vue';
 import {
@@ -390,6 +398,7 @@ import {
 } from 'ionicons/icons';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const router = useIonRouter();
 
 interface DailyProgress {
   id: string;
@@ -400,6 +409,12 @@ interface DailyProgress {
   caloriesBurned?: number | null;
   sleepHours?: number | null;
   mood?: string | null;
+}
+
+interface UserProfile {
+  height?: number | null;
+  weight?: number | null;
+  name?: string | null;
 }
 
 interface ProgressStats {
@@ -417,22 +432,23 @@ const progressStats = ref<ProgressStats>({
   totalWorkouts: 0, totalVolume: 0, avgWater: 0, weightHistory: [], currentWeight: 0, streakDays: 0
 });
 const isProgressModalOpen = ref(false);
+const userProfile = ref<UserProfile>({});
 const today = new Date().toISOString().split('T')[0];
 
 const progressForm = ref({
   weight: 0, waterIntake: 0, caloriesConsumed: 0, caloriesBurned: 0, sleepHours: 0
 });
 
-const moods = [
-  { value: 'Excelente', emoji: '😄', label: 'Genial' },
-  { value: 'Bien', emoji: '🙂', label: 'Bien' },
-  { value: 'Regular', emoji: '😐', label: 'Meh' },
-  { value: 'Mal', emoji: '😔', label: 'Mal' }
-];
-
 const todayFormatted = computed(() => new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }));
 const todayProgress = computed(() => progressData.value.find(p => p.date === today));
-const waterPercentage = computed(() => Math.min(((todayProgress.value?.waterIntake || 0) / 3000) * 100, 100));
+const waterPercentage = computed(() => Math.min(((todayProgress.value?.waterIntake || 0) / 5000) * 100, 100));
+const waterStatusMessage = computed(() => {
+  const intake = todayProgress.value?.waterIntake || 0;
+  if (intake >= 5000) return '¡Excelente! Hidratación completa hoy 💧';
+  if (intake >= 2000) return 'Vas bien: hidratación normal 👌';
+  if (intake >= 1000) return 'Vas a mitad: toma un poco más 🚰';
+  return 'Hidratación baja: suma más agua hoy 🥤';
+});
 const weightHistory = computed(() => progressStats.value.weightHistory.slice(-7));
 const weightChange = computed(() => {
   if (weightHistory.value.length < 2) return 0;
@@ -447,6 +463,33 @@ const weeklyHistory = computed(() => {
       return itemDate >= start && itemDate <= end;
     })
     .sort((a, b) => (a.date < b.date ? 1 : -1));
+});
+
+const bmiValue = computed(() => {
+  const height = userProfile.value.height;
+  const weight = todayProgress.value?.weight ?? userProfile.value.weight ?? progressStats.value.currentWeight;
+  if (!height || !weight) return '';
+  const heightM = height / 100;
+  const bmi = weight / (heightM * heightM);
+  return bmi.toFixed(1);
+});
+
+const bmiLabel = computed(() => {
+  const value = Number(bmiValue.value);
+  if (!value) return '';
+  if (value < 18.5) return 'Bajo peso';
+  if (value < 25) return 'Peso normal';
+  if (value < 30) return 'Sobrepeso';
+  return 'Obesidad';
+});
+
+const bmiMessage = computed(() => {
+  const value = Number(bmiValue.value);
+  if (!value) return 'Ingresa tus datos para calcular tu IMC.';
+  if (value < 18.5) return 'Un poco más de energía y nutrición te ayudará a sentirte mejor.';
+  if (value < 25) return 'Buen rango. Mantén tus hábitos saludables.';
+  if (value < 30) return 'Vas bien: con constancia puedes mejorar tu bienestar.';
+  return 'No estás solo: con pasos pequeños y constancia puedes mejorar.';
 });
 
 function getGreeting() {
@@ -505,9 +548,10 @@ async function loadAllData() {
       return;
     }
 
-    const [progressRes, statsRes] = await Promise.all([
+    const [progressRes, statsRes, profileRes] = await Promise.all([
       fetch(`${API_URL}/progress`, { headers }),
-      fetch(`${API_URL}/progress/stats`, { headers })
+      fetch(`${API_URL}/progress/stats`, { headers }),
+      fetch(`${API_URL}/user/profile`, { headers })
     ]);
 
     const progressJson = await progressRes.json();
@@ -515,9 +559,18 @@ async function loadAllData() {
       ? progressJson.map((item: any) => ({ ...item, date: toDateKey(item.date) }))
       : [];
     progressStats.value = await statsRes.json();
+    userProfile.value = await profileRes.json();
   } catch (error) {
     console.error('Error loading data:', error);
   }
+}
+
+function goToBmiTest() {
+  router.push('/tabs/bmi');
+}
+
+function goToRmCalculator() {
+  router.push('/tabs/rm');
 }
 
 function openProgressModal() {
@@ -543,7 +596,7 @@ async function saveProgress() {
     await fetch(`${API_URL}/progress`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders },
-      body: JSON.stringify({ date: today, ...progressForm.value, mood: todayProgress.value?.mood || 'Bien' })
+      body: JSON.stringify({ date: today, ...progressForm.value })
     });
     showToast('¡Progreso guardado! 💪');
     isProgressModalOpen.value = false;
@@ -567,36 +620,13 @@ async function addWater(amount: number) {
       body: JSON.stringify({
         date: today,
         waterIntake: (todayProgress.value?.waterIntake || 0) + amount,
-        weight: todayProgress.value?.weight || 0,
-        mood: todayProgress.value?.mood || 'Bien'
+        weight: todayProgress.value?.weight || 0
       })
     });
     showToast(`+${amount}ml 💧`);
     loadAllData();
   } catch (error) {
     showToast('Error', 'danger');
-  }
-}
-
-async function setMood(mood: string) {
-  try {
-    const authHeaders = getAuthHeaders();
-    if (!authHeaders.Authorization) {
-      return;
-    }
-
-    await fetch(`${API_URL}/progress`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders },
-      body: JSON.stringify({
-        date: today, mood,
-        weight: todayProgress.value?.weight || 0,
-        waterIntake: todayProgress.value?.waterIntake || 0
-      })
-    });
-    loadAllData();
-  } catch (error) {
-    console.error(error);
   }
 }
 
@@ -777,6 +807,32 @@ onIonViewWillEnter(() => loadAllData());
   color: var(--forgy-text-primary);
 }
 
+.bmi-card {
+  cursor: pointer;
+}
+
+.rm-card {
+  cursor: pointer;
+}
+
+.bmi-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bmi-label {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.bmi-message {
+  margin: 0;
+  font-size: 12px;
+  color: var(--forgy-text-secondary);
+}
+
 .section-header {
   display: flex;
   align-items: center;
@@ -866,38 +922,10 @@ onIonViewWillEnter(() => loadAllData());
   font-weight: 600;
 }
 
-/* Mood */
-.mood-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-}
-
-.mood-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 12px 8px;
-  background: var(--forgy-input-bg);
-  border: 2px solid transparent;
-  border-radius: 12px;
-  cursor: pointer;
-}
-
-.mood-btn.active {
-  background: rgba(var(--ion-color-primary-rgb), 0.1);
-  border-color: var(--ion-color-primary);
-}
-
-.mood-emoji {
-  font-size: 28px;
-}
-
-.mood-label {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--forgy-text-primary);
+.water-status {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--forgy-text-secondary);
 }
 
 /* Mini Chart */

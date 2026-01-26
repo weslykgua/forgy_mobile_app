@@ -43,6 +43,14 @@ const routes: Array<RouteRecordRaw> = [
         path: 'tab4',
         component: () => import('@/views/ProfileView.vue'),
       },
+      {
+        path: 'bmi',
+        component: () => import('@/views/BmiTestView.vue'),
+      },
+      {
+        path: 'rm',
+        component: () => import('@/views/RmCalculatorView.vue'),
+      },
     ],
   },
   {
