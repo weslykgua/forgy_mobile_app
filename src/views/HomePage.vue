@@ -1,3 +1,148 @@
+<script setup lang="ts">
+import {
+    IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
+    IonButton,
+    onIonViewWillEnter, toastController, useIonRouter
+} from '@ionic/vue';
+import { ref, computed } from 'vue'
+import { useProfile } from './useProfile'
+
+interface DashboardMetrics {
+    totalWorkouts: number;
+    last30DaysWorkouts: number;
+    avgDuration: number;
+    currentStreak: number;
+    longestStreak: number;
+    totalVolume: number;
+    recentRecords: any[];
+    activityCalendar: any[];
+}
+
+const router = useIonRouter();
+const { userName, loadProfileData, logout, getHeaders, API_URL } = useProfile();
+
+const metrics = ref<DashboardMetrics | null>(null);
+const measurements = ref<any[]>([]);
+const quoteIndex = ref(0);
+
+const motivationalQuotes = [
+    { text: "El dolor que sientes hoy será la fuerza que sentirás mañana", author: "Arnold Schwarzenegger" },
+    { text: "No cuentes los días, haz que los días cuenten", author: "Muhammad Ali" },
+    { text: "El único mal entrenamiento es el que no hiciste", author: "Anónimo" },
+    { text: "Tu cuerpo puede hacer casi todo. Es tu mente la que debes convencer", author: "Anónimo" },
+    { text: "El éxito no se mide por lo que logras sino por los obstáculos que superas", author: "Booker T. Washington" },
+    { text: "La disciplina es el puente entre las metas y los logros", author: "Jim Rohn" },
+    { text: "Cada repetición te acerca más a tu mejor versión", author: "Anónimo" },
+    { text: "No te detengas cuando estés cansado, detente cuando hayas terminado", author: "Anónimo" }
+];
+
+const currentQuote = computed(() => motivationalQuotes[quoteIndex.value]);
+
+const circumference = 2 * Math.PI * 45; // ~283
+
+const streakOffset = computed(() => {
+    if (!metrics.value) return circumference;
+    const goal = 30; // Meta de 30 días de racha para el círculo completo
+    const progress = Math.min(metrics.value.currentStreak / goal, 1);
+    return circumference * (1 - progress);
+});
+
+const volumeOffset = computed(() => {
+    if (!metrics.value) return circumference;
+    // Meta visual arbitraria para el volumen total, ej: 100,000 kg
+    const goal = 100000;
+    const progress = Math.min(metrics.value.totalVolume / goal, 1);
+    return circumference * (1 - progress);
+});
+
+const workoutsOffset = computed(() => {
+    if (!metrics.value) return circumference;
+    // Meta de entrenamientos en los últimos 30 días
+    const goal = 20; // Ej: 20 entrenos en un mes
+    const progress = Math.min(metrics.value.last30DaysWorkouts / goal, 1);
+    return circumference * (1 - progress);
+});
+
+function formatVolumeShort(volume: number): string {
+    if (!volume) return '0';
+    if (volume >= 1000000) {
+        return (volume / 1000000).toFixed(1) + 'M';
+    }
+    if (volume >= 1000) {
+        return (volume / 1000).toFixed(1) + 'k';
+    }
+    return volume.toString();
+}
+
+function getMedal(index: number): string {
+    const medals = ['🥇', '🥈', '🥉'];
+    return medals[index] || '🏅';
+}
+
+function getGreeting() {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Buenos días';
+    if (hour < 18) return 'Buenas tardes';
+    return 'Buenas noches';
+}
+
+function getTimeEmoji() {
+    const hour = new Date().getHours();
+    if (hour < 7) return '🌙';
+    if (hour < 12) return '☀️';
+    if (hour < 18) return '🌤️';
+    if (hour < 21) return '🌅';
+    return '🌙';
+}
+
+function changeQuote() {
+    quoteIndex.value = (quoteIndex.value + 1) % motivationalQuotes.length;
+}
+
+// Navigation
+function goToWorkout() {
+    router.push('/tabs/exercises');
+}
+
+function goToProgress() {
+    router.push('/tabs/progress');
+}
+
+function goToRecords() {
+    router.push('/tabs/progress');
+}
+
+function goToExercises() {
+    router.push('/tabs/exercises');
+}
+
+async function showToast(message: string, color = 'success') {
+    const toast = await toastController.create({ message, duration: 2000, color, position: 'bottom' });
+    await toast.present();
+}
+
+const loadMetrics = async () => {
+    try {
+        const response = await fetch(`${API_URL}/dashboard`, {
+            headers: getHeaders()
+        });
+        if (!response.ok) {
+            if (response.status === 401 || response.status === 403) logout();
+            throw new Error('No se pudo cargar las métricas');
+        }
+        metrics.value = await response.json();
+    } catch (error) {
+        console.error(error);
+        showToast('Error al cargar datos del dashboard', 'danger');
+    }
+};
+
+onIonViewWillEnter(() => {
+    loadProfileData();
+    loadMetrics();
+    quoteIndex.value = Math.floor(Math.random() * motivationalQuotes.length);
+});
+</script>
 <template>
     <ion-page>
         <ion-header class="forgy-header">
@@ -22,7 +167,7 @@
                         <span class="greeting-emoji">{{ getTimeEmoji() }}</span>
                         <div class="greeting-text">
                             <span class="greeting-time">{{ getGreeting() }}</span>
-                            <span class="greeting-name">Atleta 🏆</span>
+                            <span class="greeting-name">{{ userName }}</span>
                         </div>
                     </div>
 
@@ -217,144 +362,6 @@
         </ion-content>
     </ion-page>
 </template>
-
-<script setup lang="ts">
-import {
-    IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
-    IonButton, IonIcon,
-    onIonViewWillEnter, toastController, useIonRouter
-} from '@ionic/vue';
-import { ref, computed } from 'vue';
-
-const API_URL = 'http://localhost:3000/api';
-const router = useIonRouter();
-
-// Función auxiliar para obtener cabeceras con token
-const getHeaders = () => ({
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${localStorage.getItem('token')}`
-});
-
-interface DashboardMetrics {
-    totalWorkouts: number;
-    last30DaysWorkouts: number;
-    avgDuration: number;
-    currentStreak: number;
-    longestStreak: number;
-    totalVolume: number;
-    recentRecords: any[];
-    activityCalendar: any[];
-}
-
-const metrics = ref<DashboardMetrics | null>(null);
-const measurements = ref<any[]>([]);
-const quoteIndex = ref(0);
-
-const motivationalQuotes = [
-    { text: "El dolor que sientes hoy será la fuerza que sentirás mañana", author: "Arnold Schwarzenegger" },
-    { text: "No cuentes los días, haz que los días cuenten", author: "Muhammad Ali" },
-    { text: "El único mal entrenamiento es el que no hiciste", author: "Anónimo" },
-    { text: "Tu cuerpo puede hacer casi todo. Es tu mente la que debes convencer", author: "Anónimo" },
-    { text: "El éxito no se mide por lo que logras sino por los obstáculos que superas", author: "Booker T. Washington" },
-    { text: "La disciplina es el puente entre las metas y los logros", author: "Jim Rohn" },
-    { text: "Cada repetición te acerca más a tu mejor versión", author: "Anónimo" },
-    { text: "No te detengas cuando estés cansado, detente cuando hayas terminado", author: "Anónimo" }
-];
-
-const currentQuote = computed(() => motivationalQuotes[quoteIndex.value]);
-
-// Ring calculations
-const circumference = 2 * Math.PI * 45;
-const streakOffset = computed(() => {
-    if (!metrics.value) return circumference;
-    const progress = Math.min(metrics.value.currentStreak / 30, 1);
-    return circumference * (1 - progress);
-});
-
-const volumeOffset = computed(() => {
-    if (!metrics.value) return circumference;
-    const progress = Math.min(metrics.value.totalVolume / 10000, 1);
-    return circumference * (1 - progress);
-});
-
-const workoutsOffset = computed(() => {
-    if (!metrics.value) return circumference;
-    const progress = Math.min(metrics.value.totalWorkouts / 100, 1);
-    return circumference * (1 - progress);
-});
-
-function getGreeting() {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Buenos días';
-    if (hour < 18) return 'Buenas tardes';
-    return 'Buenas noches';
-}
-
-function getTimeEmoji() {
-    const hour = new Date().getHours();
-    if (hour < 7) return '🌙';
-    if (hour < 12) return '☀️';
-    if (hour < 18) return '🌤️';
-    if (hour < 21) return '🌅';
-    return '🌙';
-}
-
-function changeQuote() {
-    quoteIndex.value = (quoteIndex.value + 1) % motivationalQuotes.length;
-}
-
-function getMedal(idx: number) {
-    return ['🥇', '🥈', '🥉'][idx] || '🏅';
-}
-
-function formatVolumeShort(vol: number) {
-    return vol >= 1000 ? (vol / 1000).toFixed(1) + 'k' : Math.round(vol).toString();
-}
-
-// Navigation
-function goToWorkout() {
-    router.push('/tabs/exercises');
-}
-
-function goToProgress() {
-    router.push('/tabs/progress');
-}
-
-function goToRecords() {
-    router.push('/tabs/progress');
-}
-
-function goToExercises() {
-    router.push('/tabs/exercises');
-}
-
-async function loadDashboardData() {
-    try {
-        const [metricsRes, measurementsRes] = await Promise.all([
-            fetch(`${API_URL}/dashboard`, { headers: getHeaders() }),
-            fetch(`${API_URL}/measurements`, { headers: getHeaders() })
-        ]);
-
-        if (metricsRes.ok) metrics.value = await metricsRes.json();
-        if (measurementsRes.ok) measurements.value = await measurementsRes.json();
-
-    } catch (error) {
-        console.error("Error loading dashboard data:", error);
-    }
-}
-
-async function showToast(message: string, color = 'success') {
-    const toast = await toastController.create({ message, duration: 2000, color, position: 'bottom' });
-    await toast.present();
-}
-
-onIonViewWillEnter(() => {
-    loadDashboardData();
-    // Random quote on enter
-    quoteIndex.value = Math.floor(Math.random() * motivationalQuotes.length);
-});
-</script>
-
 <style scoped>
 /* Header Styles */
 .forgy-header {

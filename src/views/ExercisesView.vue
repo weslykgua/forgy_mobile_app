@@ -9,6 +9,7 @@ import {
   IonSkeletonText, IonBadge,
   onIonViewWillEnter, onIonViewWillLeave, alertController, toastController
 } from '@ionic/vue';
+import { useProfile } from './useProfile'
 import { ref, computed } from 'vue';
 import { io } from 'socket.io-client';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
@@ -41,14 +42,7 @@ interface RoutineDetail extends Omit<Routine, 'exercises'> {
   exercises: (Exercise & { order: number })[];
 }
 
-// NOTA: Si usas un dispositivo físico, cambia localhost por tu IP local (ej: 192.168.1.5)
-const API_URL = 'http://localhost:3000/api';
-
-// Función auxiliar para obtener cabeceras con token
-const getHeaders = () => ({
-  'Content-Type': 'application/json',
-  'Authorization': `Bearer ${localStorage.getItem('token')}`
-});
+const { getHeaders, API_URL } = useProfile();
 
 const exercises = ref<Exercise[]>([]);
 const routines = ref<Routine[]>([]);

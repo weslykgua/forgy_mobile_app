@@ -197,26 +197,18 @@ import {
     IonList, IonListHeader, IonItem, IonToggle,
     onIonViewWillEnter,
     alertController
-} from '@ionic/vue';
-import { ref, computed } from 'vue';
+} from '@ionic/vue'
+import { ref, computed } from 'vue'
 import {
     personCircle, camera, star, personOutline,
     notificationsOutline, settingsOutline, moonOutline,
     helpCircleOutline, chatbubbleOutline, starOutline, logOutOutline
 } from 'ionicons/icons';
-import router from '@/router';
-
-const API_URL = 'http://localhost:3000/api';
-
-const getHeaders = () => ({
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${localStorage.getItem('token')}`
-});
+import { useProfile } from './useProfile'
 
 const darkMode = ref(false);
 const stats = ref({ totalWorkouts: 0, totalVolume: 0, streakDays: 0 });
-const userName = ref('Usuario Forgy');
-const userEmail = ref('usuario@forgy.app');
+const { userName, userEmail, loadProfileData, logout, getHeaders, API_URL } = useProfile();
 
 const savedWorkouts = computed(() => stats.value.totalWorkouts);
 const totalDays = computed(() => stats.value.streakDays || 0);
@@ -237,46 +229,6 @@ const loadStats = async () => {
     }
 };
 
-const loadProfileData = async () => {
-    // Carga inicial desde localStorage para una UI rápida
-    const rawUser = localStorage.getItem('user');
-    if (rawUser) {
-        try {
-            const user = JSON.parse(rawUser);
-            userName.value = user.name || 'Usuario Forgy';
-            userEmail.value = user.email || 'usuario@forgy.app';
-        } catch (e) {
-            console.error("Error al parsear usuario desde localStorage", e);
-        }
-    }
-
-    // Fetch desde la API para obtener los datos más recientes
-    try {
-        const response = await fetch(`${API_URL}/auth/me`, {
-            headers: getHeaders()
-        });
-
-        if (!response.ok) {
-            if (response.status === 401 || response.status === 403) {
-                console.log('Sesión expirada o inválida. Cerrando sesión.');
-                logout();
-            }
-            throw new Error('No se pudo obtener los datos del perfil');
-        }
-
-        const user = await response.json();
-
-        if (user) {
-            userName.value = user.name;
-            userEmail.value = user.email;
-            // Actualizar localStorage con los datos frescos
-            localStorage.setItem('user', JSON.stringify(user));
-        }
-    } catch (error) {
-        console.error('Error al obtener datos del perfil desde la API:', error);
-    }
-};
-
 const toggleDarkMode = () => {
     document.body.classList.toggle('dark', darkMode.value);
     document.body.classList.toggle('light', !darkMode.value);
@@ -289,13 +241,6 @@ onIonViewWillEnter(() => {
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     darkMode.value = document.body.classList.contains('dark') || prefersDark;
 });
-
-function logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('token_data');
-    router.replace('/auth');
-}
 
 async function confirmLogout() {
     const alert = await alertController.create({
