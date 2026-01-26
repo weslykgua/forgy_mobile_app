@@ -28,9 +28,6 @@
           <ion-segment-button value="history">
             <ion-label>Historial</ion-label>
           </ion-segment-button>
-          <ion-segment-button value="records">
-            <ion-label>Records</ion-label>
-          </ion-segment-button>
         </ion-segment>
       </ion-toolbar>
     </ion-header>
@@ -61,7 +58,7 @@
               <div class="stat-circle weight">
                 <ion-icon :icon="scaleOutline"></ion-icon>
               </div>
-              <span class="stat-value">{{ todayProgress?.weight || '--' }}</span>
+              <span class="stat-value">{{ todayProgress?.weight ?? '--' }}</span>
               <span class="stat-unit">kg</span>
             </div>
             <div
@@ -81,8 +78,18 @@
               <div class="stat-circle sleep">
                 <ion-icon :icon="moonOutline"></ion-icon>
               </div>
-              <span class="stat-value">{{ todayProgress?.sleepHours || '--' }}</span>
+              <span class="stat-value">{{ todayProgress?.sleepHours ?? '--' }}</span>
               <span class="stat-unit">hrs</span>
+            </div>
+            <div
+              class="hero-stat"
+              @click="openProgressModal"
+            >
+              <div class="stat-circle calories">
+                <ion-icon :icon="nutritionOutline"></ion-icon>
+              </div>
+              <span class="stat-value">{{ todayProgress?.caloriesConsumed ?? '--' }}</span>
+              <span class="stat-unit">kcal</span>
             </div>
           </div>
         </div>
@@ -234,12 +241,12 @@
         class="tab-content"
       >
         <div
-          v-if="workoutHistory.length === 0"
+          v-if="weeklyHistory.length === 0"
           class="empty-history"
         >
           <div class="empty-icon">📅</div>
           <h3>Sin historial</h3>
-          <p>Registra tus entrenamientos para ver tu progreso</p>
+          <p>Registra tu progreso diario para verlo aquí</p>
         </div>
 
         <div
@@ -247,7 +254,7 @@
           class="history-list"
         >
           <div
-            v-for="day in workoutHistory"
+            v-for="day in weeklyHistory"
             :key="day.date"
             class="history-day"
           >
@@ -258,78 +265,24 @@
               </div>
               <div class="day-stats">
                 <span class="day-stat">
-                  <ion-icon :icon="barbell"></ion-icon>
-                  {{ day.exerciseCount }} ejercicios
+                  <ion-icon :icon="scaleOutline"></ion-icon>
+                  {{ day.weight ?? '--' }} kg
                 </span>
                 <span class="day-stat">
-                  <ion-icon :icon="fitness"></ion-icon>
-                  {{ day.totalVolume }} kg
+                  <ion-icon :icon="waterOutline"></ion-icon>
+                  {{ formatWater(day.waterIntake || 0) }} L
                 </span>
               </div>
             </div>
-            <div class="day-workouts">
-              <div
-                v-for="workout in day.workouts"
-                :key="workout.id"
-                class="workout-item"
-              >
-                <span class="workout-name">{{ workout.exerciseName }}</span>
-                <div class="workout-sets">
-                  <span
-                    v-for="(set, idx) in workout.sets.slice(0, 3)"
-                    :key="idx"
-                    class="set-tag"
-                  >
-                    {{ set.reps }}×{{ set.weight }}kg
-                  </span>
-                  <span
-                    v-if="workout.sets.length > 3"
-                    class="more-tag"
-                  >+{{ workout.sets.length - 3 }}</span>
-                </div>
+            <div class="day-workouts metrics-grid">
+              <div class="metric-chip">
+                <span class="metric-label">Sueño</span>
+                <span class="metric-value">{{ day.sleepHours ?? '--' }} hrs</span>
               </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- TAB: RECORDS -->
-      <div
-        v-if="activeTab === 'records'"
-        class="tab-content"
-      >
-        <div
-          v-if="personalRecords.length === 0"
-          class="empty-history"
-        >
-          <div class="empty-icon">🏆</div>
-          <h3>Sin records</h3>
-          <p>Completa entrenamientos para registrar tus PRs</p>
-        </div>
-
-        <div
-          v-else
-          class="records-list"
-        >
-          <div class="records-header">
-            <span class="header-icon">🏆</span>
-            <h2>Records Personales</h2>
-            <p>Tu mejor rendimiento en cada ejercicio</p>
-          </div>
-
-          <div
-            v-for="(pr, idx) in personalRecords"
-            :key="pr.exerciseName"
-            class="pr-card"
-          >
-            <div class="pr-rank">{{ idx + 1 }}</div>
-            <div class="pr-info">
-              <span class="pr-name">{{ pr.exerciseName }}</span>
-              <span class="pr-date">{{ formatFullDate(pr.date) }}</span>
-            </div>
-            <div class="pr-weight">
-              <span class="pr-value">{{ pr.maxWeight }}</span>
-              <span class="pr-unit">kg</span>
+              <div class="metric-chip">
+                <span class="metric-label">Calorías</span>
+                <span class="metric-value">{{ day.caloriesConsumed ?? '--' }} kcal</span>
+              </div>
             </div>
           </div>
         </div>
@@ -418,13 +371,6 @@
               </div>
             </div>
           </div>
-          <div class="form-section">
-            <label class="notes-label">📝 Notas del día</label>
-            <textarea
-              v-model="progressForm.notes"
-              placeholder="¿Cómo te sentiste hoy?"
-            ></textarea>
-          </div>
         </ion-content>
       </ion-modal>
     </ion-content>
@@ -440,21 +386,20 @@ import {
 } from '@ionic/vue';
 import { ref, computed } from 'vue';
 import {
-  add, scaleOutline, waterOutline, moonOutline, barbell, flame, fitness
+  add, scaleOutline, waterOutline, moonOutline, nutritionOutline, barbell, flame
 } from 'ionicons/icons';
 
-const API_URL = 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 interface DailyProgress {
   id: string;
   date: string;
-  weight: number;
-  waterIntake: number;
-  caloriesConsumed: number;
-  caloriesBurned: number;
-  sleepHours: number;
-  mood: string;
-  notes: string;
+  weight?: number | null;
+  waterIntake?: number | null;
+  caloriesConsumed?: number | null;
+  caloriesBurned?: number | null;
+  sleepHours?: number | null;
+  mood?: string | null;
 }
 
 interface ProgressStats {
@@ -466,33 +411,16 @@ interface ProgressStats {
   streakDays: number;
 }
 
-interface WorkoutHistory {
-  date: string;
-  exerciseCount: number;
-  totalVolume: number;
-  totalDuration: number;
-  workouts: any[];
-}
-
-interface PersonalRecord {
-  exerciseName: string;
-  maxWeight: number;
-  maxVolume: number;
-  date: string;
-}
-
 const activeTab = ref('today');
 const progressData = ref<DailyProgress[]>([]);
 const progressStats = ref<ProgressStats>({
   totalWorkouts: 0, totalVolume: 0, avgWater: 0, weightHistory: [], currentWeight: 0, streakDays: 0
 });
-const workoutHistory = ref<WorkoutHistory[]>([]);
-const personalRecords = ref<PersonalRecord[]>([]);
 const isProgressModalOpen = ref(false);
 const today = new Date().toISOString().split('T')[0];
 
 const progressForm = ref({
-  weight: 0, waterIntake: 0, caloriesConsumed: 0, caloriesBurned: 0, sleepHours: 0, notes: ''
+  weight: 0, waterIntake: 0, caloriesConsumed: 0, caloriesBurned: 0, sleepHours: 0
 });
 
 const moods = [
@@ -511,12 +439,46 @@ const weightChange = computed(() => {
   return Number((weightHistory.value[weightHistory.value.length - 1].weight - weightHistory.value[0].weight).toFixed(1));
 });
 const weightTrend = computed(() => weightChange.value > 0 ? 'trend-up' : weightChange.value < 0 ? 'trend-down' : '');
+const weeklyHistory = computed(() => {
+  const { start, end } = getWeekRange();
+  return progressData.value
+    .filter((item) => {
+      const itemDate = new Date(item.date + 'T12:00:00');
+      return itemDate >= start && itemDate <= end;
+    })
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+});
 
 function getGreeting() {
   const hour = new Date().getHours();
   if (hour < 12) return '¡Buenos días! ☀️';
   if (hour < 18) return '¡Buenas tardes! 🌤️';
   return '¡Buenas noches! 🌙';
+}
+
+function getWeekRange(baseDate = new Date()) {
+  const start = new Date(baseDate);
+  const day = start.getDay(); // 0 = Sunday
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  start.setDate(start.getDate() + diffToMonday);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+
+  return { start, end };
+}
+
+function toDateKey(value: string) {
+  if (!value) return value;
+  return value.includes('T') ? value.split('T')[0] : value;
+}
+
+function getAuthHeaders() {
+  const token = localStorage.getItem('forgy_token');
+  if (!token) return {};
+  return { Authorization: `Bearer ${token}` };
 }
 
 function formatWater(ml: number) { return (ml / 1000).toFixed(1); }
@@ -538,16 +500,21 @@ function getBarHeight(weight: number) {
 
 async function loadAllData() {
   try {
-    const [progressRes, statsRes, historyRes, prsRes] = await Promise.all([
-      fetch(`${API_URL}/progress`),
-      fetch(`${API_URL}/progress/stats`),
-      fetch(`${API_URL}/workouts/history`),
-      fetch(`${API_URL}/workouts/prs`)
+    const headers = getAuthHeaders();
+    if (!headers.Authorization) {
+      return;
+    }
+
+    const [progressRes, statsRes] = await Promise.all([
+      fetch(`${API_URL}/progress`, { headers }),
+      fetch(`${API_URL}/progress/stats`, { headers })
     ]);
-    progressData.value = await progressRes.json();
+
+    const progressJson = await progressRes.json();
+    progressData.value = Array.isArray(progressJson)
+      ? progressJson.map((item: any) => ({ ...item, date: toDateKey(item.date) }))
+      : [];
     progressStats.value = await statsRes.json();
-    workoutHistory.value = await historyRes.json();
-    personalRecords.value = await prsRes.json();
   } catch (error) {
     console.error('Error loading data:', error);
   }
@@ -560,17 +527,22 @@ function openProgressModal() {
     waterIntake: tp?.waterIntake || 0,
     caloriesConsumed: tp?.caloriesConsumed || 0,
     caloriesBurned: tp?.caloriesBurned || 0,
-    sleepHours: tp?.sleepHours || 7,
-    notes: tp?.notes || ''
+    sleepHours: tp?.sleepHours || 7
   };
   isProgressModalOpen.value = true;
 }
 
 async function saveProgress() {
   try {
+    const authHeaders = getAuthHeaders();
+    if (!authHeaders.Authorization) {
+      showToast('Inicia sesión para guardar', 'danger');
+      return;
+    }
+
     await fetch(`${API_URL}/progress`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({ date: today, ...progressForm.value, mood: todayProgress.value?.mood || 'Bien' })
     });
     showToast('¡Progreso guardado! 💪');
@@ -583,9 +555,15 @@ async function saveProgress() {
 
 async function addWater(amount: number) {
   try {
+    const authHeaders = getAuthHeaders();
+    if (!authHeaders.Authorization) {
+      showToast('Inicia sesión para guardar', 'danger');
+      return;
+    }
+
     await fetch(`${API_URL}/progress`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({
         date: today,
         waterIntake: (todayProgress.value?.waterIntake || 0) + amount,
@@ -602,9 +580,14 @@ async function addWater(amount: number) {
 
 async function setMood(mood: string) {
   try {
+    const authHeaders = getAuthHeaders();
+    if (!authHeaders.Authorization) {
+      return;
+    }
+
     await fetch(`${API_URL}/progress`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({
         date: today, mood,
         weight: todayProgress.value?.weight || 0,
@@ -679,6 +662,8 @@ onIonViewWillEnter(() => loadAllData());
 .hero-stats {
   display: flex;
   justify-content: space-around;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .hero-stat {
@@ -716,6 +701,10 @@ onIonViewWillEnter(() => loadAllData());
 
 .stat-circle.sleep {
   background: rgba(255, 196, 9, 0.4);
+}
+
+.stat-circle.calories {
+  background: rgba(244, 67, 54, 0.35);
 }
 
 .stat-value {
@@ -1052,127 +1041,31 @@ onIonViewWillEnter(() => loadAllData());
   color: var(--forgy-text-secondary);
 }
 
-.workout-item {
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.metric-chip {
+  background: var(--forgy-input-bg);
+  padding: 10px 12px;
+  border-radius: 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 0;
 }
 
-.workout-name {
-  font-weight: 500;
-  font-size: 14px;
-  color: var(--forgy-text-primary);
-}
-
-.workout-sets {
-  display: flex;
-  gap: 4px;
-}
-
-.set-tag {
-  background: var(--forgy-input-bg);
-  padding: 2px 8px;
-  border-radius: 8px;
-  font-size: 11px;
-  color: var(--forgy-text-primary);
-}
-
-.more-tag {
-  color: var(--forgy-text-secondary);
-  font-size: 11px;
-}
-
-/* Records */
-.records-header {
-  text-align: center;
-  margin-bottom: 24px;
-}
-
-.header-icon {
-  font-size: 48px;
-}
-
-.records-header h2 {
-  margin: 8px 0 4px;
-  font-size: 24px;
-  color: var(--forgy-text-primary);
-}
-
-.records-header p {
-  margin: 0;
-  color: var(--forgy-text-secondary);
-  font-size: 14px;
-}
-
-.pr-card {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  background: var(--forgy-card-bg);
-  padding: 16px;
-  border-radius: 16px;
-  margin-bottom: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.pr-rank {
-  width: 36px;
-  height: 36px;
-  background: var(--forgy-input-bg);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 16px;
-  color: var(--forgy-text-primary);
-}
-
-.pr-card:first-child .pr-rank {
-  background: linear-gradient(135deg, #FFD700, #FFA500);
-  color: white;
-}
-
-.pr-card:nth-child(2) .pr-rank {
-  background: linear-gradient(135deg, #C0C0C0, #A0A0A0);
-  color: white;
-}
-
-.pr-card:nth-child(3) .pr-rank {
-  background: linear-gradient(135deg, #CD7F32, #A0522D);
-  color: white;
-}
-
-.pr-info {
-  flex: 1;
-}
-
-.pr-name {
-  display: block;
-  font-weight: 600;
-  font-size: 15px;
-  color: var(--forgy-text-primary);
-}
-
-.pr-date {
+.metric-label {
   font-size: 12px;
   color: var(--forgy-text-secondary);
 }
 
-.pr-weight {
-  text-align: right;
-}
-
-.pr-value {
-  font-size: 28px;
-  font-weight: 800;
-  color: var(--ion-color-primary);
-}
-
-.pr-unit {
-  font-size: 14px;
-  color: var(--forgy-text-secondary);
+.metric-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--forgy-text-primary);
 }
 
 /* Modal */
@@ -1238,23 +1131,4 @@ onIonViewWillEnter(() => loadAllData());
   color: var(--forgy-text-primary);
 }
 
-.notes-label {
-  display: block;
-  padding: 12px 0;
-  font-weight: 500;
-  color: var(--forgy-text-primary);
-}
-
-.form-section textarea {
-  width: 100%;
-  min-height: 80px;
-  border: 1px solid var(--forgy-border);
-  border-radius: 12px;
-  padding: 12px;
-  font-family: inherit;
-  font-size: 14px;
-  resize: none;
-  color: var(--forgy-text-primary);
-  background: var(--forgy-card-bg);
-}
 </style>
