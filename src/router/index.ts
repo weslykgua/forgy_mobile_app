@@ -6,11 +6,13 @@ import TabsPage from '@/views/TabsPage.vue';
 // Guard de autenticación para verificar si el token es válido y no ha expirado
 const isAuthenticated = () => {
   const token = localStorage.getItem('token');
-
-  if (token) {
+  const tokenData = localStorage.getItem('token_data');
+  if (token && tokenData) {
     try {
-      const data = JSON.parse(token);
-      return data
+      const data = JSON.parse(tokenData);
+      const now = new Date();
+      const until = new Date(data.until);
+      return now <= until;
     } catch (e) {
       return false;
     }
