@@ -1,256 +1,27 @@
-<template>
-    <ion-page>
-        <ion-header class="forgy-header">
-
-            <ion-toolbar>
-                <ion-title class="forgy-title">
-                    FORGY
-                </ion-title>
-
-            </ion-toolbar>
-        </ion-header>
-
-        <ion-content :fullscreen="true" class="home-content">
-           
-            <div class="hero-section">
-                <div class="hero-background"></div>
-                <div class="hero-content">
-                    <div class="greeting-section">
-                        <span class="greeting-emoji">{{ getTimeEmoji() }}</span>
-                        <div class="greeting-text">
-                            <span class="greeting-time">{{ getGreeting() }}</span>
-                            <span class="greeting-name">Atleta 🏆</span>
-                        </div>
-                    </div>
-
-                    <div class="motivation-card" @click="changeQuote">
-                        <span class="quote-icon">💬</span>
-                        <p class="quote-text">"{{ currentQuote.text }}"</p>
-                        <span class="quote-author">— {{ currentQuote.author }}</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="quick-stats">
-                <div class="stat-ring" @click="goToProgress">
-                    <svg viewBox="0 0 100 100" class="ring-svg">
-                        <circle cx="50" cy="50" r="45" class="ring-bg" />
-                        <circle cx="50" cy="50" r="45" class="ring-progress"
-                            :style="{ strokeDashoffset: streakOffset }" />
-                    </svg>
-                    <div class="ring-content">
-                        <span class="ring-value">{{ stats.streakDays }}</span>
-                        <span class="ring-label">días</span>
-                    </div>
-                    <span class="ring-title">🔥 Racha</span>
-                </div>
-
-                <div class="stat-ring" @click="goToProgress">
-                    <svg viewBox="0 0 100 100" class="ring-svg">
-                        <circle cx="50" cy="50" r="45" class="ring-bg" />
-                        <circle cx="50" cy="50" r="45" class="ring-progress water"
-                            :style="{ strokeDashoffset: waterOffset }" />
-                    </svg>
-                    <div class="ring-content">
-                        <span class="ring-value">{{ formatLiters(todayWater) }}</span>
-                        <span class="ring-label">L</span>
-                    </div>
-                    <span class="ring-title">💧 Agua</span>
-                </div>
-
-                <div class="stat-ring" @click="goToWorkout">
-                    <svg viewBox="0 0 100 100" class="ring-svg">
-                        <circle cx="50" cy="50" r="45" class="ring-bg" />
-                        <circle cx="50" cy="50" r="45" class="ring-progress workouts"
-                            :style="{ strokeDashoffset: workoutsOffset }" />
-                    </svg>
-                    <div class="ring-content">
-                        <span class="ring-value">{{ stats.totalWorkouts }}</span>
-                        <span class="ring-label">total</span>
-                    </div>
-                    <span class="ring-title">🏋️ Entrenos</span>
-                </div>
-            </div>
-
-
-            <div class="section-container">
-                <div class="section-title">
-                    <span>🎯 Meta del día</span>
-                    <ion-chip color="success" v-if="goalProgress >= 100">
-                        <ion-icon :icon="checkmarkCircle"></ion-icon>
-                        <ion-label>Completado</ion-label>
-                    </ion-chip>
-                </div>
-
-                <div class="goal-card">
-                    <div class="goal-header">
-                        <div class="goal-info">
-                            <h3>{{ todayGoal.title }}</h3>
-                            <p>{{ todayGoal.description }}</p>
-                        </div>
-                        <div class="goal-progress-ring">
-                            <span class="goal-percent">{{ Math.round(goalProgress) }}%</span>
-                        </div>
-                    </div>
-                    <div class="goal-bar">
-                        <div class="goal-fill" :style="{ width: Math.min(goalProgress, 100) + '%' }"></div>
-                    </div>
-                    <div class="goal-actions">
-                        <ion-button fill="outline" size="small" @click="goToWorkout">
-                            <ion-icon :icon="add" slot="start"></ion-icon>
-                            Registrar entreno
-                        </ion-button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Weekly Summary -->
-            <div class="section-container">
-                <div class="section-title">
-                    <span>📅 Esta semana</span>
-                </div>
-
-                <div class="week-summary">
-                    <div v-for="(day, idx) in weekSummary" :key="idx" class="week-day" :class="{
-                        'active': day.hasWorkout,
-                        'today': day.isToday,
-                        'future': day.isFuture
-                    }">
-                        <span class="day-letter">{{ day.letter }}</span>
-                        <div class="day-indicator">
-                            <ion-icon v-if="day.hasWorkout" :icon="checkmarkCircle" color="success"></ion-icon>
-                            <span v-else-if="day.isToday" class="today-dot"></span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="week-stats">
-                    <div class="week-stat">
-                        <span class="ws-value">{{ weekWorkouts }}</span>
-                        <span class="ws-label">entrenos</span>
-                    </div>
-                    <div class="week-stat">
-                        <span class="ws-value">{{ formatVolume(weekVolume) }}</span>
-                        <span class="ws-label">kg levantados</span>
-                    </div>
-                    <div class="week-stat">
-                        <span class="ws-value">{{ weekDuration }}</span>
-                        <span class="ws-label">minutos</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Personal Records Highlight -->
-            <div class="section-container" v-if="topPRs.length > 0">
-                <div class="section-title">
-                    <span>🏆 Tus Records</span>
-                    <ion-button fill="clear" size="small" @click="goToRecords">Ver todos</ion-button>
-                </div>
-
-                <div class="pr-showcase">
-                    <div v-for="(pr, idx) in topPRs" :key="idx" class="pr-item">
-                        <div class="pr-medal">{{ getMedal(idx) }}</div>
-                        <div class="pr-details">
-                            <span class="pr-exercise">{{ pr.exerciseName }}</span>
-                            <span class="pr-weight">{{ pr.maxWeight }} kg</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Recommended Workout -->
-            <div class="section-container">
-                <div class="section-title">
-                    <span>💡 Recomendación de hoy</span>
-                </div>
-
-                <div class="recommendation-card" @click="goToWorkout">
-                    <div class="rec-icon">{{ recommendation.icon }}</div>
-                    <div class="rec-content">
-                        <h4>{{ recommendation.title }}</h4>
-                        <p>{{ recommendation.description }}</p>
-                        <div class="rec-tags">
-                            <span class="rec-tag" v-for="tag in recommendation.tags" :key="tag">{{ tag }}</span>
-                        </div>
-                    </div>
-                    <ion-icon :icon="chevronForward" class="rec-arrow"></ion-icon>
-                </div>
-            </div>
-
-            <!-- Quick Actions -->
-            <div class="section-container">
-                <div class="section-title">
-                    <span>⚡ Acciones rápidas</span>
-                </div>
-
-                <div class="quick-actions">
-                    <div class="action-card" @click="quickAddWater">
-                        <span class="action-icon">💧</span>
-                        <span class="action-label">+500ml agua</span>
-                    </div>
-                    <div class="action-card" @click="goToWorkout">
-                        <span class="action-icon">🏋️</span>
-                        <span class="action-label">Nuevo entreno</span>
-                    </div>
-                    <div class="action-card" @click="goToProgress">
-                        <span class="action-icon">⚖️</span>
-                        <span class="action-label">Registrar peso</span>
-                    </div>
-                    <div class="action-card" @click="goToExercises">
-                        <span class="action-icon">📚</span>
-                        <span class="action-label">Ver ejercicios</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Achievement Unlock Animation -->
-            <div class="achievement-toast" v-if="showAchievement" @click="showAchievement = false">
-                <div class="achievement-content">
-                    <span class="achievement-icon">🎉</span>
-                    <div class="achievement-text">
-                        <span class="achievement-title">¡Logro desbloqueado!</span>
-                        <span class="achievement-desc">{{ achievementText }}</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Bottom Spacing -->
-            <div class="bottom-space"></div>
-        </ion-content>
-    </ion-page>
-</template>
-
 <script setup lang="ts">
 import {
     IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
-    IonButton, IonButtons, IonIcon, IonChip, IonLabel,
+    IonButton,
     onIonViewWillEnter, toastController, useIonRouter
 } from '@ionic/vue';
-import { ref, computed } from 'vue';
-import { checkmarkCircle, add, chevronForward } from 'ionicons/icons';
+import { ref, computed } from 'vue'
+import { useProfile } from '../utils/useProfile'
 
-const API_URL = 'http://localhost:3000';
-const router = useIonRouter();
-
-interface ProgressStats {
+interface DashboardMetrics {
     totalWorkouts: number;
+    last30DaysWorkouts: number;
+    avgDuration: number;
+    currentStreak: number;
+    longestStreak: number;
     totalVolume: number;
-    streakDays: number;
-    currentWeight: number;
+    recentRecords: any[];
+    activityCalendar: any[];
 }
 
-interface PersonalRecord {
-    exerciseName: string;
-    maxWeight: number;
-    date: string;
-}
+const router = useIonRouter();
+const { userName, loadProfileData, logout, getHeaders, API_URL } = useProfile();
 
-const stats = ref<ProgressStats>({ totalWorkouts: 0, totalVolume: 0, streakDays: 0, currentWeight: 0 });
-const todayWater = ref(0);
-const topPRs = ref<PersonalRecord[]>([]);
-const workoutHistory = ref<any[]>([]);
-const showAchievement = ref(false);
-const achievementText = ref('');
+const metrics = ref<DashboardMetrics | null>(null);
 const quoteIndex = ref(0);
 
 const motivationalQuotes = [
@@ -264,118 +35,43 @@ const motivationalQuotes = [
     { text: "No te detengas cuando estés cansado, detente cuando hayas terminado", author: "Anónimo" }
 ];
 
-const muscleGroups = ['Pecho', 'Espalda', 'Piernas', 'Hombros', 'Bíceps', 'Tríceps', 'Abdomen'];
-const muscleIcons: Record<string, string> = {
-    'Pecho': '💪', 'Espalda': '🔙', 'Piernas': '🦵', 'Hombros': '🤷',
-    'Bíceps': '💪', 'Tríceps': '💪', 'Abdomen': '🎯'
-};
-
 const currentQuote = computed(() => motivationalQuotes[quoteIndex.value]);
-const today = new Date().toISOString().split('T')[0];
 
-// Goal calculations
-const todayGoal = computed(() => {
-    const dayOfWeek = new Date().getDay();
-    const goals = [
-        { title: 'Día de descanso activo', description: 'Estiramientos y movilidad', target: 1 },
-        { title: 'Entrena tu tren superior', description: 'Pecho, hombros y tríceps', target: 1 },
-        { title: 'Día de piernas', description: 'Cuádriceps, isquios y glúteos', target: 1 },
-        { title: 'Push day', description: 'Empujes y press', target: 1 },
-        { title: 'Pull day', description: 'Jalones y remos', target: 1 },
-        { title: 'Full body', description: 'Entrenamiento completo', target: 1 },
-        { title: 'Descanso merecido', description: 'Recuperación y nutrición', target: 0 }
-    ];
-    return goals[dayOfWeek];
-});
+const circumference = 2 * Math.PI * 45; // ~283
 
-const goalProgress = computed(() => {
-    const todayWorkouts = workoutHistory.value.filter(w => w.date === today).length;
-    if (todayGoal.value.target === 0) return 100;
-    return (todayWorkouts / todayGoal.value.target) * 100;
-});
-
-// Ring calculations
-const circumference = 2 * Math.PI * 45;
 const streakOffset = computed(() => {
-    const progress = Math.min(stats.value.streakDays / 30, 1);
+    if (!metrics.value) return circumference;
+    const goal = 30; // Meta de 30 días de racha para el círculo completo
+    const progress = Math.min(metrics.value.currentStreak / goal, 1);
     return circumference * (1 - progress);
 });
-const waterOffset = computed(() => {
-    const progress = Math.min(todayWater.value / 3000, 1);
+
+const volumeOffset = computed(() => {
+    if (!metrics.value) return circumference;
+    // Meta visual arbitraria para el volumen total, ej: 100,000 kg
+    const goal = 100000;
+    const progress = Math.min(metrics.value.totalVolume / goal, 1);
     return circumference * (1 - progress);
 });
+
 const workoutsOffset = computed(() => {
-    const progress = Math.min(stats.value.totalWorkouts / 100, 1);
+    if (!metrics.value) return circumference;
+    // Meta de entrenamientos en los últimos 30 días
+    const goal = 20; // Ej: 20 entrenos en un mes
+    const progress = Math.min(metrics.value.last30DaysWorkouts / goal, 1);
     return circumference * (1 - progress);
 });
 
-// Week summary
-const weekSummary = computed(() => {
-    const days = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
-    const result = [];
-    const now = new Date();
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay());
-
-    for (let i = 0; i < 7; i++) {
-        const date = new Date(startOfWeek);
-        date.setDate(startOfWeek.getDate() + i);
-        const dateStr = date.toISOString().split('T')[0];
-        const hasWorkout = workoutHistory.value.some(w => w.date === dateStr);
-
-        result.push({
-            letter: days[i],
-            date: dateStr,
-            hasWorkout,
-            isToday: dateStr === today,
-            isFuture: date > now
-        });
+function formatVolumeShort(volume: number): string {
+    if (!volume) return '0';
+    if (volume >= 1000000) {
+        return (volume / 1000000).toFixed(1) + 'M';
     }
-    return result;
-});
-
-const weekWorkouts = computed(() => {
-    const startOfWeek = new Date();
-    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-    const startStr = startOfWeek.toISOString().split('T')[0];
-    return workoutHistory.value.filter(w => w.date >= startStr).length;
-});
-
-const weekVolume = computed(() => {
-    const startOfWeek = new Date();
-    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-    const startStr = startOfWeek.toISOString().split('T')[0];
-    return workoutHistory.value
-        .filter(w => w.date >= startStr)
-        .reduce((sum, w) => {
-            const vol = w.sets?.reduce((s: number, set: any) => s + (set.reps * set.weight), 0) || 0;
-            return sum + vol;
-        }, 0);
-});
-
-const weekDuration = computed(() => {
-    const startOfWeek = new Date();
-    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-    const startStr = startOfWeek.toISOString().split('T')[0];
-    return workoutHistory.value
-        .filter(w => w.date >= startStr)
-        .reduce((sum, w) => sum + (w.duration || 0), 0);
-});
-
-// Recommendation
-const recommendation = computed(() => {
-    const dayOfWeek = new Date().getDay();
-    const recommendations = [
-        { icon: '🧘', title: 'Yoga y estiramientos', description: 'Perfecto para recuperación activa', tags: ['Flexibilidad', '20 min'] },
-        { icon: '💪', title: 'Entrena pecho hoy', description: 'Press de banca, flexiones y aperturas', tags: ['Pecho', '45 min'] },
-        { icon: '🦵', title: 'Día de piernas', description: 'Sentadillas, prensa y extensiones', tags: ['Piernas', '50 min'] },
-        { icon: '🏋️', title: 'Hombros y tríceps', description: 'Press militar y fondos', tags: ['Push', '40 min'] },
-        { icon: '🔙', title: 'Espalda y bíceps', description: 'Dominadas, remos y curls', tags: ['Pull', '45 min'] },
-        { icon: '⚡', title: 'HIIT + Core', description: 'Circuito de alta intensidad', tags: ['Cardio', '30 min'] },
-        { icon: '😴', title: 'Descansa hoy', description: 'Tu cuerpo necesita recuperarse', tags: ['Descanso', 'Nutrición'] }
-    ];
-    return recommendations[dayOfWeek];
-});
+    if (volume >= 1000) {
+        return (volume / 1000).toFixed(1) + 'k';
+    }
+    return volume.toString();
+}
 
 function getGreeting() {
     const hour = new Date().getHours();
@@ -397,93 +93,21 @@ function changeQuote() {
     quoteIndex.value = (quoteIndex.value + 1) % motivationalQuotes.length;
 }
 
-function getMedal(idx: number) {
-    return ['🥇', '🥈', '🥉'][idx] || '🏅';
-}
-
-function formatLiters(ml: number) {
-    return (ml / 1000).toFixed(1);
-}
-
-function formatVolume(vol: number) {
-    return vol >= 1000 ? (vol / 1000).toFixed(1) + 'k' : vol.toString();
-}
-
 // Navigation
 function goToWorkout() {
-    router.push('/tabs/tab2');
+    router.push('/tabs/exercises');
 }
 
 function goToProgress() {
-    router.push('/tabs/tab3');
+    router.push('/tabs/progress');
 }
 
 function goToRecords() {
-    router.push('/tabs/tab3');
+    router.push('/tabs/progress');
 }
 
 function goToExercises() {
-    router.push('/tabs/tab1');
-}
-
-// Actions
-async function quickAddWater() {
-    try {
-        const progressRes = await fetch(`${API_URL}/progress`);
-        const progressData = await progressRes.json();
-        const todayProgress = progressData.find((p: any) => p.date === today);
-
-        await fetch(`${API_URL}/progress`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                date: today,
-                waterIntake: (todayProgress?.waterIntake || 0) + 500,
-                weight: todayProgress?.weight || 0,
-                mood: todayProgress?.mood || 'Bien'
-            })
-        });
-
-        todayWater.value += 500;
-        showToast('+500ml 💧 ¡Sigue así!');
-    } catch (error) {
-        showToast('Error al registrar', 'danger');
-    }
-}
-
-async function loadData() {
-    try {
-        const [statsRes, progressRes, historyRes, prsRes, workoutsRes] = await Promise.all([
-            fetch(`${API_URL}/progress/stats`),
-            fetch(`${API_URL}/progress`),
-            fetch(`${API_URL}/workouts/history`),
-            fetch(`${API_URL}/workouts/prs`),
-            fetch(`${API_URL}/workouts`)
-        ]);
-
-        stats.value = await statsRes.json();
-        const progressData = await progressRes.json();
-        const todayProgress = progressData.find((p: any) => p.date === today);
-        todayWater.value = todayProgress?.waterIntake || 0;
-
-        topPRs.value = (await prsRes.json()).slice(0, 3);
-        workoutHistory.value = await workoutsRes.json();
-
-        // Check for achievements
-        checkAchievements();
-    } catch (error) {
-        console.error('Error loading data:', error);
-    }
-}
-
-function checkAchievements() {
-    if (stats.value.streakDays === 7) {
-        achievementText.value = '¡7 días de racha! 🔥';
-        showAchievement.value = true;
-    } else if (stats.value.totalWorkouts === 10) {
-        achievementText.value = '¡10 entrenamientos completados! 💪';
-        showAchievement.value = true;
-    }
+    router.push('/tabs/exercises');
 }
 
 async function showToast(message: string, color = 'success') {
@@ -491,13 +115,194 @@ async function showToast(message: string, color = 'success') {
     await toast.present();
 }
 
+const loadMetrics = async () => {
+    try {
+        const response = await fetch(`${API_URL}/dashboard`, {
+            headers: getHeaders()
+        });
+        if (!response.ok) {
+            if (response.status === 401 || response.status === 403) logout();
+            throw new Error('No se pudo cargar las métricas');
+        }
+        metrics.value = await response.json();
+    } catch (error) {
+        console.error(error);
+        showToast('Error al cargar datos del dashboard', 'danger');
+    }
+};
+
 onIonViewWillEnter(() => {
-    loadData();
-    // Random quote on enter
+    loadProfileData();
+    loadMetrics();
     quoteIndex.value = Math.floor(Math.random() * motivationalQuotes.length);
 });
 </script>
+<template>
+    <ion-page>
+        <ion-header class="forgy-header">
 
+            <ion-toolbar>
+                <ion-title class="forgy-title">
+                    FORGY
+                </ion-title>
+
+            </ion-toolbar>
+        </ion-header>
+
+        <ion-content
+            :fullscreen="true"
+            class="home-content"
+        >
+
+            <div class="hero-section">
+                <div class="hero-background"></div>
+                <div class="hero-content">
+                    <div class="greeting-section">
+                        <span class="greeting-emoji">{{ getTimeEmoji() }}</span>
+                        <div class="greeting-text">
+                            <span class="greeting-time">{{ getGreeting() }}</span>
+                            <span class="greeting-name">{{ userName }}</span>
+                        </div>
+                    </div>
+
+                    <div
+                        class="motivation-card"
+                        @click="changeQuote"
+                    >
+                        <span class="quote-icon">💬</span>
+                        <p class="quote-text">"{{ currentQuote.text }}"</p>
+                        <span class="quote-author">— {{ currentQuote.author }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                class="quick-stats"
+                v-if="metrics"
+            >
+                <div
+                    class="stat-ring"
+                    @click="goToProgress"
+                >
+                    <svg
+                        viewBox="0 0 100 100"
+                        class="ring-svg"
+                    >
+                        <circle
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            class="ring-bg"
+                        />
+                        <circle
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            class="ring-progress"
+                            :style="{ strokeDashoffset: streakOffset }"
+                        />
+                    </svg>
+                    <div class="ring-content">
+                        <span class="ring-value">{{ metrics.currentStreak }}</span>
+                        <span class="ring-label">días</span>
+                    </div>
+                    <span class="ring-title">🔥 Racha</span>
+                </div>
+
+                <div
+                    class="stat-ring"
+                    @click="goToProgress"
+                >
+                    <svg
+                        viewBox="0 0 100 100"
+                        class="ring-svg"
+                    >
+                        <circle
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            class="ring-bg"
+                        />
+                        <circle
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            class="ring-progress volume"
+                            :style="{ strokeDashoffset: volumeOffset }"
+                        />
+                    </svg>
+                    <div class="ring-content">
+                        <span class="ring-value">{{ formatVolumeShort(metrics.totalVolume) }}</span>
+                        <span class="ring-label">kg</span>
+                    </div>
+                    <span class="ring-title">⚖️ Volumen</span>
+                </div>
+
+                <div
+                    class="stat-ring"
+                    @click="goToWorkout"
+                >
+                    <svg
+                        viewBox="0 0 100 100"
+                        class="ring-svg"
+                    >
+                        <circle
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            class="ring-bg"
+                        />
+                        <circle
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            class="ring-progress workouts"
+                            :style="{ strokeDashoffset: workoutsOffset }"
+                        />
+                    </svg>
+                    <div class="ring-content">
+                        <span class="ring-value">{{ metrics.totalWorkouts }}</span>
+                        <span class="ring-label">total</span>
+                    </div>
+                    <span class="ring-title">🏋️ Entrenos</span>
+                </div>
+            </div>
+            <!-- Quick Actions -->
+            <div class="section-container">
+                <div class="section-title">
+                    <span>⚡ Acciones rápidas</span>
+                </div>
+
+                <div class="quick-actions">
+                    <div
+                        class="action-card"
+                        @click="goToWorkout"
+                    >
+                        <span class="action-icon">🏋️</span>
+                        <span class="action-label">Nuevo entreno</span>
+                    </div>
+                    <div
+                        class="action-card"
+                        @click="goToProgress"
+                    >
+                        <span class="action-icon">⚖️</span>
+                        <span class="action-label">Registrar peso</span>
+                    </div>
+                    <div
+                        class="action-card"
+                        @click="goToExercises"
+                    >
+                        <span class="action-icon">📚</span>
+                        <span class="action-label">Ver ejercicios</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Spacing -->
+            <div class="bottom-space"></div>
+        </ion-content>
+    </ion-page>
+</template>
 <style scoped>
 /* Header Styles */
 .forgy-header {
@@ -696,8 +501,8 @@ ion-icon {
     transition: stroke-dashoffset 0.8s ease;
 }
 
-.ring-progress.water {
-    stroke: #2196F3;
+.ring-progress.volume {
+    stroke: var(--ion-color-tertiary);
 }
 
 .ring-progress.workouts {
