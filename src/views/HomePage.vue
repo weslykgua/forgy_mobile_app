@@ -22,7 +22,6 @@ const router = useIonRouter();
 const { userName, loadProfileData, logout, getHeaders, API_URL } = useProfile();
 
 const metrics = ref<DashboardMetrics | null>(null);
-const measurements = ref<any[]>([]);
 const quoteIndex = ref(0);
 
 const motivationalQuotes = [
@@ -72,11 +71,6 @@ function formatVolumeShort(volume: number): string {
         return (volume / 1000).toFixed(1) + 'k';
     }
     return volume.toString();
-}
-
-function getMedal(index: number): string {
-    const medals = ['🥇', '🥈', '🥉'];
-    return medals[index] || '🏅';
 }
 
 function getGreeting() {
@@ -273,59 +267,6 @@ onIonViewWillEnter(() => {
                     <span class="ring-title">🏋️ Entrenos</span>
                 </div>
             </div>
-
-            <!-- Personal Records Highlight -->
-            <div
-                class="section-container"
-                v-if="metrics && metrics.recentRecords && metrics.recentRecords.length > 0"
-            >
-                <div class="section-title">
-                    <span>🏆 Tus Records</span>
-                    <ion-button
-                        fill="clear"
-                        size="small"
-                        @click="goToRecords"
-                    >Ver todos</ion-button>
-                </div>
-
-                <div class="pr-showcase">
-                    <div
-                        v-for="(pr, idx) in metrics.recentRecords"
-                        :key="idx"
-                        class="pr-item"
-                    >
-                        <div class="pr-medal">{{ getMedal(idx) }}</div>
-                        <div class="pr-details">
-                            <span class="pr-exercise">{{ pr.exercise.name }}</span>
-                            <span class="pr-weight">{{ pr.value }} kg</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Measurements Quick View -->
-            <div
-                class="section-container"
-                v-if="measurements.length > 0"
-            >
-                <div class="section-title">
-                    <span>⚖️ Último Peso</span>
-                    <ion-button
-                        fill="clear"
-                        size="small"
-                        @click="goToProgress"
-                    >Historial</ion-button>
-                </div>
-                <div class="goal-card">
-                    <div class="goal-header">
-                        <div class="goal-info">
-                            <h3>{{ measurements[0].weight }} kg</h3>
-                            <p>{{ new Date(measurements[0].date).toLocaleDateString() }}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Quick Actions -->
             <div class="section-container">
                 <div class="section-title">
