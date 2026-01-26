@@ -1,20 +1,34 @@
 import { createRouter, createWebHistory } from '@ionic/vue-router';
 import { RouteRecordRaw } from 'vue-router';
-import TabsPage from '../views/NavBarView.vue';
+// import TabsPage from '../views/TabsPage.vue';
+import TabsPage from '@/views/TabsPage.vue';
+
+// Guard de autenticación para verificar si el token es válido y no ha expirado
+const isAuthenticated = () => {
+  const token = localStorage.getItem('token');
+  const tokenData = localStorage.getItem('token_data');
+  if (token && tokenData) {
+    try {
+      const data = JSON.parse(tokenData);
+      const now = new Date();
+      const until = new Date(data.until);
+      return now <= until;
+    } catch (e) {
+      return false;
+    }
+  }
+  return false;
+};
 
 const routes: Array<RouteRecordRaw> = [
   {
     path: '/',
     redirect: '/auth',
   },
-
-  // ✅ Login fuera de Tabs (SIN navbar)
   {
     path: '/auth',
     component: () => import('@/views/AuthView.vue'),
   },
-
-  // ✅ Tabs con navbar
   {
     path: '/tabs/',
     component: TabsPage,
@@ -28,19 +42,23 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('@/views/HomePage.vue'),
       },
       {
-        path: 'tab1',
+        path: 'exercises',
         component: () => import('@/views/ExercisesView.vue'),
       },
       {
-        path: 'tab2',
+        path: 'train',
         component: () => import('@/views/TrainView.vue'),
       },
       {
-        path: 'tab3',
+        path: 'train',
+        component: () => import('@/views/TrainView.vue'),
+      },
+      {
+        path: 'progress',
         component: () => import('@/views/ProgressView.vue'),
       },
       {
-        path: 'tab4',
+        path: 'profile',
         component: () => import('@/views/ProfileView.vue'),
       },
       {
@@ -52,10 +70,14 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('@/views/RmCalculatorView.vue'),
       },
     ],
-  },
-  {
-    path: '/tabs/tab5',
-    redirect: '/auth',
+    beforeEnter: (to, from, next) => {
+      // Si el usuario no está autenticado, lo redirigimos a la página de login
+      if (isAuthenticated()) {
+        next();
+      } else {
+        next('/auth');
+      }
+    },
   },
 ];
 
