@@ -5,8 +5,8 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 // --- Estado (Singleton) ---
 // Este estado será compartido entre todos los componentes que usen este composable.
-const userName = ref('Usuario Forgy');
-const userEmail = ref('usuario@forgy.app');
+const userName = ref('');
+const userEmail = ref('');
 
 // --- Inicialización ---
 // Carga los datos iniciales del usuario desde localStorage para evitar parpadeos en la carga.
@@ -14,8 +14,8 @@ try {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
         const parsedUser = JSON.parse(storedUser);
-        userName.value = parsedUser.name || 'Usuario Forgy';
-        userEmail.value = parsedUser.email || 'usuario@forgy.app';
+        userName.value = parsedUser.name;
+        userEmail.value = parsedUser.email;
     }
 } catch (e) {
     console.error("Error al parsear el usuario desde localStorage", e);
@@ -35,8 +35,6 @@ export function useProfile() {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         localStorage.removeItem('token_data');
-        userName.value = 'Usuario Forgy';
-        userEmail.value = 'usuario@forgy.app';
         router.replace('/auth');
     };
 

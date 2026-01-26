@@ -1,3 +1,60 @@
+<script setup lang="ts">
+import {
+    IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
+    IonAvatar, IonButton, IonIcon, IonChip, IonLabel,
+    IonList, IonListHeader, IonItem, IonToggle,
+    onIonViewWillEnter,
+    alertController
+} from '@ionic/vue'
+import { ref, computed } from 'vue'
+import {
+    personCircle, camera, star, personOutline,
+    notificationsOutline, settingsOutline, moonOutline,
+    helpCircleOutline, chatbubbleOutline, starOutline, logOutOutline
+} from 'ionicons/icons';
+import { useProfile } from './useProfile'
+
+const darkMode = ref(false);
+const stats = ref({ totalWorkouts: 0, totalVolume: 0, streakDays: 0 });
+const { userName, userEmail, loadProfileData, logout } = useProfile();
+
+const totalDays = computed(() => stats.value.streakDays || 0);
+const level = computed(() => {
+    if (stats.value.totalWorkouts >= 100) return '🏆 Elite';
+    if (stats.value.totalWorkouts >= 50) return '💪 Pro';
+    if (stats.value.totalWorkouts >= 20) return '⭐ Intermedio';
+    return '🌱 Novato';
+});
+
+function getStatsFromServer() {
+}
+
+const toggleDarkMode = () => {
+    document.body.classList.toggle('dark', darkMode.value);
+    document.body.classList.toggle('light', !darkMode.value);
+};
+
+onIonViewWillEnter(() => {
+    loadProfileData();
+    // Check system preference
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    darkMode.value = document.body.classList.contains('dark') || prefersDark;
+});
+
+async function confirmLogout() {
+    const alert = await alertController.create({
+        header: 'Cerrar Sesión',
+        message: '¿Estás seguro de que quieres cerrar sesión?',
+        buttons: [
+            { text: 'Cancelar', role: 'cancel' },
+            { text: 'Sí, cerrar sesión', role: 'destructive', handler: () => logout() },
+        ],
+    });
+    await alert.present();
+}
+
+</script>
+
 <template>
     <ion-page>
         <ion-header>
@@ -40,11 +97,6 @@
 
             <!-- Stats Summary -->
             <div class="stats-summary">
-                <div class="stat-item">
-                    <span class="stat-value">{{ savedWorkouts }}</span>
-                    <span class="stat-label">Entrenos</span>
-                </div>
-                <div class="stat-divider"></div>
                 <div class="stat-item">
                     <span class="stat-value">{{ totalDays }}</span>
                     <span class="stat-label">Días activo</span>
@@ -189,71 +241,6 @@
         </ion-content>
     </ion-page>
 </template>
-
-<script setup lang="ts">
-import {
-    IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
-    IonAvatar, IonButton, IonIcon, IonChip, IonLabel,
-    IonList, IonListHeader, IonItem, IonToggle,
-    onIonViewWillEnter,
-    alertController
-} from '@ionic/vue'
-import { ref, computed } from 'vue'
-import {
-    personCircle, camera, star, personOutline,
-    notificationsOutline, settingsOutline, moonOutline,
-    helpCircleOutline, chatbubbleOutline, starOutline, logOutOutline
-} from 'ionicons/icons';
-import { useProfile } from './useProfile'
-
-const darkMode = ref(false);
-const stats = ref({ totalWorkouts: 0, totalVolume: 0, streakDays: 0 });
-const { userName, userEmail, loadProfileData, logout, getHeaders, API_URL } = useProfile();
-
-const savedWorkouts = computed(() => stats.value.totalWorkouts);
-const totalDays = computed(() => stats.value.streakDays || 0);
-const level = computed(() => {
-    if (stats.value.totalWorkouts >= 100) return '🏆 Elite';
-    if (stats.value.totalWorkouts >= 50) return '💪 Pro';
-    if (stats.value.totalWorkouts >= 20) return '⭐ Intermedio';
-    return '🌱 Novato';
-});
-
-const loadStats = async () => {
-    try {
-        const res = await fetch(`${API_URL}/progress/stats`, { headers: getHeaders() });
-        if (!res.ok) throw new Error('Failed to load stats');
-        stats.value = await res.json();
-    } catch (e) {
-        console.error(e);
-    }
-};
-
-const toggleDarkMode = () => {
-    document.body.classList.toggle('dark', darkMode.value);
-    document.body.classList.toggle('light', !darkMode.value);
-};
-
-onIonViewWillEnter(() => {
-    loadProfileData();
-    // Check system preference
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    darkMode.value = document.body.classList.contains('dark') || prefersDark;
-});
-
-async function confirmLogout() {
-    const alert = await alertController.create({
-        header: 'Cerrar Sesión',
-        message: '¿Estás seguro de que quieres cerrar sesión?',
-        buttons: [
-            { text: 'Cancelar', role: 'cancel' },
-            { text: 'Sí, cerrar sesión', role: 'destructive', handler: () => logout() },
-        ],
-    });
-    await alert.present();
-}
-
-</script>
 
 <style scoped>
 .profile-header {
