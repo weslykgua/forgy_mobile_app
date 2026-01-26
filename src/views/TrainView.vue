@@ -428,7 +428,7 @@ import {
   onIonViewWillEnter, alertController, toastController
 } from '@ionic/vue';
 import { ref, computed } from 'vue';
-import { useProfile } from './useProfile'
+import { useProfile } from '../utils/useProfile'
 import {
   calendar as calendarIcon, add, chevronBack, chevronForward, barbell, time,
   fitness, barbellOutline, create, trash, documentText, close, remove,
@@ -1127,5 +1127,4 @@ onIonViewWillEnter(() => {
 .summary-row strong {
   font-weight: 700;
 }
-
 </style>

@@ -12,21 +12,55 @@ import {
     notificationsOutline, settingsOutline, moonOutline,
     helpCircleOutline, chatbubbleOutline, starOutline, logOutOutline
 } from 'ionicons/icons';
-import { useProfile } from './useProfile'
+import { useProfile } from '../utils/useProfile'
 
 const darkMode = ref(false);
-const stats = ref({ totalWorkouts: 0, totalVolume: 0, streakDays: 0 });
-const { userName, userEmail, loadProfileData, logout } = useProfile();
+const stats = ref({ totalWorkouts: 0, totalVolume: 0, streakDays: 0 })
+const { userName, userEmail, loadProfileData, logout } = useProfile()
+
+// Configuración local para acceso a la API para no modificar useProfile.ts
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const getHeaders = () => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${localStorage.getItem('token')}`
+})
 
 const totalDays = computed(() => stats.value.streakDays || 0);
 const level = computed(() => {
-    if (stats.value.totalWorkouts >= 100) return '🏆 Elite';
+    if (stats.value.totalWorkouts >= 100) return '🏆 Élite';
     if (stats.value.totalWorkouts >= 50) return '💪 Pro';
     if (stats.value.totalWorkouts >= 20) return '⭐ Intermedio';
     return '🌱 Novato';
-});
+})
 
-function getStatsFromServer() {
+async function getStatsFromServer() {
+    try {
+        // 1. Obtener la racha de entrenamiento
+        const streakResponse = await fetch(`${API_URL}/user/streak`, {
+            headers: getHeaders()
+        });
+
+        if (!streakResponse.ok) {
+            throw new Error('No se pudo obtener la racha');
+        }
+
+        const streakData = await streakResponse.json();
+
+        if (streakData && typeof streakData.currentStreak === 'number') {
+            stats.value.streakDays = streakData.currentStreak;
+        }
+
+        // 2. Obtener métricas del dashboard para el total de entrenamientos
+        const dashboardResponse = await fetch(`${API_URL}/dashboard`, {
+            headers: getHeaders()
+        });
+        if (dashboardResponse.ok) {
+            const dashboardData = await dashboardResponse.json();
+            stats.value.totalWorkouts = dashboardData.totalWorkouts || 0;
+        }
+    } catch (error) {
+        console.error('Error al obtener estadísticas del servidor:', error);
+    }
 }
 
 const toggleDarkMode = () => {
@@ -36,6 +70,7 @@ const toggleDarkMode = () => {
 
 onIonViewWillEnter(() => {
     loadProfileData();
+    getStatsFromServer();
     // Check system preference
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     darkMode.value = document.body.classList.contains('dark') || prefersDark;

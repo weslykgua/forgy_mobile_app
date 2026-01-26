@@ -9,7 +9,7 @@ import {
   IonSkeletonText, IonBadge,
   onIonViewWillEnter, onIonViewWillLeave, alertController, toastController
 } from '@ionic/vue';
-import { useProfile } from './useProfile'
+import { useProfile } from '../utils/useProfile'
 import { ref, computed } from 'vue';
 import { io } from 'socket.io-client';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';

@@ -5,7 +5,7 @@ import {
     onIonViewWillEnter, toastController, useIonRouter
 } from '@ionic/vue';
 import { ref, computed } from 'vue'
-import { useProfile } from './useProfile'
+import { useProfile } from '../utils/useProfile'
 
 interface DashboardMetrics {
     totalWorkouts: number;
