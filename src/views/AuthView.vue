@@ -541,6 +541,7 @@ function clearSession() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('token_data');
+    router.replace('/auth');
 }
 
 /**

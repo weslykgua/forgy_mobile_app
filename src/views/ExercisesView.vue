@@ -295,6 +295,16 @@ const saveExercise = async () => {
 
 // Crear nueva rutina
 const createRoutine = async () => {
+   // DEBUG: Verifica el token antes de enviar
+  const token = localStorage.getItem('token')
+  if (token) {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      console.log('Token payload en frontend:', payload)
+    } catch (e) {
+      console.error('Error decodificando token:', e)
+    }
+  }
   (document.activeElement as HTMLElement)?.blur();
   newRoutineForm.value = { name: '', description: '' };
   isCreateRoutineModalOpen.value = true;
@@ -865,8 +875,6 @@ const updateRoutineImage = async (imageUrl: string) => {
       if (routineInList) {
         routineInList.imageUrl = imageUrl;
       }
-
-      await showToast('Imagen de rutina actualizada', 'success');
       isImagePickerOpen.value = false;
     } catch (error) {
       console.error(error);
@@ -874,7 +882,6 @@ const updateRoutineImage = async (imageUrl: string) => {
     }
   } else {
     // Si no, estamos creando una nueva rutina. Solo actualizamos el formulario.
-    newRoutineForm.value.imageUrl = imageUrl;
     isImagePickerOpen.value = false;
   }
 };
@@ -1216,7 +1223,7 @@ onIonViewWillLeave(() => {
             @click="openImagePicker(null)"
           >
             <img
-              :src="newRoutineForm.imageUrl || '/assets/placeholder-image.png'"
+              :src="'./assets/placeholder-image.png'"
               alt="Routine preview"
             />
             <div class="edit-overlay">Elegir Imagen</div>

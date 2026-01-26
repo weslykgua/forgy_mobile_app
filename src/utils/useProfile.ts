@@ -37,6 +37,7 @@ export function useProfile() {
         localStorage.removeItem('token_data');
         router.replace('/auth');
     };
+    
 
     const loadProfileData = async () => {
         try {
