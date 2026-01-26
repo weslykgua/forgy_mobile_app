@@ -70,7 +70,7 @@ const workoutLogs = ref<Record<string, {
   notes: string;
   duration: string;
 }>>({});
-const newRoutineForm = ref({ name: '', imageUrl: '' });
+const newRoutineForm = ref({ name: '', description: ''});
 const predefinedImages = ref([
   'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=870&q=80',
   'https://images.unsplash.com/photo-1581009137042-c552e485697a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=870&q=80',
@@ -296,7 +296,7 @@ const saveExercise = async () => {
 // Crear nueva rutina
 const createRoutine = async () => {
   (document.activeElement as HTMLElement)?.blur();
-  newRoutineForm.value = { name: '', imageUrl: '' };
+  newRoutineForm.value = { name: '', description: '' };
   isCreateRoutineModalOpen.value = true;
 };
 
@@ -1230,6 +1230,15 @@ onIonViewWillLeave(() => {
               label-placement="stacked"
               placeholder="Ej: Día de Piernas"
             ></ion-input>
+          </ion-item>
+          <ion-item>
+            <ion-textarea
+              v-model="newRoutineForm.description"
+              label="Descripción (opcional)"
+              label-placement="stacked"
+              placeholder="Describe brevemente la rutina..."
+              :auto-grow="true"
+            ></ion-textarea>
           </ion-item>
         </ion-list>
       </ion-content>
