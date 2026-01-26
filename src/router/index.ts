@@ -69,6 +69,10 @@ const routes: Array<RouteRecordRaw> = [
         path: 'rm',
         component: () => import('@/views/RmCalculatorView.vue'),
       },
+      {
+        path: 'plan',
+        component: () => import('@/views/PlanWizardView.vue'),
+      },
     ],
     beforeEnter: (to, from, next) => {
       // Si el usuario no está autenticado, lo redirigimos a la página de login

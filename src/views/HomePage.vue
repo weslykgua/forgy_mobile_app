@@ -22,7 +22,20 @@ const router = useIonRouter();
 const { userName, loadProfileData, logout, getHeaders, API_URL } = useProfile();
 
 const metrics = ref<DashboardMetrics | null>(null);
+const todayProgress = ref<any | null>(null);
+const userProfile = ref<any | null>(null);
+const userPlan = ref<any | null>(null);
 const quoteIndex = ref(0);
+function getLocalDateKey(date = new Date()) {
+    return date.toLocaleDateString('en-CA');
+}
+
+function toDateKey(value: string) {
+    if (!value) return value;
+    return value.includes('T') ? getLocalDateKey(new Date(value)) : value;
+}
+
+const today = getLocalDateKey();
 
 const motivationalQuotes = [
     { text: "El dolor que sientes hoy será la fuerza que sentirás mañana", author: "Arnold Schwarzenegger" },
@@ -46,11 +59,10 @@ const streakOffset = computed(() => {
     return circumference * (1 - progress);
 });
 
-const volumeOffset = computed(() => {
-    if (!metrics.value) return circumference;
-    // Meta visual arbitraria para el volumen total, ej: 100,000 kg
-    const goal = 100000;
-    const progress = Math.min(metrics.value.totalVolume / goal, 1);
+const waterOffset = computed(() => {
+    const water = todayProgress.value?.waterIntake || 0;
+    const goal = 5000;
+    const progress = Math.min(water / goal, 1);
     return circumference * (1 - progress);
 });
 
@@ -93,6 +105,30 @@ function changeQuote() {
     quoteIndex.value = (quoteIndex.value + 1) % motivationalQuotes.length;
 }
 
+function goToPlan() {
+    router.push('/tabs/plan');
+}
+
+function formatWater(ml: number | null | undefined) {
+    if (!ml) return '--';
+    return (ml / 1000).toFixed(1);
+}
+
+const summary = computed(() => {
+    const weight = todayProgress.value?.weight ?? userProfile.value?.weight ?? null;
+    const height = userProfile.value?.height ?? null;
+    const sleep = todayProgress.value?.sleepHours ?? null;
+    const calories = todayProgress.value?.caloriesConsumed ?? null;
+    const water = todayProgress.value?.waterIntake ?? 0;
+    return { weight, height, sleep, calories, water };
+});
+
+const waterPercent = computed(() => {
+    const goal = 5000;
+    const progress = Math.min((summary.value.water || 0) / goal, 1);
+    return Math.round(progress * 100);
+});
+
 // Navigation
 function goToWorkout() {
     router.push('/tabs/exercises');
@@ -117,14 +153,33 @@ async function showToast(message: string, color = 'success') {
 
 const loadMetrics = async () => {
     try {
-        const response = await fetch(`${API_URL}/dashboard`, {
-            headers: getHeaders()
-        });
-        if (!response.ok) {
-            if (response.status === 401 || response.status === 403) logout();
+        const headers = getHeaders();
+        const [dashboardRes, progressRes, profileRes, planRes] = await Promise.all([
+            fetch(`${API_URL}/dashboard`, { headers }),
+            fetch(`${API_URL}/progress`, { headers }),
+            fetch(`${API_URL}/user/profile`, { headers }),
+            fetch(`${API_URL}/goals/plan`, { headers })
+        ]);
+        if (!dashboardRes.ok) {
+            if (dashboardRes.status === 401 || dashboardRes.status === 403) logout();
             throw new Error('No se pudo cargar las métricas');
         }
-        metrics.value = await response.json();
+        if (!progressRes.ok) {
+            throw new Error('No se pudo cargar el progreso');
+        }
+        if (!profileRes.ok) {
+            throw new Error('No se pudo cargar el perfil');
+        }
+        if (!planRes.ok) {
+            throw new Error('No se pudo cargar el plan');
+        }
+        metrics.value = await dashboardRes.json();
+        const progressData = await progressRes.json();
+        todayProgress.value = Array.isArray(progressData)
+            ? progressData.find((p: any) => toDateKey(p.date) === today)
+            : null;
+        userProfile.value = await profileRes.json();
+        userPlan.value = await planRes.json();
     } catch (error) {
         console.error(error);
         showToast('Error al cargar datos del dashboard', 'danger');
@@ -227,15 +282,15 @@ onIonViewWillEnter(() => {
                             cx="50"
                             cy="50"
                             r="45"
-                            class="ring-progress volume"
-                            :style="{ strokeDashoffset: volumeOffset }"
+                            class="ring-progress water"
+                            :style="{ strokeDashoffset: waterOffset }"
                         />
                     </svg>
                     <div class="ring-content">
-                        <span class="ring-value">{{ formatVolumeShort(metrics.totalVolume) }}</span>
-                        <span class="ring-label">kg</span>
+                        <span class="ring-value">{{ formatWater(summary.water) }}</span>
+                        <span class="ring-label">L</span>
                     </div>
-                    <span class="ring-title">⚖️ Volumen</span>
+                    <span class="ring-title">💧 Agua</span>
                 </div>
 
                 <div
@@ -267,6 +322,82 @@ onIonViewWillEnter(() => {
                     <span class="ring-title">🏋️ Entrenos</span>
                 </div>
             </div>
+
+            <!-- Resumen diario -->
+            <div class="section-container">
+                <div class="section-title">
+                    <span>🧾 Resumen de hoy</span>
+                </div>
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <span class="summary-label">Peso</span>
+                        <span class="summary-value">{{ summary.weight ?? '--' }} kg</span>
+                    </div>
+                    <div class="summary-card">
+                        <span class="summary-label">Estatura</span>
+                        <span class="summary-value">{{ summary.height ?? '--' }} cm</span>
+                    </div>
+                    <div class="summary-card summary-water">
+                        <div class="summary-water-header">
+                            <span class="summary-label">Agua hoy</span>
+                            <span class="summary-value">{{ formatWater(summary.water) }} L</span>
+                        </div>
+                        <div class="summary-water-bar">
+                            <div class="summary-water-fill" :style="{ width: waterPercent + '%' }"></div>
+                        </div>
+                        <span class="summary-meta">{{ waterPercent }}% de 5L</span>
+                    </div>
+                    <div class="summary-card">
+                        <span class="summary-label">Sueño hoy</span>
+                        <span class="summary-value">{{ summary.sleep ?? '--' }} hrs</span>
+                        <span class="summary-meta">Último registro del día</span>
+                    </div>
+                    <div class="summary-card">
+                        <span class="summary-label">Calorías</span>
+                        <span class="summary-value">{{ summary.calories ?? '--' }} kcal</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Plan personalizado -->
+            <div class="section-container">
+                <div class="section-title">
+                    <span>🎯 Tu plan</span>
+                </div>
+                <div v-if="!userPlan || !userPlan.id" class="plan-cta" @click="goToPlan">
+                    <div class="plan-cta-text">
+                        <h4>Crea tu rutina y nutrición</h4>
+                        <p>Responde unas preguntas y te damos tu plan completo.</p>
+                    </div>
+                    <ion-button size="small" fill="outline">Crear plan</ion-button>
+                </div>
+                <div v-else class="plan-summary-card">
+                    <div class="plan-summary-header">
+                        <span class="plan-title">Rutina y nutrición</span>
+                        <ion-button size="small" fill="clear" @click="goToPlan">Editar</ion-button>
+                    </div>
+                    <p class="plan-summary-text">{{ userPlan.routineSummary }}</p>
+                    <div class="plan-summary-macros">
+                        <div class="macro">
+                            <span class="macro-label">Calorías</span>
+                            <span class="macro-value">{{ userPlan.caloriesTarget }} kcal</span>
+                        </div>
+                        <div class="macro">
+                            <span class="macro-label">Proteína</span>
+                            <span class="macro-value">{{ userPlan.proteinTarget }} g</span>
+                        </div>
+                        <div class="macro">
+                            <span class="macro-label">Carbs</span>
+                            <span class="macro-value">{{ userPlan.carbsTarget }} g</span>
+                        </div>
+                        <div class="macro">
+                            <span class="macro-label">Grasas</span>
+                            <span class="macro-value">{{ userPlan.fatTarget }} g</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Quick Actions -->
             <div class="section-container">
                 <div class="section-title">
@@ -501,8 +632,8 @@ ion-icon {
     transition: stroke-dashoffset 0.8s ease;
 }
 
-.ring-progress.volume {
-    stroke: var(--ion-color-tertiary);
+.ring-progress.water {
+    stroke: #2196F3;
 }
 
 .ring-progress.workouts {
@@ -550,6 +681,128 @@ ion-icon {
     align-items: center;
     margin-bottom: 12px;
     font-size: 18px;
+    font-weight: 700;
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.summary-card {
+    background: var(--forgy-card-bg);
+    padding: 14px;
+    border-radius: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.summary-card.summary-water {
+    grid-column: span 2;
+}
+
+.summary-water-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.summary-water-bar {
+    height: 10px;
+    background: var(--forgy-input-bg);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.summary-water-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #56CCF2, #2F80ED);
+    border-radius: 10px;
+    transition: width 0.4s ease;
+}
+
+.summary-label {
+    font-size: 12px;
+    color: var(--ion-color-medium);
+    font-weight: 600;
+}
+
+.summary-value {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--forgy-text-primary);
+}
+
+.summary-meta {
+    font-size: 11px;
+    color: var(--forgy-text-secondary);
+}
+
+.plan-cta,
+.plan-summary-card {
+    background: var(--forgy-card-bg);
+    border-radius: 20px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.plan-cta {
+    cursor: pointer;
+}
+
+.plan-cta-text h4 {
+    margin: 0 0 4px;
+    font-size: 16px;
+}
+
+.plan-cta-text p {
+    margin: 0;
+    color: var(--forgy-text-secondary);
+    font-size: 12px;
+}
+
+.plan-summary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.plan-title {
+    font-weight: 700;
+}
+
+.plan-summary-text {
+    margin: 0;
+    color: var(--forgy-text-secondary);
+    font-size: 12px;
+}
+
+.plan-summary-macros {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.plan-summary-macros .macro {
+    background: var(--forgy-input-bg);
+    padding: 10px;
+    border-radius: 12px;
+    text-align: center;
+}
+
+.plan-summary-macros .macro-label {
+    font-size: 11px;
+    color: var(--forgy-text-secondary);
+}
+
+.plan-summary-macros .macro-value {
+    font-size: 14px;
     font-weight: 700;
 }
 

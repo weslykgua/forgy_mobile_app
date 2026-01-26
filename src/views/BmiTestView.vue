@@ -91,9 +91,13 @@ const bmiMessage = computed(() => {
 });
 
 function getAuthHeaders() {
-  const token = localStorage.getItem('forgy_token');
+  const token = localStorage.getItem('token');
   if (!token) return {};
   return { Authorization: `Bearer ${token}` };
+}
+
+function getLocalDateKey(date = new Date()) {
+  return date.toLocaleDateString('en-CA');
 }
 
 async function saveBmi() {
@@ -115,12 +119,15 @@ async function saveBmi() {
       body: JSON.stringify({ height: heightCm.value, weight: weightKg.value })
     });
 
-    const today = new Date().toISOString().split('T')[0];
-    await fetch(`${API_URL}/progress`, {
+    const today = getLocalDateKey();
+    const saveRes = await fetch(`${API_URL}/progress`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({ date: today, weight: weightKg.value })
     });
+    if (!saveRes.ok) {
+      throw new Error('No se pudo guardar el progreso');
+    }
 
     showToast('Datos guardados correctamente');
     router.push('/tabs/tab3');

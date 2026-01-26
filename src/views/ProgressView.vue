@@ -1,34 +1,21 @@
 <template>
   <ion-page>
     <ion-header class="ion-no-border">
-      <ion-toolbar color="primary">
+      <ion-toolbar class="progress-toolbar">
         <ion-title>
           <div class="header-title">
-            <span class="title-emoji">📊</span>
-            <span>Mi Progreso</span>
+            <div class="title-badge">📈</div>
+            <div class="title-text">
+              <span class="title-main">Mi Progreso</span>
+              <span class="title-sub">Tu resumen diario</span>
+            </div>
           </div>
         </ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="openProgressModal">
+          <ion-button class="add-btn" @click="openProgressModal">
             <ion-icon :icon="add"></ion-icon>
           </ion-button>
         </ion-buttons>
-      </ion-toolbar>
-      <ion-toolbar
-        color="primary"
-        class="segment-toolbar"
-      >
-        <ion-segment
-          v-model="activeTab"
-          mode="ios"
-        >
-          <ion-segment-button value="today">
-            <ion-label>Hoy</ion-label>
-          </ion-segment-button>
-          <ion-segment-button value="history">
-            <ion-label>Historial</ion-label>
-          </ion-segment-button>
-        </ion-segment>
       </ion-toolbar>
     </ion-header>
 
@@ -40,11 +27,7 @@
         <ion-refresher-content></ion-refresher-content>
       </ion-refresher>
 
-      <!-- TAB: HOY -->
-      <div
-        v-if="activeTab === 'today'"
-        class="tab-content"
-      >
+      <div class="tab-content">
         <!-- Tarjeta principal del día -->
         <div class="hero-card">
           <div class="hero-date">{{ todayFormatted }}</div>
@@ -58,7 +41,7 @@
               <div class="stat-circle weight">
                 <ion-icon :icon="scaleOutline"></ion-icon>
               </div>
-              <span class="stat-value">{{ todayProgress?.weight ?? '--' }}</span>
+              <span class="stat-value">{{ displayWeight ?? '--' }}</span>
               <span class="stat-unit">kg</span>
             </div>
             <div
@@ -90,6 +73,16 @@
               </div>
               <span class="stat-value">{{ todayProgress?.caloriesConsumed ?? '--' }}</span>
               <span class="stat-unit">kcal</span>
+            </div>
+            <div
+              class="hero-stat"
+              @click="goToBmiTest"
+            >
+              <div class="stat-circle height">
+                <ion-icon :icon="bodyOutline"></ion-icon>
+              </div>
+              <span class="stat-value">{{ displayHeight ?? '--' }}</span>
+              <span class="stat-unit">cm</span>
             </div>
           </div>
         </div>
@@ -188,9 +181,7 @@
             <p class="bmi-message">Sirve para estimar tu máximo de 1 repetición según el peso y repeticiones que haces.</p>
             <ion-button size="small" fill="outline">Abrir calculadora</ion-button>
           </div>
-        </div>
-
-        <!-- Mini gráfica de peso -->
+        </div>\n\n        <!-- Mini gráfica de peso -->
         <div
           class="section-card"
           v-if="weightHistory.length > 0"
@@ -239,59 +230,6 @@
             ></ion-icon>
             <span class="stat-num">{{ formatVolume(progressStats.totalVolume) }}</span>
             <span class="stat-label">kg levantados</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- TAB: HISTORIAL -->
-      <div
-        v-if="activeTab === 'history'"
-        class="tab-content"
-      >
-        <div
-          v-if="weeklyHistory.length === 0"
-          class="empty-history"
-        >
-          <div class="empty-icon">📅</div>
-          <h3>Sin historial</h3>
-          <p>Registra tu progreso diario para verlo aquí</p>
-        </div>
-
-        <div
-          v-else
-          class="history-list"
-        >
-          <div
-            v-for="day in weeklyHistory"
-            :key="day.date"
-            class="history-day"
-          >
-            <div class="day-header">
-              <div class="day-date">
-                <span class="day-name">{{ formatDayName(day.date) }}</span>
-                <span class="day-full">{{ formatFullDate(day.date) }}</span>
-              </div>
-              <div class="day-stats">
-                <span class="day-stat">
-                  <ion-icon :icon="scaleOutline"></ion-icon>
-                  {{ day.weight ?? '--' }} kg
-                </span>
-                <span class="day-stat">
-                  <ion-icon :icon="waterOutline"></ion-icon>
-                  {{ formatWater(day.waterIntake || 0) }} L
-                </span>
-              </div>
-            </div>
-            <div class="day-workouts metrics-grid">
-              <div class="metric-chip">
-                <span class="metric-label">Sueño</span>
-                <span class="metric-value">{{ day.sleepHours ?? '--' }} hrs</span>
-              </div>
-              <div class="metric-chip">
-                <span class="metric-label">Calorías</span>
-                <span class="metric-value">{{ day.caloriesConsumed ?? '--' }} kcal</span>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -388,16 +326,17 @@
 <script setup lang="ts">
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
-  IonButton, IonButtons, IonIcon, IonSegment, IonSegmentButton,
-  IonLabel, IonModal, IonRefresher, IonRefresherContent,
+  IonButton, IonButtons, IonIcon,
+  IonModal, IonRefresher, IonRefresherContent,
   onIonViewWillEnter, toastController, useIonRouter
 } from '@ionic/vue';
 import { ref, computed } from 'vue';
 import {
-  add, scaleOutline, waterOutline, moonOutline, nutritionOutline, barbell, flame
+  add, scaleOutline, waterOutline, moonOutline, nutritionOutline, barbell, flame, bodyOutline
 } from 'ionicons/icons';
 
-const API_URL = 'http://localhost:3000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const router = useIonRouter();
 
 interface DailyProgress {
   id: string;
@@ -425,14 +364,17 @@ interface ProgressStats {
   streakDays: number;
 }
 
-const activeTab = ref('today');
 const progressData = ref<DailyProgress[]>([]);
 const progressStats = ref<ProgressStats>({
   totalWorkouts: 0, totalVolume: 0, avgWater: 0, weightHistory: [], currentWeight: 0, streakDays: 0
 });
 const isProgressModalOpen = ref(false);
 const userProfile = ref<UserProfile>({});
-const today = new Date().toISOString().split('T')[0];
+function getLocalDateKey(date = new Date()) {
+  return date.toLocaleDateString('en-CA');
+}
+
+const today = getLocalDateKey();
 
 const progressForm = ref({
   weight: 0, waterIntake: 0, caloriesConsumed: 0, caloriesBurned: 0, sleepHours: 0
@@ -440,6 +382,14 @@ const progressForm = ref({
 
 const todayFormatted = computed(() => new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }));
 const todayProgress = computed(() => progressData.value.find(p => p.date === today));
+const displayWeight = computed(() => {
+  const weight = todayProgress.value?.weight ?? userProfile.value.weight ?? progressStats.value.currentWeight ?? null;
+  return weight === 0 ? null : weight;
+});
+const displayHeight = computed(() => {
+  const height = userProfile.value.height ?? null;
+  return height === 0 ? null : height;
+});
 const waterPercentage = computed(() => Math.min(((todayProgress.value?.waterIntake || 0) / 5000) * 100, 100));
 const waterStatusMessage = computed(() => {
   const intake = todayProgress.value?.waterIntake || 0;
@@ -454,15 +404,6 @@ const weightChange = computed(() => {
   return Number((weightHistory.value[weightHistory.value.length - 1].weight - weightHistory.value[0].weight).toFixed(1));
 });
 const weightTrend = computed(() => weightChange.value > 0 ? 'trend-up' : weightChange.value < 0 ? 'trend-down' : '');
-const weeklyHistory = computed(() => {
-  const { start, end } = getWeekRange();
-  return progressData.value
-    .filter((item) => {
-      const itemDate = new Date(item.date + 'T12:00:00');
-      return itemDate >= start && itemDate <= end;
-    })
-    .sort((a, b) => (a.date < b.date ? 1 : -1));
-});
 
 const bmiValue = computed(() => {
   const height = userProfile.value.height;
@@ -498,27 +439,13 @@ function getGreeting() {
   return '¡Buenas noches! 🌙';
 }
 
-function getWeekRange(baseDate = new Date()) {
-  const start = new Date(baseDate);
-  const day = start.getDay(); // 0 = Sunday
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-  start.setDate(start.getDate() + diffToMonday);
-  start.setHours(0, 0, 0, 0);
-
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
-  end.setHours(23, 59, 59, 999);
-
-  return { start, end };
-}
-
 function toDateKey(value: string) {
   if (!value) return value;
-  return value.includes('T') ? value.split('T')[0] : value;
+  return value.includes('T') ? getLocalDateKey(new Date(value)) : value;
 }
 
 function getAuthHeaders() {
-  const token = localStorage.getItem('forgy_token');
+  const token = localStorage.getItem('token');
   if (!token) return {};
   return { Authorization: `Bearer ${token}` };
 }
@@ -529,8 +456,6 @@ function formatVolume(vol: number | undefined | null) {
   return vol >= 1000 ? (vol / 1000).toFixed(1) + 'k' : vol.toString();
 }
 function formatShortDate(dateStr: string) { return new Date(dateStr + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric' }); }
-function formatDayName(dateStr: string) { return new Date(dateStr + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long' }); }
-function formatFullDate(dateStr: string) { return new Date(dateStr + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }); }
 
 function getBarHeight(weight: number) {
   const weights = weightHistory.value.map(w => w.weight);
@@ -553,6 +478,16 @@ async function loadAllData() {
       fetch(`${API_URL}/user/profile`, { headers })
     ]);
 
+    if (!progressRes.ok) {
+      throw new Error('No se pudo cargar el progreso');
+    }
+    if (!statsRes.ok) {
+      throw new Error('No se pudo cargar las estadÃ­sticas');
+    }
+    if (!profileRes.ok) {
+      throw new Error('No se pudo cargar el perfil');
+    }
+
     const progressJson = await progressRes.json();
     progressData.value = Array.isArray(progressJson)
       ? progressJson.map((item: any) => ({ ...item, date: toDateKey(item.date) }))
@@ -572,16 +507,45 @@ function goToRmCalculator() {
   router.push('/tabs/rm');
 }
 
+
 function openProgressModal() {
   const tp = todayProgress.value;
   progressForm.value = {
-    weight: tp?.weight || progressStats.value.currentWeight || 70,
+    weight: tp?.weight ?? userProfile.value.weight ?? progressStats.value.currentWeight ?? 70,
     waterIntake: tp?.waterIntake || 0,
     caloriesConsumed: tp?.caloriesConsumed || 0,
     caloriesBurned: tp?.caloriesBurned || 0,
     sleepHours: tp?.sleepHours || 7
   };
   isProgressModalOpen.value = true;
+}
+
+function normalizeNumber(value: unknown, { asInt = false } = {}) {
+  if (value === null || value === undefined || value === '') return null;
+  let raw = value as unknown;
+  if (typeof raw === 'string') {
+    raw = raw.trim().replace(/\s+/g, '');
+    if (raw.includes(',') && raw.includes('.')) {
+      raw = raw.replace(/\./g, '').replace(',', '.');
+    } else if (raw.includes(',')) {
+      raw = raw.replace(',', '.');
+    } else if (/^\d{1,3}(\.\d{3})+$/.test(raw)) {
+      raw = raw.replace(/\./g, '');
+    }
+  }
+  const num = Number(raw);
+  if (!Number.isFinite(num)) return null;
+  return asInt ? Math.round(num) : num;
+}
+
+function buildProgressPayload() {
+  return {
+    weight: normalizeNumber(progressForm.value.weight),
+    waterIntake: normalizeNumber(progressForm.value.waterIntake, { asInt: true }),
+    caloriesConsumed: normalizeNumber(progressForm.value.caloriesConsumed, { asInt: true }),
+    caloriesBurned: normalizeNumber(progressForm.value.caloriesBurned, { asInt: true }),
+    sleepHours: normalizeNumber(progressForm.value.sleepHours)
+  };
 }
 
 async function saveProgress() {
@@ -592,11 +556,15 @@ async function saveProgress() {
       return;
     }
 
-    await fetch(`${API_URL}/progress`, {
+    const payload = buildProgressPayload();
+    const saveRes = await fetch(`${API_URL}/progress`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders },
-      body: JSON.stringify({ date: today, ...progressForm.value })
+      body: JSON.stringify({ date: today, ...payload })
     });
+    if (!saveRes.ok) {
+      throw new Error('No se pudo guardar el progreso');
+    }
     showToast('¡Progreso guardado! 💪');
     isProgressModalOpen.value = false;
     loadAllData();
@@ -613,15 +581,18 @@ async function addWater(amount: number) {
       return;
     }
 
-    await fetch(`${API_URL}/progress`, {
+    const currentWater = todayProgress.value?.waterIntake || 0;
+    const addRes = await fetch(`${API_URL}/progress`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({
         date: today,
-        waterIntake: (todayProgress.value?.waterIntake || 0) + amount,
-        weight: todayProgress.value?.weight || 0
+        waterIntake: currentWater + amount
       })
     });
+    if (!addRes.ok) {
+      throw new Error('No se pudo guardar el agua');
+    }
     showToast(`+${amount}ml 💧`);
     loadAllData();
   } catch (error) {
@@ -646,19 +617,50 @@ onIonViewWillEnter(() => loadAllData());
 .header-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
 
-.title-emoji {
-  font-size: 22px;
+.progress-toolbar {
+  --background: linear-gradient(135deg, #ff6a00, #ff8c1a);
+  --color: #fff;
+  box-shadow: 0 10px 24px rgba(255, 120, 26, 0.35);
 }
 
-.segment-toolbar {
-  --padding-bottom: 8px;
+.title-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.2);
+  font-size: 20px;
 }
 
-.segment-toolbar ion-segment {
-  --background: rgba(255, 255, 255, 0.15);
+.title-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.title-main {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.title-sub {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.add-btn {
+  --color: #fff;
+  --background: rgba(255, 255, 255, 0.18);
+  --border-radius: 12px;
+}
+
+.add-btn:active {
+  opacity: 0.9;
 }
 
 .tab-content {
@@ -734,6 +736,10 @@ onIonViewWillEnter(() => loadAllData());
 
 .stat-circle.calories {
   background: rgba(244, 67, 54, 0.35);
+}
+
+.stat-circle.height {
+  background: rgba(156, 39, 176, 0.3);
 }
 
 .stat-value {
@@ -1000,101 +1006,6 @@ onIonViewWillEnter(() => loadAllData());
   color: var(--forgy-text-secondary);
 }
 
-/* History */
-.empty-history {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 60px 20px;
-  text-align: center;
-}
-
-.empty-icon {
-  font-size: 64px;
-  margin-bottom: 16px;
-}
-
-.empty-history h3 {
-  margin: 0 0 8px;
-  font-size: 20px;
-  color: var(--forgy-text-primary);
-}
-
-.empty-history p {
-  margin: 0;
-  color: var(--forgy-text-secondary);
-}
-
-.history-day {
-  background: var(--forgy-card-bg);
-  border-radius: 16px;
-  padding: 16px;
-  margin-bottom: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.day-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--forgy-border);
-}
-
-.day-name {
-  display: block;
-  font-weight: 700;
-  font-size: 16px;
-  text-transform: capitalize;
-  color: var(--forgy-text-primary);
-}
-
-.day-full {
-  font-size: 12px;
-  color: var(--forgy-text-secondary);
-}
-
-.day-stats {
-  display: flex;
-  gap: 12px;
-}
-
-.day-stat {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: var(--forgy-text-secondary);
-}
-
-.metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.metric-chip {
-  background: var(--forgy-input-bg);
-  padding: 10px 12px;
-  border-radius: 12px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.metric-label {
-  font-size: 12px;
-  color: var(--forgy-text-secondary);
-}
-
-.metric-value {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--forgy-text-primary);
-}
-
 /* Modal */
 .modal-content {
   --background: var(--forgy-content-bg);
@@ -1159,3 +1070,6 @@ onIonViewWillEnter(() => loadAllData());
 }
 
 </style>
+
+
+
