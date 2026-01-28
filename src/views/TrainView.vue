@@ -91,14 +91,18 @@
               <span class="stat-value">{{ totalDuration }}</span>
               <span class="stat-label">Minutos</span>
             </div>
-            <div class="summary-stat">
-              <ion-icon
-                :icon="fitness"
-                color="success"
-              ></ion-icon>
-              <span class="stat-value">{{ totalVolume }}</span>
-              <span class="stat-label">kg Vol.</span>
-            </div>
+          </div>
+          <!-- Recomendación personalizada -->
+          <div
+            v-if="personalAdvice"
+            class="personal-advice"
+          >
+            <ion-icon
+              :icon="adviceIcon"
+              color="warning"
+              style="margin-right:8px;vertical-align:middle;"
+            />
+            <span>{{ personalAdvice }}</span>
           </div>
         </ion-card-content>
       </ion-card>
@@ -433,8 +437,33 @@ import { useProfile } from '../utils/useProfile'
 import {
   calendar as calendarIcon, add, chevronBack, chevronForward, barbell, time,
   fitness, barbellOutline, create, trash, documentText, close, remove,
-  checkmarkCircle
+  checkmarkCircle, warning, happy, alertCircle
 } from 'ionicons/icons';
+// Recomendación personalizada según los datos del día
+const adviceIcon = computed(() => {
+  if (totalDuration.value > 60) return alertCircle;
+  if (dayWorkouts.value.length === 0) return warning;
+  return happy;
+});
+
+const personalAdvice = computed(() => {
+  if (dayWorkouts.value.length === 0) {
+    return '¡Aún no has registrado ejercicios hoy! Tu puedes, la constancia es clave para progresar.';
+  }
+  if (totalDuration.value > 90) {
+    return 'Has entrenado más de 1.5 horas hoy. El sobreentrenamiento puede ser perjudicial, asegúrate de descansar y alimentarte bien.';
+  }
+  if (totalDuration.value > 60) {
+    return 'Entrenar más de 1 hora puede aumentar el riesgo de fatiga. Escucha a tu cuerpo y descansa si lo necesitas.';
+  }
+  if (dayWorkouts.value.length >= 5) {
+    return '¡Gran variedad de ejercicios hoy! Recuerda mantener una buena técnica para evitar lesiones.';
+  }
+  if (totalVolume.value > 10000) {
+    return '¡Impresionante volumen total! No olvides estirar y cuidar tus articulaciones.';
+  }
+  return 'Buen trabajo hoy. Mantén la constancia y escucha a tu cuerpo para seguir progresando de forma segura.';
+});
 
 interface Exercise {
   id: string;
@@ -608,7 +637,7 @@ async function loadWorkouts() {
   const stored = localStorage.getItem('local_workouts');
   const allLocal: Workout[] = stored ? JSON.parse(stored) : [];
   const localWorkouts = allLocal.filter(w => w.date === selectedDate.value);
-  
+
   workouts.value = [...backendWorkouts, ...localWorkouts];
 }
 
@@ -705,11 +734,11 @@ async function saveWorkout() {
     }
 
     if (!response.ok) throw new Error(`Error saving workout: ${response.status}`);
-    
+
     showToast(editingWorkout.value ? '¡Entrenamiento actualizado!' : '¡Ejercicio registrado! 💪');
   } catch (error) {
     console.warn('Backend error, saving locally:', error);
-    
+
     // Fallback a localStorage
     const stored = localStorage.getItem('local_workouts');
     let allLocal: Workout[] = stored ? JSON.parse(stored) : [];
@@ -722,7 +751,7 @@ async function saveWorkout() {
         showToast('Actualizado en local', 'warning');
       } else {
         showToast('No se pudo guardar en el servidor', 'danger');
-        return; 
+        return;
       }
     } else {
       const newLocal = { ...data, id: Date.now().toString() };
@@ -869,6 +898,19 @@ onIonViewWillEnter(() => {
   border-radius: 16px;
   --background: var(--forgy-card-bg);
   color: var(--forgy-text-primary);
+}
+
+.personal-advice {
+  margin-top: 18px;
+  padding: 12px;
+  background: #fffbe6;
+  color: #b8860b;
+  border-radius: 10px;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 
 .summary-stats {
