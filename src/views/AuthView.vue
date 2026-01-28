@@ -484,6 +484,7 @@ async function register() {
  */
 async function login() {
     if (!validateForm()) {
+        await showToast('Por favor corrige los errores en el formulario', 'warning');
         return;
     }
 
@@ -793,6 +794,15 @@ async function showToast(message: string, color: 'primary' | 'success' | 'warnin
         opacity: 1;
         transform: translateY(0);
     }
+}
+
+.error-message {
+    color: var(--ion-color-danger);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 16px 8px;
+    text-align: left;
+    animation: fadeIn 0.3s ease-out;
 }
 
 /* Password Strength & Requirements */
