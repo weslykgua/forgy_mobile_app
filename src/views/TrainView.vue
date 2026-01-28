@@ -129,6 +129,7 @@
         <ion-button
           @click="openAddWorkoutModal"
           color="primary"
+          size="small"
         >
           <ion-icon
             :icon="add"
@@ -577,41 +578,60 @@ function calculateVolume(): number {
 }
 
 async function loadExercises() {
-  // Lista local de ejercicios predefinidos
-  exercises.value = [
-    { id: '1', name: 'Press de Banca', muscle: 'Pecho', difficulty: 'Intermedio' },
-    { id: '2', name: 'Sentadilla', muscle: 'Piernas', difficulty: 'Avanzado' },
-    { id: '3', name: 'Dominadas', muscle: 'Espalda', difficulty: 'Intermedio' },
-    { id: '4', name: 'Press Militar', muscle: 'Hombros', difficulty: 'Intermedio' },
-    { id: '5', name: 'Curl de Bíceps', muscle: 'Bíceps', difficulty: 'Principiante' },
-    { id: '6', name: 'Extensiones de Tríceps', muscle: 'Tríceps', difficulty: 'Principiante' },
-    { id: '7', name: 'Crunch Abdominal', muscle: 'Abdomen', difficulty: 'Principiante' },
-    { id: '8', name: 'Peso Muerto', muscle: 'Espalda', difficulty: 'Avanzado' },
-    { id: '9', name: 'Zancadas', muscle: 'Piernas', difficulty: 'Principiante' },
-    { id: '10', name: 'Elevaciones Laterales', muscle: 'Hombros', difficulty: 'Principiante' },
-    { id: '11', name: 'Plancha', muscle: 'Abdomen', difficulty: 'Principiante' },
-    { id: '12', name: 'Fondos', muscle: 'Tríceps', difficulty: 'Intermedio' }
-  ];
+  try {
+    const response = await fetch(`${API_URL}/exercises`, { headers: getHeaders() });
+    if (response.ok) {
+      const data = await response.json();
+      exercises.value = Array.isArray(data) ? data : [];
+    } else {
+      throw new Error('Error loading exercises');
+    }
+  } catch (error) {
+    console.error('Error loading exercises:', error);
+    showToast('Error al cargar ejercicios', 'danger');
+  }
 }
 
 async function loadWorkouts() {
-  // Cargar desde localStorage
+  let backendWorkouts: Workout[] = [];
+  try {
+    const response = await fetch(`${API_URL}/workouts?date=${selectedDate.value}`, { headers: getHeaders() });
+    if (response.ok) {
+      const data = await response.json();
+      backendWorkouts = Array.isArray(data) ? data : [];
+    }
+  } catch (error) {
+    console.error('Error loading workouts:', error);
+  }
+
+  // Cargar locales y combinar
   const stored = localStorage.getItem('local_workouts');
-  const allWorkouts: Workout[] = stored ? JSON.parse(stored) : [];
-  workouts.value = allWorkouts.filter(w => w.date === selectedDate.value);
+  const allLocal: Workout[] = stored ? JSON.parse(stored) : [];
+  const localWorkouts = allLocal.filter(w => w.date === selectedDate.value);
+  
+  workouts.value = [...backendWorkouts, ...localWorkouts];
 }
 
 async function loadCalendarData() {
-  // Generar mapa de calendario desde localStorage
+  let backendCalendar: { [date: string]: { hasWorkout: boolean } } = {};
+  try {
+    const response = await fetch(`${API_URL}/workouts/calendar`, { headers: getHeaders() });
+    if (response.ok) {
+      backendCalendar = await response.json();
+    }
+  } catch (error) {
+    console.error('Error loading calendar:', error);
+  }
+
+  // Cargar calendario local
   const stored = localStorage.getItem('local_workouts');
-  const allWorkouts: Workout[] = stored ? JSON.parse(stored) : [];
-  const map: { [date: string]: { hasWorkout: boolean } } = {};
-  
-  allWorkouts.forEach(w => {
-    map[w.date] = { hasWorkout: true };
+  const allLocal: Workout[] = stored ? JSON.parse(stored) : [];
+  const localCalendar: { [date: string]: { hasWorkout: boolean } } = {};
+  allLocal.forEach(w => {
+    localCalendar[w.date] = { hasWorkout: true };
   });
-  
-  calendarData.value = map;
+
+  calendarData.value = { ...backendCalendar, ...localCalendar };
 }
 
 function openAddWorkoutModal() {
@@ -659,33 +679,57 @@ async function saveWorkout() {
     return;
   }
 
-  // Obtener todos los entrenamientos guardados
-  const stored = localStorage.getItem('local_workouts');
-  let allWorkouts: Workout[] = stored ? JSON.parse(stored) : [];
-
-  const tempId = editingWorkout.value ? editingWorkout.value.id : Date.now().toString();
-  const newWorkout: Workout = {
-    id: tempId,
+  const data = {
     date: selectedDate.value,
     exerciseId: workoutForm.value.exerciseId,
     exerciseName: workoutForm.value.exerciseName,
-    sets: JSON.parse(JSON.stringify(workoutForm.value.sets)),
+    sets: workoutForm.value.sets,
     duration: workoutForm.value.duration,
     notes: workoutForm.value.notes
   };
 
-  if (editingWorkout.value) {
-    const index = allWorkouts.findIndex(w => w.id === editingWorkout.value?.id);
-    if (index !== -1) allWorkouts[index] = newWorkout;
-    showToast('¡Entrenamiento actualizado!');
-  } else {
-    allWorkouts.push(newWorkout);
-    showToast('¡Ejercicio registrado! 💪');
+  try {
+    let response;
+    if (editingWorkout.value) {
+      response = await fetch(`${API_URL}/workouts/${editingWorkout.value.id}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(data)
+      });
+    } else {
+      response = await fetch(`${API_URL}/workouts`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data)
+      });
+    }
+
+    if (!response.ok) throw new Error(`Error saving workout: ${response.status}`);
+    
+    showToast(editingWorkout.value ? '¡Entrenamiento actualizado!' : '¡Ejercicio registrado! 💪');
+  } catch (error) {
+    console.warn('Backend error, saving locally:', error);
+    
+    // Fallback a localStorage
+    const stored = localStorage.getItem('local_workouts');
+    let allLocal: Workout[] = stored ? JSON.parse(stored) : [];
+
+    if (editingWorkout.value) {
+      const index = allLocal.findIndex(w => w.id === editingWorkout.value?.id);
+      if (index !== -1) {
+        allLocal[index] = { ...allLocal[index], ...data, id: editingWorkout.value.id };
+        localStorage.setItem('local_workouts', JSON.stringify(allLocal));
+        showToast('Actualizado en local', 'warning');
+      } else {
+        showToast('No se pudo guardar en el servidor', 'danger');
+        return; 
+      }
+    } else {
+      const newLocal = { ...data, id: Date.now().toString() };
+      allLocal.push(newLocal);
+      localStorage.setItem('local_workouts', JSON.stringify(allLocal));
+    }
   }
-
-  // Guardar en localStorage
-  localStorage.setItem('local_workouts', JSON.stringify(allWorkouts));
-
   isWorkoutModalOpen.value = false;
   loadWorkouts();
   loadCalendarData();
@@ -701,12 +745,22 @@ async function confirmDeleteWorkout(workout: Workout) {
         text: 'Eliminar',
         role: 'destructive',
         handler: async () => {
-          const stored = localStorage.getItem('local_workouts');
-          let allWorkouts: Workout[] = stored ? JSON.parse(stored) : [];
-          allWorkouts = allWorkouts.filter(w => w.id !== workout.id);
-          localStorage.setItem('local_workouts', JSON.stringify(allWorkouts));
-          
-          showToast('Entrenamiento eliminado', 'warning');
+          try {
+            const res = await fetch(`${API_URL}/workouts/${workout.id}`, { method: 'DELETE', headers: getHeaders() });
+            if (!res.ok) throw new Error('Backend delete failed');
+            showToast('Entrenamiento eliminado', 'warning');
+          } catch (error) {
+            const stored = localStorage.getItem('local_workouts');
+            if (stored) {
+              let allLocal: Workout[] = JSON.parse(stored);
+              const initialLen = allLocal.length;
+              allLocal = allLocal.filter(w => w.id !== workout.id);
+              if (allLocal.length < initialLen) {
+                localStorage.setItem('local_workouts', JSON.stringify(allLocal));
+                showToast('Eliminado de local', 'warning');
+              }
+            }
+          }
           loadWorkouts();
           loadCalendarData();
         }
