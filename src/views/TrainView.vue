@@ -428,13 +428,12 @@ import {
   onIonViewWillEnter, alertController, toastController
 } from '@ionic/vue';
 import { ref, computed } from 'vue';
+import { useProfile } from '../utils/useProfile'
 import {
   calendar as calendarIcon, add, chevronBack, chevronForward, barbell, time,
   fitness, barbellOutline, create, trash, documentText, close, remove,
   checkmarkCircle
 } from 'ionicons/icons';
-
-const API_URL = 'http://localhost:3000';
 
 interface Exercise {
   id: string;
@@ -458,6 +457,8 @@ interface Workout {
   duration: number;
   notes: string;
 }
+
+const { getHeaders, API_URL } = useProfile();
 
 const exercises = ref<Exercise[]>([]);
 const workouts = ref<Workout[]>([]);
@@ -586,7 +587,7 @@ async function loadExercises() {
 
 async function loadWorkouts() {
   try {
-    const response = await fetch(`${API_URL}/workouts?date=${selectedDate.value}`);
+    const response = await fetch(`${API_URL}/workouts?date=${selectedDate.value}`, { headers: getHeaders() });
     workouts.value = await response.json();
   } catch (error) {
     console.error('Error loading workouts:', error);
@@ -595,7 +596,7 @@ async function loadWorkouts() {
 
 async function loadCalendarData() {
   try {
-    const response = await fetch(`${API_URL}/workouts/calendar`);
+    const response = await fetch(`${API_URL}/workouts/calendar`, { headers: getHeaders() });
     calendarData.value = await response.json();
   } catch (error) {
     console.error('Error loading calendar:', error);
@@ -656,14 +657,14 @@ async function saveWorkout() {
     if (editingWorkout.value) {
       await fetch(`${API_URL}/workouts/${editingWorkout.value.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(),
         body: JSON.stringify(data)
       });
       showToast('¡Entrenamiento actualizado!');
     } else {
       await fetch(`${API_URL}/workouts`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(),
         body: JSON.stringify(data)
       });
       showToast('¡Ejercicio registrado! 💪');
@@ -687,7 +688,7 @@ async function confirmDeleteWorkout(workout: Workout) {
         text: 'Eliminar',
         role: 'destructive',
         handler: async () => {
-          await fetch(`${API_URL}/workouts/${workout.id}`, { method: 'DELETE' });
+          await fetch(`${API_URL}/workouts/${workout.id}`, { method: 'DELETE', headers: getHeaders() });
           showToast('Entrenamiento eliminado', 'warning');
           loadWorkouts();
           loadCalendarData();
