@@ -70,7 +70,7 @@ const workoutLogs = ref<Record<string, {
   notes: string;
   duration: string;
 }>>({});
-const newRoutineForm = ref({ name: '', description: ''});
+const newRoutineForm = ref({ name: '', description: '' });
 const predefinedImages = ref([
   'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=870&q=80',
   'https://images.unsplash.com/photo-1581009137042-c552e485697a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=870&q=80',
@@ -295,7 +295,7 @@ const saveExercise = async () => {
 
 // Crear nueva rutina
 const createRoutine = async () => {
-   // DEBUG: Verifica el token antes de enviar
+  // DEBUG: Verifica el token antes de enviar
   const token = localStorage.getItem('token')
   if (token) {
     try {
@@ -1102,19 +1102,7 @@ onIonViewWillLeave(() => {
         <p>Agrega tu primer ejercicio con el botón +</p>
       </div>
 
-      <!-- FAB para agregar -->
-      <ion-fab
-        slot="fixed"
-        vertical="bottom"
-        horizontal="end"
-      >
-        <ion-fab-button
-          @click="openCreateModal"
-          color="primary"
-        >
-          <ion-icon :icon="add"></ion-icon>
-        </ion-fab-button>
-      </ion-fab>
+      <!-- FAB para agregar eliminado -->
     </ion-content>
 
     <!-- VISTA DE RUTINAS -->
@@ -1263,10 +1251,6 @@ onIonViewWillLeave(() => {
           </ion-buttons>
           <ion-title>Nuevo Ejercicio</ion-title>
           <ion-buttons slot="end">
-            <ion-button
-              strong
-              @click="saveExercise"
-            >Guardar</ion-button>
           </ion-buttons>
         </ion-toolbar>
       </ion-header>
