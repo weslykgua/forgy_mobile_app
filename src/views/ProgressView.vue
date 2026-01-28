@@ -64,26 +64,6 @@
               <span class="stat-value">{{ todayProgress?.sleepHours ?? '--' }}</span>
               <span class="stat-unit">hrs</span>
             </div>
-            <div
-              class="hero-stat"
-              @click="openProgressModal"
-            >
-              <div class="stat-circle calories">
-                <ion-icon :icon="nutritionOutline"></ion-icon>
-              </div>
-              <span class="stat-value">{{ todayProgress?.caloriesConsumed ?? '--' }}</span>
-              <span class="stat-unit">kcal</span>
-            </div>
-            <div
-              class="hero-stat"
-              @click="goToBmiTest"
-            >
-              <div class="stat-circle height">
-                <ion-icon :icon="bodyOutline"></ion-icon>
-              </div>
-              <span class="stat-value">{{ displayHeight ?? '--' }}</span>
-              <span class="stat-unit">cm</span>
-            </div>
           </div>
         </div>
 
