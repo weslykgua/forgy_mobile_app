@@ -577,30 +577,41 @@ function calculateVolume(): number {
 }
 
 async function loadExercises() {
-  try {
-    const response = await fetch(`${API_URL}/exercises`);
-    exercises.value = await response.json();
-  } catch (error) {
-    console.error('Error loading exercises:', error);
-  }
+  // Lista local de ejercicios predefinidos
+  exercises.value = [
+    { id: '1', name: 'Press de Banca', muscle: 'Pecho', difficulty: 'Intermedio' },
+    { id: '2', name: 'Sentadilla', muscle: 'Piernas', difficulty: 'Avanzado' },
+    { id: '3', name: 'Dominadas', muscle: 'Espalda', difficulty: 'Intermedio' },
+    { id: '4', name: 'Press Militar', muscle: 'Hombros', difficulty: 'Intermedio' },
+    { id: '5', name: 'Curl de Bíceps', muscle: 'Bíceps', difficulty: 'Principiante' },
+    { id: '6', name: 'Extensiones de Tríceps', muscle: 'Tríceps', difficulty: 'Principiante' },
+    { id: '7', name: 'Crunch Abdominal', muscle: 'Abdomen', difficulty: 'Principiante' },
+    { id: '8', name: 'Peso Muerto', muscle: 'Espalda', difficulty: 'Avanzado' },
+    { id: '9', name: 'Zancadas', muscle: 'Piernas', difficulty: 'Principiante' },
+    { id: '10', name: 'Elevaciones Laterales', muscle: 'Hombros', difficulty: 'Principiante' },
+    { id: '11', name: 'Plancha', muscle: 'Abdomen', difficulty: 'Principiante' },
+    { id: '12', name: 'Fondos', muscle: 'Tríceps', difficulty: 'Intermedio' }
+  ];
 }
 
 async function loadWorkouts() {
-  try {
-    const response = await fetch(`${API_URL}/workouts?date=${selectedDate.value}`, { headers: getHeaders() });
-    workouts.value = await response.json();
-  } catch (error) {
-    console.error('Error loading workouts:', error);
-  }
+  // Cargar desde localStorage
+  const stored = localStorage.getItem('local_workouts');
+  const allWorkouts: Workout[] = stored ? JSON.parse(stored) : [];
+  workouts.value = allWorkouts.filter(w => w.date === selectedDate.value);
 }
 
 async function loadCalendarData() {
-  try {
-    const response = await fetch(`${API_URL}/workouts/calendar`, { headers: getHeaders() });
-    calendarData.value = await response.json();
-  } catch (error) {
-    console.error('Error loading calendar:', error);
-  }
+  // Generar mapa de calendario desde localStorage
+  const stored = localStorage.getItem('local_workouts');
+  const allWorkouts: Workout[] = stored ? JSON.parse(stored) : [];
+  const map: { [date: string]: { hasWorkout: boolean } } = {};
+  
+  allWorkouts.forEach(w => {
+    map[w.date] = { hasWorkout: true };
+  });
+  
+  calendarData.value = map;
 }
 
 function openAddWorkoutModal() {
@@ -648,34 +659,36 @@ async function saveWorkout() {
     return;
   }
 
-  try {
-    const data = {
-      date: selectedDate.value,
-      ...workoutForm.value
-    };
+  // Obtener todos los entrenamientos guardados
+  const stored = localStorage.getItem('local_workouts');
+  let allWorkouts: Workout[] = stored ? JSON.parse(stored) : [];
 
-    if (editingWorkout.value) {
-      await fetch(`${API_URL}/workouts/${editingWorkout.value.id}`, {
-        method: 'PUT',
-        headers: getHeaders(),
-        body: JSON.stringify(data)
-      });
-      showToast('¡Entrenamiento actualizado!');
-    } else {
-      await fetch(`${API_URL}/workouts`, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(data)
-      });
-      showToast('¡Ejercicio registrado! 💪');
-    }
+  const tempId = editingWorkout.value ? editingWorkout.value.id : Date.now().toString();
+  const newWorkout: Workout = {
+    id: tempId,
+    date: selectedDate.value,
+    exerciseId: workoutForm.value.exerciseId,
+    exerciseName: workoutForm.value.exerciseName,
+    sets: JSON.parse(JSON.stringify(workoutForm.value.sets)),
+    duration: workoutForm.value.duration,
+    notes: workoutForm.value.notes
+  };
 
-    isWorkoutModalOpen.value = false;
-    loadWorkouts();
-    loadCalendarData();
-  } catch (error) {
-    showToast('Error al guardar', 'danger');
+  if (editingWorkout.value) {
+    const index = allWorkouts.findIndex(w => w.id === editingWorkout.value?.id);
+    if (index !== -1) allWorkouts[index] = newWorkout;
+    showToast('¡Entrenamiento actualizado!');
+  } else {
+    allWorkouts.push(newWorkout);
+    showToast('¡Ejercicio registrado! 💪');
   }
+
+  // Guardar en localStorage
+  localStorage.setItem('local_workouts', JSON.stringify(allWorkouts));
+
+  isWorkoutModalOpen.value = false;
+  loadWorkouts();
+  loadCalendarData();
 }
 
 async function confirmDeleteWorkout(workout: Workout) {
@@ -688,7 +701,11 @@ async function confirmDeleteWorkout(workout: Workout) {
         text: 'Eliminar',
         role: 'destructive',
         handler: async () => {
-          await fetch(`${API_URL}/workouts/${workout.id}`, { method: 'DELETE', headers: getHeaders() });
+          const stored = localStorage.getItem('local_workouts');
+          let allWorkouts: Workout[] = stored ? JSON.parse(stored) : [];
+          allWorkouts = allWorkouts.filter(w => w.id !== workout.id);
+          localStorage.setItem('local_workouts', JSON.stringify(allWorkouts));
+          
           showToast('Entrenamiento eliminado', 'warning');
           loadWorkouts();
           loadCalendarData();
