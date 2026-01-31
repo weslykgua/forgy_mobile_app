@@ -1,3 +1,95 @@
+<script setup lang="ts">
+import {
+    IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
+    IonAvatar, IonButton, IonIcon, IonChip, IonLabel,
+    IonList, IonListHeader, IonItem, IonToggle,
+    onIonViewWillEnter,
+    alertController
+} from '@ionic/vue'
+import { ref, computed } from 'vue'
+import {
+    personCircle, camera, star, personOutline,
+    notificationsOutline, settingsOutline, moonOutline,
+    helpCircleOutline, chatbubbleOutline, starOutline, logOutOutline
+} from 'ionicons/icons';
+import { useProfile } from '../utils/useProfile'
+
+const darkMode = ref(false);
+const stats = ref({ totalWorkouts: 0, totalVolume: 0, streakDays: 0 })
+const { userName, userEmail, loadProfileData, logout } = useProfile()
+
+// Configuración local para acceso a la API para no modificar useProfile.ts
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const getHeaders = () => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${localStorage.getItem('token')}`
+})
+
+const totalDays = computed(() => stats.value.streakDays || 0);
+const level = computed(() => {
+    if (stats.value.totalWorkouts >= 100) return '🏆 Élite';
+    if (stats.value.totalWorkouts >= 50) return '💪 Pro';
+    if (stats.value.totalWorkouts >= 20) return '⭐ Intermedio';
+    return '🌱 Novato';
+})
+
+async function getStatsFromServer() {
+    try {
+        // 1. Obtener la racha de entrenamiento
+        const streakResponse = await fetch(`${API_URL}/user/streak`, {
+            headers: getHeaders()
+        });
+
+        if (!streakResponse.ok) {
+            throw new Error('No se pudo obtener la racha');
+        }
+
+        const streakData = await streakResponse.json();
+
+        if (streakData && typeof streakData.currentStreak === 'number') {
+            stats.value.streakDays = streakData.currentStreak;
+        }
+
+        // 2. Obtener métricas del dashboard para el total de entrenamientos
+        const dashboardResponse = await fetch(`${API_URL}/dashboard`, {
+            headers: getHeaders()
+        });
+        if (dashboardResponse.ok) {
+            const dashboardData = await dashboardResponse.json();
+            stats.value.totalWorkouts = dashboardData.totalWorkouts || 0;
+        }
+    } catch (error) {
+        console.error('Error al obtener estadísticas del servidor:', error);
+    }
+}
+
+const toggleDarkMode = () => {
+    document.body.classList.toggle('dark', darkMode.value);
+    document.body.classList.toggle('light', !darkMode.value);
+};
+
+onIonViewWillEnter(() => {
+    loadProfileData();
+    getStatsFromServer();
+    // Check system preference
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    darkMode.value = document.body.classList.contains('dark') || prefersDark;
+});
+
+async function confirmLogout() {
+    const alert = await alertController.create({
+        header: 'Cerrar Sesión',
+        message: '¿Estás seguro de que quieres cerrar sesión?',
+        buttons: [
+            { text: 'Cancelar', role: 'cancel' },
+            { text: 'Sí, cerrar sesión', role: 'destructive', handler: () => logout() },
+        ],
+    });
+    await alert.present();
+}
+
+</script>
+
 <template>
     <ion-page>
         <ion-header>
@@ -30,8 +122,8 @@
                         <ion-icon :icon="camera"></ion-icon>
                     </ion-button>
                 </div>
-                <h2 class="user-name">Usuario Forgy</h2>
-                <p class="user-email">usuario@forgy.app</p>
+                <h2 class="user-name">{{ userName }}</h2>
+                <p class="user-email">{{ userEmail }}</p>
                 <ion-chip color="primary">
                     <ion-icon :icon="star"></ion-icon>
                     <ion-label>Premium</ion-label>
@@ -40,11 +132,6 @@
 
             <!-- Stats Summary -->
             <div class="stats-summary">
-                <div class="stat-item">
-                    <span class="stat-value">{{ savedWorkouts }}</span>
-                    <span class="stat-label">Entrenos</span>
-                </div>
-                <div class="stat-divider"></div>
                 <div class="stat-item">
                     <span class="stat-value">{{ totalDays }}</span>
                     <span class="stat-label">Días activo</span>
@@ -165,12 +252,19 @@
                     lines="none"
                     class="logout-item"
                 >
-                    <ion-icon
-                        :icon="logOutOutline"
-                        slot="start"
+                    <ion-button
+                        class="logout-button"
+                        expand="block"
+                        fill="outline"
                         color="danger"
-                    ></ion-icon>
-                    <ion-label color="danger">Cerrar Sesión</ion-label>
+                        @click="confirmLogout"
+                    >
+                        <ion-icon
+                            :icon="logOutOutline"
+                            slot="start"
+                        ></ion-icon>
+                        <span class="logout-text">Cerrar Sesión</span>
+                    </ion-button>
                 </ion-item>
             </ion-list>
 
@@ -182,56 +276,6 @@
         </ion-content>
     </ion-page>
 </template>
-
-<script setup lang="ts">
-import {
-    IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
-    IonAvatar, IonButton, IonIcon, IonChip, IonLabel,
-    IonList, IonListHeader, IonItem, IonToggle,
-    onIonViewWillEnter
-} from '@ionic/vue';
-import { ref, computed } from 'vue';
-import {
-    personCircle, camera, star, personOutline,
-    notificationsOutline, settingsOutline, moonOutline,
-    helpCircleOutline, chatbubbleOutline, starOutline, logOutOutline
-} from 'ionicons/icons';
-
-const API_URL = 'http://localhost:3000';
-
-const darkMode = ref(false);
-const stats = ref({ totalWorkouts: 0, totalVolume: 0, streakDays: 0 });
-
-const savedWorkouts = computed(() => stats.value.totalWorkouts);
-const totalDays = computed(() => stats.value.streakDays || 0);
-const level = computed(() => {
-    if (stats.value.totalWorkouts >= 100) return '🏆 Elite';
-    if (stats.value.totalWorkouts >= 50) return '💪 Pro';
-    if (stats.value.totalWorkouts >= 20) return '⭐ Intermedio';
-    return '🌱 Novato';
-});
-
-const loadStats = async () => {
-    try {
-        const res = await fetch(`${API_URL}/progress/stats`);
-        stats.value = await res.json();
-    } catch (e) {
-        console.error(e);
-    }
-};
-
-const toggleDarkMode = () => {
-    document.body.classList.toggle('dark', darkMode.value);
-    document.body.classList.toggle('light', !darkMode.value);
-};
-
-onIonViewWillEnter(() => {
-    loadStats();
-    // Check system preference
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    darkMode.value = document.body.classList.contains('dark') || prefersDark;
-});
-</script>
 
 <style scoped>
 .profile-header {
@@ -343,6 +387,27 @@ onIonViewWillEnter(() => {
 
 .logout-item {
     --background: rgba(235, 68, 90, 0.05);
+}
+
+.logout-button {
+    width: 100%;
+    --border-radius: 14px;
+    --border-width: 2px;
+    --border-color: rgba(235, 68, 90, 0.45);
+    --padding-top: 12px;
+    --padding-bottom: 12px;
+    --box-shadow: 0 10px 18px rgba(235, 68, 90, 0.15);
+}
+
+.logout-button::part(native) {
+    text-transform: none;
+    letter-spacing: 0.2px;
+    font-weight: 600;
+}
+
+.logout-text {
+    display: inline-block;
+    font-size: 15px;
 }
 
 .app-version {

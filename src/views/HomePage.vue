@@ -1,18 +1,206 @@
+<script setup lang="ts">
+import {
+    IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
+    IonButton,
+    onIonViewWillEnter, toastController, useIonRouter
+} from '@ionic/vue';
+import { ref, computed } from 'vue'
+import { useProfile } from '../utils/useProfile'
+
+interface DashboardMetrics {
+    totalWorkouts: number;
+    last30DaysWorkouts: number;
+    avgDuration: number;
+    currentStreak: number;
+    longestStreak: number;
+    totalVolume: number;
+    recentRecords: any[];
+    activityCalendar: any[];
+}
+
+const router = useIonRouter();
+const { userName, loadProfileData, logout, getHeaders, API_URL } = useProfile();
+
+const metrics = ref<DashboardMetrics | null>(null);
+const todayProgress = ref<any | null>(null);
+const userProfile = ref<any | null>(null);
+const userPlan = ref<any | null>(null);
+const quoteIndex = ref(0);
+function getLocalDateKey(date = new Date()) {
+    return date.toLocaleDateString('en-CA');
+}
+
+function toDateKey(value: string) {
+    if (!value) return value;
+    return value.includes('T') ? getLocalDateKey(new Date(value)) : value;
+}
+
+const today = getLocalDateKey();
+
+const motivationalQuotes = [
+    { text: "El dolor que sientes hoy será la fuerza que sentirás mañana", author: "Arnold Schwarzenegger" },
+    { text: "No cuentes los días, haz que los días cuenten", author: "Muhammad Ali" },
+    { text: "El único mal entrenamiento es el que no hiciste", author: "Anónimo" },
+    { text: "Tu cuerpo puede hacer casi todo. Es tu mente la que debes convencer", author: "Anónimo" },
+    { text: "El éxito no se mide por lo que logras sino por los obstáculos que superas", author: "Booker T. Washington" },
+    { text: "La disciplina es el puente entre las metas y los logros", author: "Jim Rohn" },
+    { text: "Cada repetición te acerca más a tu mejor versión", author: "Anónimo" },
+    { text: "No te detengas cuando estés cansado, detente cuando hayas terminado", author: "Anónimo" }
+];
+
+const currentQuote = computed(() => motivationalQuotes[quoteIndex.value]);
+
+const circumference = 2 * Math.PI * 45; // ~283
+
+const streakOffset = computed(() => {
+    if (!metrics.value) return circumference;
+    const goal = 30; // Meta de 30 días de racha para el círculo completo
+    const progress = Math.min(metrics.value.currentStreak / goal, 1);
+    return circumference * (1 - progress);
+});
+
+const waterOffset = computed(() => {
+    const water = todayProgress.value?.waterIntake || 0;
+    const goal = 5000;
+    const progress = Math.min(water / goal, 1);
+    return circumference * (1 - progress);
+});
+
+const workoutsOffset = computed(() => {
+    if (!metrics.value) return circumference;
+    // Meta de entrenamientos en los últimos 30 días
+    const goal = 20; // Ej: 20 entrenos en un mes
+    const progress = Math.min(metrics.value.last30DaysWorkouts / goal, 1);
+    return circumference * (1 - progress);
+});
+
+function formatVolumeShort(volume: number): string {
+    if (!volume) return '0';
+    if (volume >= 1000000) {
+        return (volume / 1000000).toFixed(1) + 'M';
+    }
+    if (volume >= 1000) {
+        return (volume / 1000).toFixed(1) + 'k';
+    }
+    return volume.toString();
+}
+
+function getGreeting() {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Buenos días';
+    if (hour < 18) return 'Buenas tardes';
+    return 'Buenas noches';
+}
+
+function getTimeEmoji() {
+    const hour = new Date().getHours();
+    if (hour < 7) return '🌙';
+    if (hour < 12) return '☀️';
+    if (hour < 18) return '🌤️';
+    if (hour < 21) return '🌅';
+    return '🌙';
+}
+
+function changeQuote() {
+    quoteIndex.value = (quoteIndex.value + 1) % motivationalQuotes.length;
+}
+
+function goToPlan() {
+    router.push('/tabs/plan');
+}
+
+function formatWater(ml: number | null | undefined) {
+    if (!ml) return '--';
+    return (ml / 1000).toFixed(1);
+}
+
+const summary = computed(() => {
+    const weight = todayProgress.value?.weight ?? userProfile.value?.weight ?? null;
+    const height = userProfile.value?.height ?? null;
+    const sleep = todayProgress.value?.sleepHours ?? null;
+    const calories = todayProgress.value?.caloriesConsumed ?? null;
+    const water = todayProgress.value?.waterIntake ?? 0;
+    return { weight, height, sleep, calories, water };
+});
+
+const waterPercent = computed(() => {
+    const goal = 5000;
+    const progress = Math.min((summary.value.water || 0) / goal, 1);
+    return Math.round(progress * 100);
+});
+
+// Navigation
+function goToWorkout() {
+    router.push('/tabs/exercises');
+}
+
+function goToProgress() {
+    router.push('/tabs/progress');
+}
+
+function goToRecords() {
+    router.push('/tabs/progress');
+}
+
+function goToExercises() {
+    router.push('/tabs/exercises');
+}
+
+async function showToast(message: string, color = 'success') {
+    const toast = await toastController.create({ message, duration: 2000, color, position: 'bottom' });
+    await toast.present();
+}
+
+const loadMetrics = async () => {
+    try {
+        const headers = getHeaders();
+        const [dashboardRes, progressRes, profileRes, planRes] = await Promise.all([
+            fetch(`${API_URL}/dashboard`, { headers }),
+            fetch(`${API_URL}/progress`, { headers }),
+            fetch(`${API_URL}/user/profile`, { headers }),
+            fetch(`${API_URL}/goals/plan`, { headers })
+        ]);
+        if (!dashboardRes.ok) {
+            if (dashboardRes.status === 401 || dashboardRes.status === 403) logout();
+            throw new Error('No se pudo cargar las métricas');
+        }
+        if (!progressRes.ok) {
+            throw new Error('No se pudo cargar el progreso');
+        }
+        if (!profileRes.ok) {
+            throw new Error('No se pudo cargar el perfil');
+        }
+        if (!planRes.ok) {
+            throw new Error('No se pudo cargar el plan');
+        }
+        metrics.value = await dashboardRes.json();
+        const progressData = await progressRes.json();
+        todayProgress.value = Array.isArray(progressData)
+            ? progressData.find((p: any) => toDateKey(p.date) === today)
+            : null;
+        userProfile.value = await profileRes.json();
+        userPlan.value = await planRes.json();
+    } catch (error) {
+        console.error(error);
+        showToast('Error al cargar datos del dashboard', 'danger');
+    }
+};
+
+onIonViewWillEnter(() => {
+    loadProfileData();
+    loadMetrics();
+    quoteIndex.value = Math.floor(Math.random() * motivationalQuotes.length);
+});
+</script>
 <template>
     <ion-page>
-        <ion-header class="ion-no-border">
-            <ion-toolbar color="primary">
-                <ion-title>
-                    <div class="header-brand">
-                        <span class="brand-icon">💪</span>
-                        <span class="brand-name">Forgy</span>
-                    </div>
+        <ion-header class="forgy-header">
+
+            <ion-toolbar>
+                <ion-title class="forgy-title">
+                    FORGY
                 </ion-title>
-                <ion-buttons slot="end">
-                    <ion-button @click="refreshData">
-                        <ion-icon :icon="refreshOutline"></ion-icon>
-                    </ion-button>
-                </ion-buttons>
+
             </ion-toolbar>
         </ion-header>
 
@@ -20,14 +208,7 @@
             :fullscreen="true"
             class="home-content"
         >
-            <ion-refresher
-                slot="fixed"
-                @ionRefresh="handleRefresh($event)"
-            >
-                <ion-refresher-content></ion-refresher-content>
-            </ion-refresher>
 
-            <!-- Hero Section con saludo -->
             <div class="hero-section">
                 <div class="hero-background"></div>
                 <div class="hero-content">
@@ -35,7 +216,7 @@
                         <span class="greeting-emoji">{{ getTimeEmoji() }}</span>
                         <div class="greeting-text">
                             <span class="greeting-time">{{ getGreeting() }}</span>
-                            <span class="greeting-name">Atleta 🏆</span>
+                            <span class="greeting-name">{{ userName }}</span>
                         </div>
                     </div>
 
@@ -50,8 +231,10 @@
                 </div>
             </div>
 
-            <!-- Quick Stats Ring -->
-            <div class="quick-stats">
+            <div
+                class="quick-stats"
+                v-if="metrics"
+            >
                 <div
                     class="stat-ring"
                     @click="goToProgress"
@@ -75,7 +258,7 @@
                         />
                     </svg>
                     <div class="ring-content">
-                        <span class="ring-value">{{ stats.streakDays }}</span>
+                        <span class="ring-value">{{ metrics.currentStreak }}</span>
                         <span class="ring-label">días</span>
                     </div>
                     <span class="ring-title">🔥 Racha</span>
@@ -104,7 +287,7 @@
                         />
                     </svg>
                     <div class="ring-content">
-                        <span class="ring-value">{{ formatLiters(todayWater) }}</span>
+                        <span class="ring-value">{{ formatWater(summary.water) }}</span>
                         <span class="ring-label">L</span>
                     </div>
                     <span class="ring-title">💧 Agua</span>
@@ -133,161 +316,85 @@
                         />
                     </svg>
                     <div class="ring-content">
-                        <span class="ring-value">{{ stats.totalWorkouts }}</span>
+                        <span class="ring-value">{{ metrics.totalWorkouts }}</span>
                         <span class="ring-label">total</span>
                     </div>
                     <span class="ring-title">🏋️ Entrenos</span>
                 </div>
             </div>
 
-            <!-- Today's Goal Card -->
+            <!-- Resumen diario -->
             <div class="section-container">
                 <div class="section-title">
-                    <span>🎯 Meta del día</span>
-                    <ion-chip
-                        color="success"
-                        v-if="goalProgress >= 100"
-                    >
-                        <ion-icon :icon="checkmarkCircle"></ion-icon>
-                        <ion-label>Completado</ion-label>
-                    </ion-chip>
+                    <span>🧾 Resumen de hoy</span>
                 </div>
-
-                <div class="goal-card">
-                    <div class="goal-header">
-                        <div class="goal-info">
-                            <h3>{{ todayGoal.title }}</h3>
-                            <p>{{ todayGoal.description }}</p>
-                        </div>
-                        <div class="goal-progress-ring">
-                            <span class="goal-percent">{{ Math.round(goalProgress) }}%</span>
-                        </div>
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <span class="summary-label">Peso</span>
+                        <span class="summary-value">{{ summary.weight ?? '--' }} kg</span>
                     </div>
-                    <div class="goal-bar">
-                        <div
-                            class="goal-fill"
-                            :style="{ width: Math.min(goalProgress, 100) + '%' }"
-                        ></div>
+                    <div class="summary-card">
+                        <span class="summary-label">Estatura</span>
+                        <span class="summary-value">{{ summary.height ?? '--' }} cm</span>
                     </div>
-                    <div class="goal-actions">
-                        <ion-button
-                            fill="outline"
-                            size="small"
-                            @click="goToWorkout"
-                        >
-                            <ion-icon
-                                :icon="add"
-                                slot="start"
-                            ></ion-icon>
-                            Registrar entreno
-                        </ion-button>
+                    <div class="summary-card summary-water">
+                        <div class="summary-water-header">
+                            <span class="summary-label">Agua hoy</span>
+                            <span class="summary-value">{{ formatWater(summary.water) }} L</span>
+                        </div>
+                        <div class="summary-water-bar">
+                            <div class="summary-water-fill" :style="{ width: waterPercent + '%' }"></div>
+                        </div>
+                        <span class="summary-meta">{{ waterPercent }}% de 5L</span>
+                    </div>
+                    <div class="summary-card">
+                        <span class="summary-label">Sueño hoy</span>
+                        <span class="summary-value">{{ summary.sleep ?? '--' }} hrs</span>
+                        <span class="summary-meta">Último registro del día</span>
+                    </div>
+                    <div class="summary-card">
+                        <span class="summary-label">Calorías</span>
+                        <span class="summary-value">{{ summary.calories ?? '--' }} kcal</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Weekly Summary -->
+            <!-- Plan personalizado -->
             <div class="section-container">
                 <div class="section-title">
-                    <span>📅 Esta semana</span>
+                    <span>🎯 Tu plan</span>
                 </div>
-
-                <div class="week-summary">
-                    <div
-                        v-for="(day, idx) in weekSummary"
-                        :key="idx"
-                        class="week-day"
-                        :class="{
-                            'active': day.hasWorkout,
-                            'today': day.isToday,
-                            'future': day.isFuture
-                        }"
-                    >
-                        <span class="day-letter">{{ day.letter }}</span>
-                        <div class="day-indicator">
-                            <ion-icon
-                                v-if="day.hasWorkout"
-                                :icon="checkmarkCircle"
-                                color="success"
-                            ></ion-icon>
-                            <span
-                                v-else-if="day.isToday"
-                                class="today-dot"
-                            ></span>
+                <div v-if="!userPlan || !userPlan.id" class="plan-cta" @click="goToPlan">
+                    <div class="plan-cta-text">
+                        <h4>Crea tu rutina y nutrición</h4>
+                        <p>Responde unas preguntas y te damos tu plan completo.</p>
+                    </div>
+                    <ion-button size="small" fill="outline">Crear plan</ion-button>
+                </div>
+                <div v-else class="plan-summary-card">
+                    <div class="plan-summary-header">
+                        <span class="plan-title">Rutina y nutrición</span>
+                        <ion-button size="small" fill="clear" @click="goToPlan">Editar</ion-button>
+                    </div>
+                    <p class="plan-summary-text">{{ userPlan.routineSummary }}</p>
+                    <div class="plan-summary-macros">
+                        <div class="macro">
+                            <span class="macro-label">Calorías</span>
+                            <span class="macro-value">{{ userPlan.caloriesTarget }} kcal</span>
+                        </div>
+                        <div class="macro">
+                            <span class="macro-label">Proteína</span>
+                            <span class="macro-value">{{ userPlan.proteinTarget }} g</span>
+                        </div>
+                        <div class="macro">
+                            <span class="macro-label">Carbs</span>
+                            <span class="macro-value">{{ userPlan.carbsTarget }} g</span>
+                        </div>
+                        <div class="macro">
+                            <span class="macro-label">Grasas</span>
+                            <span class="macro-value">{{ userPlan.fatTarget }} g</span>
                         </div>
                     </div>
-                </div>
-
-                <div class="week-stats">
-                    <div class="week-stat">
-                        <span class="ws-value">{{ weekWorkouts }}</span>
-                        <span class="ws-label">entrenos</span>
-                    </div>
-                    <div class="week-stat">
-                        <span class="ws-value">{{ formatVolume(weekVolume) }}</span>
-                        <span class="ws-label">kg levantados</span>
-                    </div>
-                    <div class="week-stat">
-                        <span class="ws-value">{{ weekDuration }}</span>
-                        <span class="ws-label">minutos</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Personal Records Highlight -->
-            <div
-                class="section-container"
-                v-if="topPRs.length > 0"
-            >
-                <div class="section-title">
-                    <span>🏆 Tus Records</span>
-                    <ion-button
-                        fill="clear"
-                        size="small"
-                        @click="goToRecords"
-                    >Ver todos</ion-button>
-                </div>
-
-                <div class="pr-showcase">
-                    <div
-                        v-for="(pr, idx) in topPRs"
-                        :key="idx"
-                        class="pr-item"
-                    >
-                        <div class="pr-medal">{{ getMedal(idx) }}</div>
-                        <div class="pr-details">
-                            <span class="pr-exercise">{{ pr.exerciseName }}</span>
-                            <span class="pr-weight">{{ pr.maxWeight }} kg</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Recommended Workout -->
-            <div class="section-container">
-                <div class="section-title">
-                    <span>💡 Recomendación de hoy</span>
-                </div>
-
-                <div
-                    class="recommendation-card"
-                    @click="goToWorkout"
-                >
-                    <div class="rec-icon">{{ recommendation.icon }}</div>
-                    <div class="rec-content">
-                        <h4>{{ recommendation.title }}</h4>
-                        <p>{{ recommendation.description }}</p>
-                        <div class="rec-tags">
-                            <span
-                                class="rec-tag"
-                                v-for="tag in recommendation.tags"
-                                :key="tag"
-                            >{{ tag }}</span>
-                        </div>
-                    </div>
-                    <ion-icon
-                        :icon="chevronForward"
-                        class="rec-arrow"
-                    ></ion-icon>
                 </div>
             </div>
 
@@ -298,13 +405,6 @@
                 </div>
 
                 <div class="quick-actions">
-                    <div
-                        class="action-card"
-                        @click="quickAddWater"
-                    >
-                        <span class="action-icon">💧</span>
-                        <span class="action-label">+500ml agua</span>
-                    </div>
                     <div
                         class="action-card"
                         @click="goToWorkout"
@@ -329,317 +429,67 @@
                 </div>
             </div>
 
-            <!-- Achievement Unlock Animation -->
-            <div
-                class="achievement-toast"
-                v-if="showAchievement"
-                @click="showAchievement = false"
-            >
-                <div class="achievement-content">
-                    <span class="achievement-icon">🎉</span>
-                    <div class="achievement-text">
-                        <span class="achievement-title">¡Logro desbloqueado!</span>
-                        <span class="achievement-desc">{{ achievementText }}</span>
-                    </div>
-                </div>
-            </div>
-
             <!-- Bottom Spacing -->
             <div class="bottom-space"></div>
         </ion-content>
     </ion-page>
 </template>
-
-<script setup lang="ts">
-import {
-    IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
-    IonButton, IonButtons, IonIcon, IonChip, IonLabel,
-    IonRefresher, IonRefresherContent,
-    onIonViewWillEnter, toastController, useIonRouter
-} from '@ionic/vue';
-import { ref, computed } from 'vue';
-import { refreshOutline, checkmarkCircle, add, chevronForward } from 'ionicons/icons';
-
-const API_URL = 'http://localhost:3000';
-const router = useIonRouter();
-
-interface ProgressStats {
-    totalWorkouts: number;
-    totalVolume: number;
-    streakDays: number;
-    currentWeight: number;
-}
-
-interface PersonalRecord {
-    exerciseName: string;
-    maxWeight: number;
-    date: string;
-}
-
-const stats = ref<ProgressStats>({ totalWorkouts: 0, totalVolume: 0, streakDays: 0, currentWeight: 0 });
-const todayWater = ref(0);
-const topPRs = ref<PersonalRecord[]>([]);
-const workoutHistory = ref<any[]>([]);
-const showAchievement = ref(false);
-const achievementText = ref('');
-const quoteIndex = ref(0);
-
-const motivationalQuotes = [
-    { text: "El dolor que sientes hoy será la fuerza que sentirás mañana", author: "Arnold Schwarzenegger" },
-    { text: "No cuentes los días, haz que los días cuenten", author: "Muhammad Ali" },
-    { text: "El único mal entrenamiento es el que no hiciste", author: "Anónimo" },
-    { text: "Tu cuerpo puede hacer casi todo. Es tu mente la que debes convencer", author: "Anónimo" },
-    { text: "El éxito no se mide por lo que logras sino por los obstáculos que superas", author: "Booker T. Washington" },
-    { text: "La disciplina es el puente entre las metas y los logros", author: "Jim Rohn" },
-    { text: "Cada repetición te acerca más a tu mejor versión", author: "Anónimo" },
-    { text: "No te detengas cuando estés cansado, detente cuando hayas terminado", author: "Anónimo" }
-];
-
-const muscleGroups = ['Pecho', 'Espalda', 'Piernas', 'Hombros', 'Bíceps', 'Tríceps', 'Abdomen'];
-const muscleIcons: Record<string, string> = {
-    'Pecho': '💪', 'Espalda': '🔙', 'Piernas': '🦵', 'Hombros': '🤷',
-    'Bíceps': '💪', 'Tríceps': '💪', 'Abdomen': '🎯'
-};
-
-const currentQuote = computed(() => motivationalQuotes[quoteIndex.value]);
-const today = new Date().toISOString().split('T')[0];
-
-// Goal calculations
-const todayGoal = computed(() => {
-    const dayOfWeek = new Date().getDay();
-    const goals = [
-        { title: 'Día de descanso activo', description: 'Estiramientos y movilidad', target: 1 },
-        { title: 'Entrena tu tren superior', description: 'Pecho, hombros y tríceps', target: 1 },
-        { title: 'Día de piernas', description: 'Cuádriceps, isquios y glúteos', target: 1 },
-        { title: 'Push day', description: 'Empujes y press', target: 1 },
-        { title: 'Pull day', description: 'Jalones y remos', target: 1 },
-        { title: 'Full body', description: 'Entrenamiento completo', target: 1 },
-        { title: 'Descanso merecido', description: 'Recuperación y nutrición', target: 0 }
-    ];
-    return goals[dayOfWeek];
-});
-
-const goalProgress = computed(() => {
-    const todayWorkouts = workoutHistory.value.filter(w => w.date === today).length;
-    if (todayGoal.value.target === 0) return 100;
-    return (todayWorkouts / todayGoal.value.target) * 100;
-});
-
-// Ring calculations
-const circumference = 2 * Math.PI * 45;
-const streakOffset = computed(() => {
-    const progress = Math.min(stats.value.streakDays / 30, 1);
-    return circumference * (1 - progress);
-});
-const waterOffset = computed(() => {
-    const progress = Math.min(todayWater.value / 3000, 1);
-    return circumference * (1 - progress);
-});
-const workoutsOffset = computed(() => {
-    const progress = Math.min(stats.value.totalWorkouts / 100, 1);
-    return circumference * (1 - progress);
-});
-
-// Week summary
-const weekSummary = computed(() => {
-    const days = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
-    const result = [];
-    const now = new Date();
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay());
-
-    for (let i = 0; i < 7; i++) {
-        const date = new Date(startOfWeek);
-        date.setDate(startOfWeek.getDate() + i);
-        const dateStr = date.toISOString().split('T')[0];
-        const hasWorkout = workoutHistory.value.some(w => w.date === dateStr);
-
-        result.push({
-            letter: days[i],
-            date: dateStr,
-            hasWorkout,
-            isToday: dateStr === today,
-            isFuture: date > now
-        });
-    }
-    return result;
-});
-
-const weekWorkouts = computed(() => {
-    const startOfWeek = new Date();
-    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-    const startStr = startOfWeek.toISOString().split('T')[0];
-    return workoutHistory.value.filter(w => w.date >= startStr).length;
-});
-
-const weekVolume = computed(() => {
-    const startOfWeek = new Date();
-    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-    const startStr = startOfWeek.toISOString().split('T')[0];
-    return workoutHistory.value
-        .filter(w => w.date >= startStr)
-        .reduce((sum, w) => {
-            const vol = w.sets?.reduce((s: number, set: any) => s + (set.reps * set.weight), 0) || 0;
-            return sum + vol;
-        }, 0);
-});
-
-const weekDuration = computed(() => {
-    const startOfWeek = new Date();
-    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-    const startStr = startOfWeek.toISOString().split('T')[0];
-    return workoutHistory.value
-        .filter(w => w.date >= startStr)
-        .reduce((sum, w) => sum + (w.duration || 0), 0);
-});
-
-// Recommendation
-const recommendation = computed(() => {
-    const dayOfWeek = new Date().getDay();
-    const recommendations = [
-        { icon: '🧘', title: 'Yoga y estiramientos', description: 'Perfecto para recuperación activa', tags: ['Flexibilidad', '20 min'] },
-        { icon: '💪', title: 'Entrena pecho hoy', description: 'Press de banca, flexiones y aperturas', tags: ['Pecho', '45 min'] },
-        { icon: '🦵', title: 'Día de piernas', description: 'Sentadillas, prensa y extensiones', tags: ['Piernas', '50 min'] },
-        { icon: '🏋️', title: 'Hombros y tríceps', description: 'Press militar y fondos', tags: ['Push', '40 min'] },
-        { icon: '🔙', title: 'Espalda y bíceps', description: 'Dominadas, remos y curls', tags: ['Pull', '45 min'] },
-        { icon: '⚡', title: 'HIIT + Core', description: 'Circuito de alta intensidad', tags: ['Cardio', '30 min'] },
-        { icon: '😴', title: 'Descansa hoy', description: 'Tu cuerpo necesita recuperarse', tags: ['Descanso', 'Nutrición'] }
-    ];
-    return recommendations[dayOfWeek];
-});
-
-function getGreeting() {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Buenos días';
-    if (hour < 18) return 'Buenas tardes';
-    return 'Buenas noches';
-}
-
-function getTimeEmoji() {
-    const hour = new Date().getHours();
-    if (hour < 7) return '🌙';
-    if (hour < 12) return '☀️';
-    if (hour < 18) return '🌤️';
-    if (hour < 21) return '🌅';
-    return '🌙';
-}
-
-function changeQuote() {
-    quoteIndex.value = (quoteIndex.value + 1) % motivationalQuotes.length;
-}
-
-function getMedal(idx: number) {
-    return ['🥇', '🥈', '🥉'][idx] || '🏅';
-}
-
-function formatLiters(ml: number) {
-    return (ml / 1000).toFixed(1);
-}
-
-function formatVolume(vol: number) {
-    return vol >= 1000 ? (vol / 1000).toFixed(1) + 'k' : vol.toString();
-}
-
-// Navigation
-function goToWorkout() {
-    router.push('/tabs/tab2');
-}
-
-function goToProgress() {
-    router.push('/tabs/tab3');
-}
-
-function goToRecords() {
-    router.push('/tabs/tab3');
-}
-
-function goToExercises() {
-    router.push('/tabs/tab1');
-}
-
-// Actions
-async function quickAddWater() {
-    try {
-        const progressRes = await fetch(`${API_URL}/progress`);
-        const progressData = await progressRes.json();
-        const todayProgress = progressData.find((p: any) => p.date === today);
-
-        await fetch(`${API_URL}/progress`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                date: today,
-                waterIntake: (todayProgress?.waterIntake || 0) + 500,
-                weight: todayProgress?.weight || 0,
-                mood: todayProgress?.mood || 'Bien'
-            })
-        });
-
-        todayWater.value += 500;
-        showToast('+500ml 💧 ¡Sigue así!');
-    } catch (error) {
-        showToast('Error al registrar', 'danger');
-    }
-}
-
-async function loadData() {
-    try {
-        const [statsRes, progressRes, historyRes, prsRes, workoutsRes] = await Promise.all([
-            fetch(`${API_URL}/progress/stats`),
-            fetch(`${API_URL}/progress`),
-            fetch(`${API_URL}/workouts/history`),
-            fetch(`${API_URL}/workouts/prs`),
-            fetch(`${API_URL}/workouts`)
-        ]);
-
-        stats.value = await statsRes.json();
-        const progressData = await progressRes.json();
-        const todayProgress = progressData.find((p: any) => p.date === today);
-        todayWater.value = todayProgress?.waterIntake || 0;
-
-        topPRs.value = (await prsRes.json()).slice(0, 3);
-        workoutHistory.value = await workoutsRes.json();
-
-        // Check for achievements
-        checkAchievements();
-    } catch (error) {
-        console.error('Error loading data:', error);
-    }
-}
-
-function checkAchievements() {
-    if (stats.value.streakDays === 7) {
-        achievementText.value = '¡7 días de racha! 🔥';
-        showAchievement.value = true;
-    } else if (stats.value.totalWorkouts === 10) {
-        achievementText.value = '¡10 entrenamientos completados! 💪';
-        showAchievement.value = true;
-    }
-}
-
-async function refreshData() {
-    await loadData();
-    showToast('Datos actualizados ✓');
-}
-
-async function handleRefresh(event: CustomEvent) {
-    await loadData();
-    (event.target as any).complete();
-}
-
-async function showToast(message: string, color = 'success') {
-    const toast = await toastController.create({ message, duration: 2000, color, position: 'bottom' });
-    await toast.present();
-}
-
-onIonViewWillEnter(() => {
-    loadData();
-    // Random quote on enter
-    quoteIndex.value = Math.floor(Math.random() * motivationalQuotes.length);
-});
-</script>
-
 <style scoped>
+/* Header Styles */
+.forgy-header {
+    backdrop-filter: blur(12px);
+}
+
+.forgy-header ion-toolbar {
+
+    --background: transparent;
+    background: transparent;
+    --background: linear-gradient(135deg,
+            #ff6a00,
+            #ff8c1a);
+    --color: rgb(255, 254, 254);
+    font-family: 'Permanent Marker', cursive;
+    box-shadow: 0 6px 20px rgba(77, 75, 75, 0.966);
+}
+
+/* TÍTULO */
+.forgy-title {
+
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-align: center;
+}
+
+/* BOTONES HEADER */
+.icon-btn {
+    --color: white;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.icon-btn:active {
+    transform: scale(0.9);
+    opacity: 0.8;
+}
+
+/* ICONOS */
+ion-icon {
+    font-size: 26px;
+}
+
+/* LOGO EMOJI */
+.logo-emoji {
+    font-size: 26px;
+}
+
+/*FINDE DEL HEADER*/
+.header-title {
+    text-align: center;
+    font-weight: 800;
+    letter-spacing: 1px;
+}
+
 .home-content {
     --background: var(--forgy-content-bg);
 }
@@ -663,7 +513,7 @@ onIonViewWillEnter(() => {
 .hero-section {
     position: relative;
     padding: 24px 16px;
-    background: linear-gradient(135deg, var(--ion-color-primary) 0%, #7c4dff 100%);
+    background: linear-gradient(135deg, var(--ion-color-primary) 0%, #ff6a00 100%);
     border-radius: 0 0 32px 32px;
     margin-bottom: 20px;
     overflow: hidden;
@@ -675,7 +525,7 @@ onIonViewWillEnter(() => {
     right: -20%;
     width: 200px;
     height: 200px;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(168, 15, 15, 0.1);
     border-radius: 50%;
 }
 
@@ -834,7 +684,128 @@ onIonViewWillEnter(() => {
     font-weight: 700;
 }
 
-/* Goal Card */
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.summary-card {
+    background: var(--forgy-card-bg);
+    padding: 14px;
+    border-radius: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.summary-card.summary-water {
+    grid-column: span 2;
+}
+
+.summary-water-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.summary-water-bar {
+    height: 10px;
+    background: var(--forgy-input-bg);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.summary-water-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #56CCF2, #2F80ED);
+    border-radius: 10px;
+    transition: width 0.4s ease;
+}
+
+.summary-label {
+    font-size: 12px;
+    color: var(--ion-color-medium);
+    font-weight: 600;
+}
+
+.summary-value {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--forgy-text-primary);
+}
+
+.summary-meta {
+    font-size: 11px;
+    color: var(--forgy-text-secondary);
+}
+
+.plan-cta,
+.plan-summary-card {
+    background: var(--forgy-card-bg);
+    border-radius: 20px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.plan-cta {
+    cursor: pointer;
+}
+
+.plan-cta-text h4 {
+    margin: 0 0 4px;
+    font-size: 16px;
+}
+
+.plan-cta-text p {
+    margin: 0;
+    color: var(--forgy-text-secondary);
+    font-size: 12px;
+}
+
+.plan-summary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.plan-title {
+    font-weight: 700;
+}
+
+.plan-summary-text {
+    margin: 0;
+    color: var(--forgy-text-secondary);
+    font-size: 12px;
+}
+
+.plan-summary-macros {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.plan-summary-macros .macro {
+    background: var(--forgy-input-bg);
+    padding: 10px;
+    border-radius: 12px;
+    text-align: center;
+}
+
+.plan-summary-macros .macro-label {
+    font-size: 11px;
+    color: var(--forgy-text-secondary);
+}
+
+.plan-summary-macros .macro-value {
+    font-size: 14px;
+    font-weight: 700;
+}
+
 .goal-card {
     background: var(--forgy-card-bg);
     border-radius: 20px;
@@ -884,6 +855,7 @@ onIonViewWillEnter(() => {
     border-radius: 4px;
     overflow: hidden;
     margin-bottom: 16px;
+
 }
 
 .goal-fill {
@@ -891,14 +863,15 @@ onIonViewWillEnter(() => {
     background: linear-gradient(90deg, var(--ion-color-primary), var(--ion-color-tertiary));
     border-radius: 4px;
     transition: width 0.5s ease;
+
 }
 
 .goal-actions {
     display: flex;
     justify-content: flex-end;
+
 }
 
-/* Week Summary */
 .week-summary {
     display: flex;
     justify-content: space-between;
@@ -908,6 +881,7 @@ onIonViewWillEnter(() => {
     margin-bottom: 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     color: var(--forgy-text-primary);
+
 }
 
 .week-day {
@@ -1024,7 +998,6 @@ onIonViewWillEnter(() => {
     color: var(--ion-color-dark);
 }
 
-/* Recommendation Card */
 .recommendation-card {
     display: flex;
     align-items: center;
@@ -1087,7 +1060,6 @@ onIonViewWillEnter(() => {
     color: var(--ion-color-medium);
 }
 
-/* Quick Actions */
 .quick-actions {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -1123,7 +1095,6 @@ onIonViewWillEnter(() => {
     color: var(--forgy-text-primary);
 }
 
-/* Achievement Toast */
 .achievement-toast {
     position: fixed;
     top: 100px;
