@@ -2,62 +2,44 @@
   <ion-page>
     <ion-tabs>
       <ion-router-outlet></ion-router-outlet>
-      <ion-tab-bar
-        slot="bottom"
-        class="custom-tab-bar"
-      >
+      <ion-tab-bar slot="bottom">
         <ion-tab-button
           tab="home"
           href="/tabs/home"
         >
-          <ion-icon
-            aria-hidden="true"
-            :icon="homeOutline"
-          />
+          <ion-icon :icon="homeOutline" />
           <ion-label>Inicio</ion-label>
         </ion-tab-button>
 
         <ion-tab-button
-          tab="tab1"
-          href="/tabs/tab1"
+          tab="exercises"
+          href="/tabs/exercises"
         >
-          <ion-icon
-            aria-hidden="true"
-            :icon="barbellOutline"
-          />
+          <ion-icon :icon="barbellOutline" />
           <ion-label>Ejercicios</ion-label>
         </ion-tab-button>
 
         <ion-tab-button
-          tab="tab2"
-          href="/tabs/tab2"
+          tab="train"
+          href="/tabs/train"
         >
-          <ion-icon
-            aria-hidden="true"
-            :icon="calendarOutline"
-          />
-          <ion-label>Entreno</ion-label>
+          <ion-icon :icon="barbell" />
+          <ion-label>Entrenar</ion-label>
         </ion-tab-button>
 
         <ion-tab-button
-          tab="tab3"
-          href="/tabs/tab3"
+          tab="progress"
+          href="/tabs/progress"
         >
-          <ion-icon
-            aria-hidden="true"
-            :icon="statsChartOutline"
-          />
+          <ion-icon :icon="statsChartOutline" />
           <ion-label>Progreso</ion-label>
         </ion-tab-button>
 
         <ion-tab-button
-          tab="tab4"
-          href="/tabs/tab4"
+          tab="profile"
+          href="/tabs/profile"
         >
-          <ion-icon
-            aria-hidden="true"
-            :icon="personOutline"
-          />
+          <ion-icon :icon="personOutline" />
           <ion-label>Perfil</ion-label>
         </ion-tab-button>
       </ion-tab-bar>
@@ -66,30 +48,18 @@
 </template>
 
 <script setup lang="ts">
-import { IonTabBar, IonTabButton, IonTabs, IonLabel, IonIcon, IonPage, IonRouterOutlet } from '@ionic/vue';
-import { homeOutline, barbellOutline, calendarOutline, statsChartOutline, personOutline } from 'ionicons/icons';
+import { IonPage, IonTabs, IonRouterOutlet, IonTabBar, IonTabButton, IonIcon, IonLabel } from '@ionic/vue';
+import { homeOutline, barbellOutline, statsChartOutline, personOutline, barbell } from 'ionicons/icons';
 </script>
 
 <style scoped>
-.custom-tab-bar {
-  --background: var(--ion-tab-bar-background);
-  --border: none;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
-  border-radius: 20px 20px 0 0;
-  padding-bottom: env(safe-area-inset-bottom);
+ion-tab-bar {
+  --background: var(--forgy-card-bg);
+  border-top: 1px solid var(--forgy-border);
 }
 
 ion-tab-button {
   --color: var(--ion-color-medium);
   --color-selected: var(--ion-color-primary);
-}
-
-ion-tab-button ion-icon {
-  font-size: 22px;
-}
-
-ion-tab-button ion-label {
-  font-size: 10px;
-  font-weight: 500;
 }
 </style>
