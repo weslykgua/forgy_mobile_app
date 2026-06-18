@@ -1,7 +1,7 @@
 import { ref, readonly } from 'vue';
 import { useIonRouter } from '@ionic/vue';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 // --- Estado (Singleton) ---
 // Este estado será compartido entre todos los componentes que usen este composable.
@@ -35,7 +35,8 @@ export function useProfile() {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         localStorage.removeItem('token_data');
-        router.replace('/auth');
+        // Forzar recarga a nivel de ventana asegura limpiar el estado de Vue en producción
+        window.location.href = '/auth';
     };
 
     const loadProfileData = async () => {

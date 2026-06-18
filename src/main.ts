@@ -34,6 +34,19 @@ import '@ionic/vue/css/palettes/dark.system.css';
 /* Theme variables */
 import './theme/variables.css';
 
+// Guard global de navegación para proteger rutas en producción
+router.beforeEach((to, from, next) => {
+  const token = localStorage.getItem('token');
+  
+  if (!token && to.path !== '/auth') {
+    next('/auth'); // Si no está autenticado, directo al login
+  } else if (token && to.path === '/auth') {
+    next('/tabs/home'); // Si ya está autenticado, no dejarlo ir al login
+  } else {
+    next();
+  }
+});
+
 const app = createApp(App)
   .use(IonicVue)
   .use(router);

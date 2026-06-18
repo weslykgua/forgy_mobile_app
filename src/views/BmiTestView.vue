@@ -9,27 +9,47 @@
       </ion-toolbar>
     </ion-header>
 
-    <ion-content :fullscreen="true" class="bmi-content">
+    <ion-content
+      :fullscreen="true"
+      class="bmi-content"
+    >
       <div class="bmi-card">
         <h2>Ingresa tus datos</h2>
         <p>Calcula tu IMC y recibe un mensaje amigable.</p>
 
         <div class="input-row">
           <label>Altura (cm)</label>
-          <input type="number" v-model.number="heightCm" min="50" max="250" />
+          <input
+            type="number"
+            v-model.number="heightCm"
+            min="50"
+            max="250"
+          />
         </div>
         <div class="input-row">
           <label>Peso (kg)</label>
-          <input type="number" v-model.number="weightKg" min="20" max="300" />
+          <input
+            type="number"
+            v-model.number="weightKg"
+            min="20"
+            max="300"
+          />
         </div>
 
-        <div class="result-card" v-if="bmiValue">
+        <div
+          class="result-card"
+          v-if="bmiValue"
+        >
           <div class="result-value">{{ bmiValue }}</div>
           <div class="result-label">{{ bmiLabel }}</div>
           <p class="result-message">{{ bmiMessage }}</p>
         </div>
 
-        <ion-button expand="block" class="save-btn" @click="saveBmi">
+        <ion-button
+          expand="block"
+          class="save-btn"
+          @click="saveBmi"
+        >
           Guardar y usar estos datos
         </ion-button>
       </div>
@@ -53,7 +73,7 @@ import {
 } from '@ionic/vue';
 import { computed, ref } from 'vue';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const router = useIonRouter();
 
 const heightCm = ref<number | null>(null);
