@@ -69,25 +69,28 @@ const routes: Array<RouteRecordRaw> = [
         path: 'rm',
         component: () => import('@/views/RmCalculatorView.vue'),
       },
-      {
-        path: 'plan',
-        component: () => import('@/views/PlanWizardView.vue'),
-      },
     ],
-    beforeEnter: (to, from, next) => {
-      // Si el usuario no está autenticado, lo redirigimos a la página de login
-      if (isAuthenticated()) {
-        next();
-      } else {
-        next('/auth');
-      }
-    },
   },
 ];
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
+});
+
+// Único Guard Global de Autenticación
+router.beforeEach((to, from, next) => {
+  const auth = isAuthenticated();
+
+  if (!auth && to.path !== '/auth') {
+    // Limpiar restos corruptos de sesión si es inválida
+    localStorage.clear();
+    next('/auth');
+  } else if (auth && to.path === '/auth') {
+    next('/tabs/home');
+  } else {
+    next();
+  }
 });
 
 export default router;

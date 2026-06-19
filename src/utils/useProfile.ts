@@ -1,7 +1,7 @@
 import { ref, readonly } from 'vue';
-import { useIonRouter } from '@ionic/vue';
+import router from '@/router';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 // --- Estado (Singleton) ---
 // Este estado será compartido entre todos los componentes que usen este composable.
@@ -24,17 +24,14 @@ try {
 
 // --- Función Composable ---
 export function useProfile() {
-    const router = useIonRouter();
-
     const getHeaders = () => ({
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${localStorage.getItem('token')}`
     });
 
     const logout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('token_data');
+        // Limpia toda la memoria (tokens viejos, caché, etc)
+        localStorage.clear();
         router.replace('/auth');
     };
     

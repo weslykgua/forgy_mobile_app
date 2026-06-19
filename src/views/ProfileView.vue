@@ -19,7 +19,7 @@ const stats = ref({ totalWorkouts: 0, totalVolume: 0, streakDays: 0 })
 const { userName, userEmail, loadProfileData, logout } = useProfile()
 
 // Configuración local para acceso a la API para no modificar useProfile.ts
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const getHeaders = () => ({
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${localStorage.getItem('token')}`

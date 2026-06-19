@@ -335,7 +335,7 @@ import {
   add, scaleOutline, waterOutline, moonOutline, nutritionOutline, barbell, flame, bodyOutline
 } from 'ionicons/icons';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const router = useIonRouter();
 
 interface DailyProgress {
@@ -522,7 +522,7 @@ function openProgressModal() {
 
 function normalizeNumber(value: unknown, { asInt = false } = {}) {
   if (value === null || value === undefined || value === '') return null;
-  let raw = value as unknown;
+  let raw = value as string | number;
   if (typeof raw === 'string') {
     raw = raw.trim().replace(/\s+/g, '');
     if (raw.includes(',') && raw.includes('.')) {
@@ -1070,6 +1070,3 @@ onIonViewWillEnter(() => loadAllData());
 }
 
 </style>
-
-
-
