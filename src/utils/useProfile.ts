@@ -34,6 +34,7 @@ export function useProfile() {
         localStorage.clear();
         router.replace('/auth');
     };
+    
 
     const loadProfileData = async () => {
         try {

@@ -91,14 +91,18 @@
               <span class="stat-value">{{ totalDuration }}</span>
               <span class="stat-label">Minutos</span>
             </div>
-            <div class="summary-stat">
-              <ion-icon
-                :icon="fitness"
-                color="success"
-              ></ion-icon>
-              <span class="stat-value">{{ totalVolume }}</span>
-              <span class="stat-label">kg Vol.</span>
-            </div>
+          </div>
+          <!-- Recomendación personalizada -->
+          <div
+            v-if="personalAdvice"
+            class="personal-advice"
+          >
+            <ion-icon
+              :icon="adviceIcon"
+              color="warning"
+              style="margin-right:8px;vertical-align:middle;"
+            />
+            <span>{{ personalAdvice }}</span>
           </div>
         </ion-card-content>
       </ion-card>
@@ -129,6 +133,7 @@
         <ion-button
           @click="openAddWorkoutModal"
           color="primary"
+          size="small"
         >
           <ion-icon
             :icon="add"
@@ -432,8 +437,33 @@ import { useProfile } from '../utils/useProfile'
 import {
   calendar as calendarIcon, add, chevronBack, chevronForward, barbell, time,
   fitness, barbellOutline, create, trash, documentText, close, remove,
-  checkmarkCircle
+  checkmarkCircle, warning, happy, alertCircle
 } from 'ionicons/icons';
+// Recomendación personalizada según los datos del día
+const adviceIcon = computed(() => {
+  if (totalDuration.value > 60) return alertCircle;
+  if (dayWorkouts.value.length === 0) return warning;
+  return happy;
+});
+
+const personalAdvice = computed(() => {
+  if (dayWorkouts.value.length === 0) {
+    return '¡Aún no has registrado ejercicios hoy! Tu puedes, la constancia es clave para progresar.';
+  }
+  if (totalDuration.value > 90) {
+    return 'Has entrenado más de 1.5 horas hoy. El sobreentrenamiento puede ser perjudicial, asegúrate de descansar y alimentarte bien.';
+  }
+  if (totalDuration.value > 60) {
+    return 'Entrenar más de 1 hora puede aumentar el riesgo de fatiga. Escucha a tu cuerpo y descansa si lo necesitas.';
+  }
+  if (dayWorkouts.value.length >= 5) {
+    return '¡Gran variedad de ejercicios hoy! Recuerda mantener una buena técnica para evitar lesiones.';
+  }
+  if (totalVolume.value > 10000) {
+    return '¡Impresionante volumen total! No olvides estirar y cuidar tus articulaciones.';
+  }
+  return 'Buen trabajo hoy. Mantén la constancia y escucha a tu cuerpo para seguir progresando de forma segura.';
+});
 
 interface Exercise {
   id: string;
@@ -578,29 +608,59 @@ function calculateVolume(): number {
 
 async function loadExercises() {
   try {
-    const response = await fetch(`${API_URL}/exercises`);
-    exercises.value = await response.json();
+    const response = await fetch(`${API_URL}/exercises`, { headers: getHeaders() });
+    if (response.ok) {
+      const data = await response.json();
+      exercises.value = Array.isArray(data) ? data : [];
+    } else {
+      throw new Error('Error loading exercises');
+    }
   } catch (error) {
     console.error('Error loading exercises:', error);
+    showToast('Error al cargar ejercicios', 'danger');
   }
 }
 
 async function loadWorkouts() {
+  let backendWorkouts: Workout[] = [];
   try {
     const response = await fetch(`${API_URL}/workouts?date=${selectedDate.value}`, { headers: getHeaders() });
-    workouts.value = await response.json();
+    if (response.ok) {
+      const data = await response.json();
+      backendWorkouts = Array.isArray(data) ? data : [];
+    }
   } catch (error) {
     console.error('Error loading workouts:', error);
   }
+
+  // Cargar locales y combinar
+  const stored = localStorage.getItem('local_workouts');
+  const allLocal: Workout[] = stored ? JSON.parse(stored) : [];
+  const localWorkouts = allLocal.filter(w => w.date === selectedDate.value);
+
+  workouts.value = [...backendWorkouts, ...localWorkouts];
 }
 
 async function loadCalendarData() {
+  let backendCalendar: { [date: string]: { hasWorkout: boolean } } = {};
   try {
     const response = await fetch(`${API_URL}/workouts/calendar`, { headers: getHeaders() });
-    calendarData.value = await response.json();
+    if (response.ok) {
+      backendCalendar = await response.json();
+    }
   } catch (error) {
     console.error('Error loading calendar:', error);
   }
+
+  // Cargar calendario local
+  const stored = localStorage.getItem('local_workouts');
+  const allLocal: Workout[] = stored ? JSON.parse(stored) : [];
+  const localCalendar: { [date: string]: { hasWorkout: boolean } } = {};
+  allLocal.forEach(w => {
+    localCalendar[w.date] = { hasWorkout: true };
+  });
+
+  calendarData.value = { ...backendCalendar, ...localCalendar };
 }
 
 function openAddWorkoutModal() {
@@ -648,34 +708,60 @@ async function saveWorkout() {
     return;
   }
 
-  try {
-    const data = {
-      date: selectedDate.value,
-      ...workoutForm.value
-    };
+  const data = {
+    date: selectedDate.value,
+    exerciseId: workoutForm.value.exerciseId,
+    exerciseName: workoutForm.value.exerciseName,
+    sets: workoutForm.value.sets,
+    duration: workoutForm.value.duration,
+    notes: workoutForm.value.notes
+  };
 
+  try {
+    let response;
     if (editingWorkout.value) {
-      await fetch(`${API_URL}/workouts/${editingWorkout.value.id}`, {
+      response = await fetch(`${API_URL}/workouts/${editingWorkout.value.id}`, {
         method: 'PUT',
         headers: getHeaders(),
         body: JSON.stringify(data)
       });
-      showToast('¡Entrenamiento actualizado!');
     } else {
-      await fetch(`${API_URL}/workouts`, {
+      response = await fetch(`${API_URL}/workouts`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify(data)
       });
-      showToast('¡Ejercicio registrado! 💪');
     }
 
-    isWorkoutModalOpen.value = false;
-    loadWorkouts();
-    loadCalendarData();
+    if (!response.ok) throw new Error(`Error saving workout: ${response.status}`);
+
+    showToast(editingWorkout.value ? '¡Entrenamiento actualizado!' : '¡Ejercicio registrado! 💪');
   } catch (error) {
-    showToast('Error al guardar', 'danger');
+    console.warn('Backend error, saving locally:', error);
+
+    // Fallback a localStorage
+    const stored = localStorage.getItem('local_workouts');
+    let allLocal: Workout[] = stored ? JSON.parse(stored) : [];
+
+    if (editingWorkout.value) {
+      const index = allLocal.findIndex(w => w.id === editingWorkout.value?.id);
+      if (index !== -1) {
+        allLocal[index] = { ...allLocal[index], ...data, id: editingWorkout.value.id };
+        localStorage.setItem('local_workouts', JSON.stringify(allLocal));
+        showToast('Actualizado en local', 'warning');
+      } else {
+        showToast('No se pudo guardar en el servidor', 'danger');
+        return;
+      }
+    } else {
+      const newLocal = { ...data, id: Date.now().toString() };
+      allLocal.push(newLocal);
+      localStorage.setItem('local_workouts', JSON.stringify(allLocal));
+    }
   }
+  isWorkoutModalOpen.value = false;
+  loadWorkouts();
+  loadCalendarData();
 }
 
 async function confirmDeleteWorkout(workout: Workout) {
@@ -688,8 +774,22 @@ async function confirmDeleteWorkout(workout: Workout) {
         text: 'Eliminar',
         role: 'destructive',
         handler: async () => {
-          await fetch(`${API_URL}/workouts/${workout.id}`, { method: 'DELETE', headers: getHeaders() });
-          showToast('Entrenamiento eliminado', 'warning');
+          try {
+            const res = await fetch(`${API_URL}/workouts/${workout.id}`, { method: 'DELETE', headers: getHeaders() });
+            if (!res.ok) throw new Error('Backend delete failed');
+            showToast('Entrenamiento eliminado', 'warning');
+          } catch (error) {
+            const stored = localStorage.getItem('local_workouts');
+            if (stored) {
+              let allLocal: Workout[] = JSON.parse(stored);
+              const initialLen = allLocal.length;
+              allLocal = allLocal.filter(w => w.id !== workout.id);
+              if (allLocal.length < initialLen) {
+                localStorage.setItem('local_workouts', JSON.stringify(allLocal));
+                showToast('Eliminado de local', 'warning');
+              }
+            }
+          }
           loadWorkouts();
           loadCalendarData();
         }
@@ -798,6 +898,19 @@ onIonViewWillEnter(() => {
   border-radius: 16px;
   --background: var(--forgy-card-bg);
   color: var(--forgy-text-primary);
+}
+
+.personal-advice {
+  margin-top: 18px;
+  padding: 12px;
+  background: #fffbe6;
+  color: #b8860b;
+  border-radius: 10px;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 
 .summary-stats {
