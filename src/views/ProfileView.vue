@@ -20,7 +20,7 @@ const { userName, userEmail, loadProfileData, logout } = useProfile()
 
 // Configuración local para acceso a la API para no modificar useProfile.ts
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-const getHeaders = () => ({
+export const getHeaders = () => ({
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${localStorage.getItem('token')}`
 })
@@ -69,12 +69,10 @@ const toggleDarkMode = () => {
 };
 
 onIonViewWillEnter(() => {
-    loadProfileData();
-    getStatsFromServer();
-    // Check system preference
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    darkMode.value = document.body.classList.contains('dark') || prefersDark;
-});
+    loadProfileData()
+    getStatsFromServer()
+    darkMode.value = document.body.classList.contains('dark')
+})
 
 async function confirmLogout() {
     const alert = await alertController.create({
@@ -197,8 +195,8 @@ async function confirmLogout() {
                     <ion-label>Modo Oscuro</ion-label>
                     <ion-toggle
                         slot="end"
-                        v-model="darkMode"
-                        @ionChange="toggleDarkMode"
+                        :checked="darkMode"
+                        @ionChange="(e: CustomEvent) => { darkMode = e.detail.checked; toggleDarkMode() }"
                     ></ion-toggle>
                 </ion-item>
             </ion-list>
@@ -247,8 +245,6 @@ async function confirmLogout() {
 
             <ion-list class="menu-list">
                 <ion-item
-                    button
-                    detail
                     lines="none"
                     class="logout-item"
                 >
