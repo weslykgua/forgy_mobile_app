@@ -30,7 +30,7 @@ const level = computed(() => {
     if (stats.value.totalWorkouts >= 100) return '🏆 Élite';
     if (stats.value.totalWorkouts >= 50) return '💪 Pro';
     if (stats.value.totalWorkouts >= 20) return '⭐ Intermedio';
-    return '🌱 Novato';
+    return 'Empezando💪';
 })
 
 async function getStatsFromServer() {

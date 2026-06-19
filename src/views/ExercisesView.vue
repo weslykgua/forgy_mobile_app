@@ -70,14 +70,21 @@ const workoutLogs = ref<Record<string, {
   notes: string;
   duration: string;
 }>>({});
-const newRoutineForm = ref({ name: '', imageUrl: '' });
+const newRoutineForm = ref({ name: '', description: '' });
 const predefinedImages = ref([
-  'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=870&q=80',
-  'https://images.unsplash.com/photo-1581009137042-c552e485697a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=870&q=80',
-  'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=869&q=80',
-  'https://images.unsplash.com/photo-1599058917212-d750089bc07e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=869&q=80',
-  'https://images.unsplash.com/photo-1574680096145-f846b5a6abc4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=869&q=80',
-  'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=870&q=80'
+    // Imágenes prediseñadas
+    'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=870&q=80',
+    'https://images.unsplash.com/photo-1581009137042-c552e485697a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=870&q=80',
+    'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=869&q=80',
+    'https://images.unsplash.com/photo-1599058917212-d750089bc07e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=869&q=80',
+    'https://images.unsplash.com/photo-1574680096145-f846b5a6abc4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=869&q=80',
+    'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=870&q=80',
+    // Imágenes locales
+    '/src/assets/rm/rutina1.jpg',
+    '/src/assets/rm/rutina2.jpg',
+    '/src/assets/rm/rutina3.jpg',
+    '/src/assets/rm/rutina4.jpg',
+    '/src/assets/rm/rutina5.jpg'
 ]);
 
 let socket: any = null;
@@ -295,8 +302,18 @@ const saveExercise = async () => {
 
 // Crear nueva rutina
 const createRoutine = async () => {
+  // DEBUG: Verifica el token antes de enviar
+  const token = localStorage.getItem('token')
+  if (token) {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      console.log('Token payload en frontend:', payload)
+    } catch (e) {
+      console.error('Error decodificando token:', e)
+    }
+  }
   (document.activeElement as HTMLElement)?.blur();
-  newRoutineForm.value = { name: '', imageUrl: '' };
+  newRoutineForm.value = { name: '', description: '' };
   isCreateRoutineModalOpen.value = true;
 };
 
@@ -865,8 +882,6 @@ const updateRoutineImage = async (imageUrl: string) => {
       if (routineInList) {
         routineInList.imageUrl = imageUrl;
       }
-
-      await showToast('Imagen de rutina actualizada', 'success');
       isImagePickerOpen.value = false;
     } catch (error) {
       console.error(error);
@@ -874,7 +889,6 @@ const updateRoutineImage = async (imageUrl: string) => {
     }
   } else {
     // Si no, estamos creando una nueva rutina. Solo actualizamos el formulario.
-    newRoutineForm.value.imageUrl = imageUrl;
     isImagePickerOpen.value = false;
   }
 };
@@ -1095,19 +1109,7 @@ onIonViewWillLeave(() => {
         <p>Agrega tu primer ejercicio con el botón +</p>
       </div>
 
-      <!-- FAB para agregar -->
-      <ion-fab
-        slot="fixed"
-        vertical="bottom"
-        horizontal="end"
-      >
-        <ion-fab-button
-          @click="openCreateModal"
-          color="primary"
-        >
-          <ion-icon :icon="add"></ion-icon>
-        </ion-fab-button>
-      </ion-fab>
+      <!-- FAB para agregar eliminado -->
     </ion-content>
 
     <!-- VISTA DE RUTINAS -->
@@ -1216,7 +1218,7 @@ onIonViewWillLeave(() => {
             @click="openImagePicker(null)"
           >
             <img
-              :src="newRoutineForm.imageUrl || '/assets/placeholder-image.png'"
+              :src="'./assets/placeholder-image.png'"
               alt="Routine preview"
             />
             <div class="edit-overlay">Elegir Imagen</div>
@@ -1230,6 +1232,15 @@ onIonViewWillLeave(() => {
               label-placement="stacked"
               placeholder="Ej: Día de Piernas"
             ></ion-input>
+          </ion-item>
+          <ion-item>
+            <ion-textarea
+              v-model="newRoutineForm.description"
+              label="Descripción (opcional)"
+              label-placement="stacked"
+              placeholder="Describe brevemente la rutina..."
+              :auto-grow="true"
+            ></ion-textarea>
           </ion-item>
         </ion-list>
       </ion-content>
@@ -1247,10 +1258,6 @@ onIonViewWillLeave(() => {
           </ion-buttons>
           <ion-title>Nuevo Ejercicio</ion-title>
           <ion-buttons slot="end">
-            <ion-button
-              strong
-              @click="saveExercise"
-            >Guardar</ion-button>
           </ion-buttons>
         </ion-toolbar>
       </ion-header>
@@ -1754,7 +1761,8 @@ onIonViewWillLeave(() => {
               >
                 <img
                   :src="img"
-                  alt="Predefined background"
+                  alt="Imagen de rutina"
+                  style="object-fit:cover;width:100%;height:100px;border-radius:12px;"
                 />
               </div>
             </ion-col>
