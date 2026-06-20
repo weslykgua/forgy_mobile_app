@@ -11,3 +11,28 @@
 
 /* Dark theme */
 @import './dark.css';
+
+/* ============================================
+   FORGY APP - Global Custom Classes & Layouts
+   ============================================ */
+
+.forgy-header {
+    background: transparent !important;
+    border-bottom: 1px solid var(--ion-border-color) !important;
+}
+
+.forgy-header ion-toolbar {
+    --background: rgba(var(--ion-background-color-rgb), 0.8) !important;
+    --color: var(--ion-text-color) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    --border-style: none !important;
+}
+
+.forgy-title {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    text-align: center;
+}
