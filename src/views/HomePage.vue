@@ -12,7 +12,7 @@ import {
     bookOutline, flameOutline, waterOutline, barbellOutline,
     trophyOutline, ribbonOutline, flashOutline, heartOutline, speedometerOutline,
     statsChartOutline, shieldCheckmarkOutline, fitnessOutline, alertCircleOutline,
-    bodyOutline, timeOutline
+    bodyOutline, timeOutline, chevronBack, chevronForward, pulseOutline
 } from 'ionicons/icons';
 
 interface DashboardMetrics {
@@ -36,16 +36,49 @@ const userProfile = ref<any | null>(null);
 const userPlan = ref<any | null>(null);
 const quoteIndex = ref(0);
 
+const bedtime = ref('23:00');
+const waketime = ref('07:00');
+
+const calculateSleepHoursFromTimes = () => {
+    if (!bedtime.value || !waketime.value) return;
+    const [bedH, bedM] = bedtime.value.split(':').map(Number);
+    const [wakeH, wakeM] = waketime.value.split(':').map(Number);
+    
+    let diffMins = (wakeH * 60 + wakeM) - (bedH * 60 + bedM);
+    if (diffMins < 0) {
+        diffMins += 24 * 60; // crossed midnight
+    }
+    const hours = diffMins / 60;
+    modalInputValue.value = hours.toFixed(1);
+};
+
+const syncSmartwatchSleep = () => {
+    if (!isHealthDeviceConnected.value) {
+        showToast('Conecta un dispositivo de salud en tu perfil primero', 'warning');
+        return;
+    }
+    bedtime.value = '22:45';
+    waketime.value = '07:00';
+    modalInputValue.value = '8.3';
+    showToast('Datos sincronizados de tu reloj inteligente: 8.3 horas de sueño.');
+};
+
 function getLocalDateKey(date = new Date()) {
     return date.toLocaleDateString('en-CA');
 }
 
 function toDateKey(value: string) {
-    if (!value) return value;
-    return value.includes('T') ? getLocalDateKey(new Date(value)) : value;
+    if (!value) return '';
+    return value.includes('T') ? value.split('T')[0] : value;
 }
 
 const today = getLocalDateKey();
+const currentDate = ref(today);
+const isHealthDeviceConnected = ref(false);
+
+const checkDeviceConnection = () => {
+    isHealthDeviceConnected.value = localStorage.getItem('health_devices_connected') === 'true';
+};
 
 const motivationalQuotes = [
     { text: "La felicidad de tu vida depende de la calidad de tus pensamientos.", author: "Marco Aurelio" },
@@ -70,7 +103,15 @@ const motivationalQuotes = [
     { text: "No hay viento favorable para el barco que no sabe a qué puerto se dirige.", author: "Séneca" }
 ];
 
-const currentQuote = computed(() => motivationalQuotes[quoteIndex.value]);
+const currentQuote = computed(() => {
+    const dateStr = currentDate.value || today;
+    let hash = 0;
+    for (let i = 0; i < dateStr.length; i++) {
+        hash = dateStr.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const idx = Math.abs(hash) % motivationalQuotes.length;
+    return motivationalQuotes[idx];
+});
 
 const circumference = 2 * Math.PI * 45; // ~283
 
@@ -171,9 +212,25 @@ function getTimeEmoji() {
     return '🌙';
 }
 
-function changeQuote() {
-    quoteIndex.value = (quoteIndex.value + 1) % motivationalQuotes.length;
-}
+const changeHomeDate = (direction: number) => {
+    const d = new Date(currentDate.value + 'T12:00:00');
+    d.setDate(d.getDate() + direction);
+    currentDate.value = getLocalDateKey(d);
+    
+    // Sincronizar el progreso del día seleccionado
+    todayProgress.value = allProgress.value.find((p: any) => toDateKey(p.date) === currentDate.value) || null;
+};
+
+const resetHomeDate = () => {
+    currentDate.value = getLocalDateKey();
+    todayProgress.value = allProgress.value.find((p: any) => toDateKey(p.date) === currentDate.value) || null;
+};
+
+const formattedCurrentDate = computed(() => {
+    if (currentDate.value === today) return 'Hoy';
+    const d = new Date(currentDate.value + 'T12:00:00');
+    return d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
+});
 
 function goToPlan() {
     router.push('/tabs/plan');
@@ -331,7 +388,7 @@ const saveProgressField = async (fieldName: string, value: any) => {
         const headers = getHeaders();
         const currentData = todayProgress.value || {};
         const bodyData = {
-            date: today,
+            date: currentDate.value,
             ...currentData,
             [fieldName]: value
         };
@@ -435,6 +492,21 @@ const openEditModal = (type: 'weight' | 'height' | 'sleep' | 'calories' | 'stres
     const summaryField = mapFields[type] || type;
     const val = summary.value[summaryField];
     modalInputValue.value = val !== null && val !== undefined ? val.toString() : '';
+    
+    if (type === 'sleep') {
+        if (val && !isNaN(parseFloat(val.toString()))) {
+            const hours = parseFloat(val.toString());
+            const bedH = 23;
+            let wakeH = (bedH + Math.floor(hours)) % 24;
+            let wakeM = Math.round((hours % 1) * 60);
+            bedtime.value = '23:00';
+            waketime.value = `${wakeH.toString().padStart(2, '0')}:${wakeM.toString().padStart(2, '0')}`;
+        } else {
+            bedtime.value = '23:00';
+            waketime.value = '07:00';
+            modalInputValue.value = '8.0';
+        }
+    }
 };
 
 const closeEditModal = () => {
@@ -583,9 +655,15 @@ const loadMetrics = async () => {
         metrics.value = await dashboardRes.json();
         const progressData = await progressRes.json();
         allProgress.value = Array.isArray(progressData) ? progressData : [];
-        todayProgress.value = allProgress.value.find((p: any) => toDateKey(p.date) === today) || null;
+        todayProgress.value = allProgress.value.find((p: any) => toDateKey(p.date) === currentDate.value) || null;
         userProfile.value = await profileRes.json();
         userPlan.value = await planRes.json();
+
+        // Guardar en la caché local
+        localStorage.setItem('cache_metrics', JSON.stringify(metrics.value));
+        localStorage.setItem('cache_all_progress', JSON.stringify(allProgress.value));
+        localStorage.setItem('cache_user_profile', JSON.stringify(userProfile.value));
+        localStorage.setItem('cache_user_plan', JSON.stringify(userPlan.value));
     } catch (error) {
         console.error(error);
         showToast('Error al cargar datos del dashboard', 'danger');
@@ -593,18 +671,41 @@ const loadMetrics = async () => {
 };
 
 onIonViewWillEnter(() => {
+    checkDeviceConnection();
     loadProfileData();
+
+    // Cargar caché local para 0ms de carga en transiciones
+    const cachedMetrics = localStorage.getItem('cache_metrics');
+    const cachedProgress = localStorage.getItem('cache_all_progress');
+    const cachedProfile = localStorage.getItem('cache_user_profile');
+    const cachedPlan = localStorage.getItem('cache_user_plan');
+
+    if (cachedMetrics) metrics.value = JSON.parse(cachedMetrics);
+    if (cachedProgress) {
+        allProgress.value = JSON.parse(cachedProgress);
+        todayProgress.value = allProgress.value.find((p: any) => toDateKey(p.date) === currentDate.value) || null;
+    }
+    if (cachedProfile) userProfile.value = JSON.parse(cachedProfile);
+    if (cachedPlan) userPlan.value = JSON.parse(cachedPlan);
+
     loadMetrics();
-    quoteIndex.value = Math.floor(Math.random() * motivationalQuotes.length);
 });
 </script>
 <template>
     <ion-page>
         <ion-header class="forgy-header">
-            <ion-toolbar>
-                <ion-title class="forgy-title">
-                    FORGY
-                </ion-title>
+            <ion-toolbar class="date-switcher-toolbar">
+                <div class="header-date-switcher">
+                    <ion-button fill="clear" size="small" class="date-nav-btn" @click="changeHomeDate(-1)">
+                        <ion-icon :icon="chevronBack" slot="icon-only"></ion-icon>
+                    </ion-button>
+                    <span class="header-date-title" @click="resetHomeDate">
+                        {{ formattedCurrentDate }}
+                    </span>
+                    <ion-button fill="clear" size="small" class="date-nav-btn" @click="changeHomeDate(1)">
+                        <ion-icon :icon="chevronForward" slot="icon-only"></ion-icon>
+                    </ion-button>
+                </div>
             </ion-toolbar>
         </ion-header>
 
@@ -623,7 +724,6 @@ onIonViewWillEnter(() => {
 
                     <div
                         class="motivation-card"
-                        @click="changeQuote"
                     >
                         <p class="quote-text">"{{ currentQuote.text }}"</p>
                         <span class="quote-author">— {{ currentQuote.author }}</span>
@@ -720,6 +820,44 @@ onIonViewWillEnter(() => {
                         <span class="ring-label">total</span>
                     </div>
                     <span class="ring-title">Entrenos</span>
+                </div>
+            </div>
+
+            <!-- Quick Actions (Acciones rápidas - Seccion 3) -->
+            <div class="section-container">
+                <div class="section-title">
+                    <span>Acciones rápidas</span>
+                </div>
+
+                <div class="quick-actions">
+                    <div
+                        class="action-card"
+                        @click="goToWorkout"
+                    >
+                        <ion-icon :icon="barbellOutline" class="action-icon"></ion-icon>
+                        <span class="action-label">Nuevo entreno</span>
+                    </div>
+                    <div
+                        class="action-card"
+                        @click="editWeight"
+                    >
+                        <ion-icon :icon="scaleOutline" class="action-icon"></ion-icon>
+                        <span class="action-label">Registrar peso</span>
+                    </div>
+                    <div
+                        class="action-card"
+                        @click="calculateIMC"
+                    >
+                        <ion-icon :icon="calculatorOutline" class="action-icon"></ion-icon>
+                        <span class="action-label">Calculadora IMC</span>
+                    </div>
+                    <div
+                        class="action-card"
+                        @click="goToExercises"
+                    >
+                        <ion-icon :icon="bookOutline" class="action-icon"></ion-icon>
+                        <span class="action-label">Ejercicios</span>
+                    </div>
                 </div>
             </div>
 
@@ -878,7 +1016,7 @@ onIonViewWillEnter(() => {
                     </div>
 
                     <!-- Grasa Corporal -->
-                    <div class="summary-card interactive-card" @click="openEditModal('bodyFat')">
+                    <div v-if="isHealthDeviceConnected" class="summary-card interactive-card" @click="openEditModal('bodyFat')">
                         <div class="card-header-row">
                             <span class="summary-label">Grasa Corporal</span>
                             <ion-icon :icon="pencilOutline" class="edit-icon"></ion-icon>
@@ -888,7 +1026,7 @@ onIonViewWillEnter(() => {
                     </div>
 
                     <!-- Masa Muscular -->
-                    <div class="summary-card interactive-card" @click="openEditModal('muscleMass')">
+                    <div v-if="isHealthDeviceConnected" class="summary-card interactive-card" @click="openEditModal('muscleMass')">
                         <div class="card-header-row">
                             <span class="summary-label">Masa Muscular</span>
                             <ion-icon :icon="pencilOutline" class="edit-icon"></ion-icon>
@@ -898,7 +1036,7 @@ onIonViewWillEnter(() => {
                     </div>
 
                     <!-- Frecuencia Cardíaca -->
-                    <div class="summary-card interactive-card" @click="openEditModal('heartRate')">
+                    <div v-if="isHealthDeviceConnected" class="summary-card interactive-card" @click="openEditModal('heartRate')">
                         <div class="card-header-row">
                             <span class="summary-label">Frec. Cardíaca</span>
                             <ion-icon :icon="heartOutline" class="edit-icon"></ion-icon>
@@ -908,30 +1046,13 @@ onIonViewWillEnter(() => {
                     </div>
 
                     <!-- VO2 Max -->
-                    <div class="summary-card interactive-card" @click="openEditModal('vo2Max')">
+                    <div v-if="isHealthDeviceConnected" class="summary-card interactive-card" @click="openEditModal('vo2Max')">
                         <div class="card-header-row">
                             <span class="summary-label">VO2 Max</span>
                             <ion-icon :icon="speedometerOutline" class="edit-icon"></ion-icon>
                         </div>
                         <span class="summary-value">{{ summary.vo2Max ?? '--' }}</span>
                         <span class="summary-meta">Registrar VO2 Max</span>
-                    </div>
-                </div>
-
-                <!-- Integración Health API -->
-                <div class="health-integrations-card">
-                    <div class="integrations-header">
-                        <ion-icon :icon="shieldCheckmarkOutline" class="integration-main-icon"></ion-icon>
-                        <div class="integrations-title-group">
-                            <span class="integrations-title">Sincronización de Salud</span>
-                            <span class="integrations-subtitle">Conecta tus dispositivos y sensores</span>
-                        </div>
-                    </div>
-                    <div class="integrations-pills">
-                        <span class="integration-pill active">Apple Health <small>[Conectado]</small></span>
-                        <span class="integration-pill active">Google Fit <small>[Conectado]</small></span>
-                        <span class="integration-pill">Garmin <small>[Vincular]</small></span>
-                        <span class="integration-pill">Fitbit <small>[Vincular]</small></span>
                     </div>
                 </div>
             </div>
@@ -1044,43 +1165,7 @@ onIonViewWillEnter(() => {
                 </div>
             </div>
 
-            <!-- Quick Actions -->
-            <div class="section-container">
-                <div class="section-title">
-                    <span>Acciones rápidas</span>
-                </div>
-
-                <div class="quick-actions">
-                    <div
-                        class="action-card"
-                        @click="goToWorkout"
-                    >
-                        <ion-icon :icon="barbellOutline" class="action-icon"></ion-icon>
-                        <span class="action-label">Nuevo entreno</span>
-                    </div>
-                    <div
-                        class="action-card"
-                        @click="editWeight"
-                    >
-                        <ion-icon :icon="scaleOutline" class="action-icon"></ion-icon>
-                        <span class="action-label">Registrar peso</span>
-                    </div>
-                    <div
-                        class="action-card"
-                        @click="calculateIMC"
-                    >
-                        <ion-icon :icon="calculatorOutline" class="action-icon"></ion-icon>
-                        <span class="action-label">Calculadora IMC</span>
-                    </div>
-                    <div
-                        class="action-card"
-                        @click="goToExercises"
-                    >
-                        <ion-icon :icon="bookOutline" class="action-icon"></ion-icon>
-                        <span class="action-label">Ejercicios</span>
-                    </div>
-                </div>
-            </div>
+            <!-- Seccion removida de aqui y movida arriba -->
 
             <!-- Bottom Spacing -->
             <div class="bottom-space"></div>
@@ -1110,8 +1195,48 @@ onIonViewWillEnter(() => {
                     </h3>
                 </div>
                 <div class="custom-modal-body">
+                    <!-- Interfaz de Sueño Especial -->
+                    <div v-if="activeModal === 'sleep'" class="sleep-time-picker">
+                        <div class="time-inputs-row">
+                            <div class="time-input-group">
+                                <label class="time-input-label">Hora de acostarse</label>
+                                <input
+                                    v-model="bedtime"
+                                    type="time"
+                                    class="time-picker-input"
+                                    @change="calculateSleepHoursFromTimes"
+                                />
+                            </div>
+                            <div class="time-input-group">
+                                <label class="time-input-label">Hora de levantarse</label>
+                                <input
+                                    v-model="waketime"
+                                    type="time"
+                                    class="time-picker-input"
+                                    @change="calculateSleepHoursFromTimes"
+                                />
+                            </div>
+                        </div>
+                        <div class="smartwatch-sync-container">
+                            <ion-button
+                                expand="block"
+                                size="small"
+                                fill="outline"
+                                class="sync-smartwatch-btn"
+                                @click="syncSmartwatchSleep"
+                            >
+                                <ion-icon :icon="pulseOutline" slot="start"></ion-icon>
+                                Sincronizar Smartwatch
+                            </ion-button>
+                        </div>
+                        <div class="sleep-result-display">
+                            <span class="sleep-result-label">Horas de sueño:</span>
+                            <span class="sleep-result-value">{{ modalInputValue || '0.0' }} hrs</span>
+                        </div>
+                    </div>
+
                     <!-- Selector de Escala 1-5 (Estrés, Energía, Dolor Muscular) -->
-                    <div v-if="['stress', 'energy', 'muscleSoreness'].includes(activeModal)" class="scale-selector">
+                    <div v-else-if="['stress', 'energy', 'muscleSoreness'].includes(activeModal)" class="scale-selector">
                         <p class="scale-subtitle">
                             {{
                                 activeModal === 'stress' ? '1 = Relajado, 5 = Muy Estresado' :
@@ -1143,7 +1268,6 @@ onIonViewWillEnter(() => {
                             :placeholder="
                                 activeModal === 'weight' ? 'Ej: 75.5' :
                                 activeModal === 'height' ? 'Ej: 175' :
-                                activeModal === 'sleep' ? 'Ej: 7.5' :
                                 activeModal === 'calories' ? 'Ej: 2200' :
                                 activeModal === 'protein' ? 'Ej: 140' :
                                 activeModal === 'carbs' ? 'Ej: 250' :
@@ -1160,7 +1284,6 @@ onIonViewWillEnter(() => {
                             {{
                                 activeModal === 'weight' ? 'kg' :
                                 activeModal === 'height' ? 'cm' :
-                                activeModal === 'sleep' ? 'hrs' :
                                 activeModal === 'calories' ? 'kcal' :
                                 activeModal === 'protein' ? 'g' :
                                 activeModal === 'carbs' ? 'g' :
@@ -2011,5 +2134,100 @@ onIonViewWillEnter(() => {
     height: 100%;
     background: var(--ion-color-primary);
     border-radius: 2px;
+}
+
+/* Date Switcher Header */
+.date-switcher-toolbar {
+    --background: var(--ion-background-color);
+    --border-color: var(--ion-border-color);
+}
+.header-date-switcher {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 0 4px;
+}
+.date-nav-btn {
+    --color: var(--forgy-text-secondary);
+    margin: 0;
+    --padding-start: 8px;
+    --padding-end: 8px;
+}
+.header-date-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--forgy-text-primary);
+    text-transform: capitalize;
+    min-width: 140px;
+    text-align: center;
+    cursor: pointer;
+}
+
+/* Sleep Time Picker Styles */
+.sleep-time-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 8px 0;
+}
+.time-inputs-row {
+    display: flex;
+    gap: 16px;
+}
+.time-input-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.time-input-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--forgy-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.time-picker-input {
+    background: var(--forgy-input-bg);
+    border: 1px solid var(--ion-border-color);
+    border-radius: 6px;
+    padding: 10px 12px;
+    color: var(--forgy-text-primary);
+    font-size: 16px;
+    font-weight: 600;
+    width: 100%;
+    outline: none;
+    box-sizing: border-box;
+}
+.smartwatch-sync-container {
+    margin-top: 4px;
+}
+.sync-smartwatch-btn {
+    --border-color: var(--ion-color-secondary);
+    --color: var(--ion-color-secondary);
+    margin: 0;
+    font-weight: 600;
+}
+.sleep-result-display {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(var(--ion-color-secondary-rgb), 0.08);
+    border: 1px dashed rgba(var(--ion-color-secondary-rgb), 0.25);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-top: 4px;
+}
+.sleep-result-label {
+    font-size: 12px;
+    color: var(--forgy-text-primary);
+    font-weight: 500;
+}
+.sleep-result-value {
+    font-size: 14px;
+    color: var(--ion-color-secondary);
+    font-weight: 700;
 }
 </style>

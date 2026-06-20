@@ -10,12 +10,19 @@ import { ref, computed } from 'vue'
 import {
     personCircle, camera, star, personOutline,
     notificationsOutline, settingsOutline, moonOutline,
-    helpCircleOutline, chatbubbleOutline, starOutline, logOutOutline
+    helpCircleOutline, chatbubbleOutline, starOutline, logOutOutline,
+    pulseOutline
 } from 'ionicons/icons';
 import { useProfile } from '../utils/useProfile'
 
 const darkMode = ref(false);
+const healthDevicesConnected = ref(false);
 const stats = ref({ totalWorkouts: 0, totalVolume: 0, streakDays: 0 })
+
+const toggleHealthDevices = (checked: boolean) => {
+    healthDevicesConnected.value = checked;
+    localStorage.setItem('health_devices_connected', checked ? 'true' : 'false');
+};
 const { userName, userEmail, loadProfileData, logout } = useProfile()
 
 // Configuración local para acceso a la API para no modificar useProfile.ts
@@ -72,6 +79,7 @@ onIonViewWillEnter(() => {
     loadProfileData()
     getStatsFromServer()
     darkMode.value = document.body.classList.contains('dark')
+    healthDevicesConnected.value = localStorage.getItem('health_devices_connected') === 'true'
 })
 
 async function confirmLogout() {
@@ -193,6 +201,20 @@ async function confirmLogout() {
                         slot="end"
                         :checked="darkMode"
                         @ionChange="(e: CustomEvent) => { darkMode = e.detail.checked; toggleDarkMode() }"
+                    ></ion-toggle>
+                </ion-item>
+
+                <ion-item>
+                    <ion-icon
+                        :icon="pulseOutline"
+                        slot="start"
+                        color="primary"
+                    ></ion-icon>
+                    <ion-label>Dispositivos de Salud</ion-label>
+                    <ion-toggle
+                        slot="end"
+                        :checked="healthDevicesConnected"
+                        @ionChange="(e: any) => toggleHealthDevices(e.detail.checked)"
                     ></ion-toggle>
                 </ion-item>
             </ion-list>
