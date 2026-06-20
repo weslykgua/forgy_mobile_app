@@ -5,7 +5,7 @@ import {
   IonSearchbar, IonSegment, IonSegmentButton, IonChip, IonGrid, IonRow, IonCol, IonReorder, IonReorderGroup, IonItemSliding, IonItemOptions, IonItemOption,
   IonIcon, IonCard, IonCardHeader, IonCardTitle, IonCardContent,
   IonFab, IonFabButton, IonModal, IonButtons, IonInput, IonTextarea,
-  IonSelect, IonSelectOption, IonRefresher, IonRefresherContent, actionSheetController,
+  IonSelect, IonSelectOption, IonRefresher, IonRefresherContent, IonInfiniteScroll, IonInfiniteScrollContent, actionSheetController,
   IonSkeletonText, IonBadge,
   onIonViewWillEnter, onIonViewWillLeave, alertController, toastController
 } from '@ionic/vue';
@@ -26,6 +26,7 @@ interface Exercise {
   difficulty: 'Principiante' | 'Intermedio' | 'Avanzado';
   equipment: string;
   instructions: string[];
+  gifUrl?: string | null;
   createdAt: string;
 }
 
@@ -47,12 +48,17 @@ const { getHeaders, API_URL } = useProfile();
 const exercises = ref<Exercise[]>([]);
 const routines = ref<Routine[]>([]);
 const isLoading = ref(true);
+const isLoadingMore = ref(false);
 const searchText = ref('');
 const selectedMuscle = ref<string[]>(['Todos']);
+const currentPage = ref(1);
+const totalExercises = ref(0);
+const hasMore = ref(false);
 const isModalOpen = ref(false);
 const isDetailModalOpen = ref(false);
 const selectedExercise = ref<Exercise | null>(null);
 const viewMode = ref<'exercises' | 'routines'>('exercises');
+let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 const selectedRoutine = ref<RoutineDetail | null>(null);
 const isRoutineDetailOpen = ref(false);
 const isReorderMode = ref(false);
@@ -118,66 +124,46 @@ const form = ref({
   instructions: ''
 });
 
-// Manejar selección de filtros de músculo
+// Manejar selección de filtros de músculo (ahora con reset de paginación)
 const toggleMuscleFilter = (muscleName: string) => {
-  // Si se hace clic en 'Todos', se convierte en la única selección.
   if (muscleName === 'Todos') {
     selectedMuscle.value = ['Todos'];
-    return;
-  }
-
-  const newSelection = [...selectedMuscle.value];
-
-  // Eliminar 'Todos' si está presente y estamos agregando un músculo específico.
-  const todosIndex = newSelection.indexOf('Todos');
-  if (todosIndex > -1) {
-    newSelection.splice(todosIndex, 1);
-  }
-
-  const muscleIndex = newSelection.indexOf(muscleName);
-  if (muscleIndex > -1) {
-    // Deseleccionar: eliminarlo del array.
-    newSelection.splice(muscleIndex, 1);
   } else {
-    // Seleccionar: agregarlo al array.
-    newSelection.push(muscleName);
+    const newSelection = selectedMuscle.value.filter(m => m !== 'Todos');
+    const muscleIndex = newSelection.indexOf(muscleName);
+    if (muscleIndex > -1) {
+      newSelection.splice(muscleIndex, 1);
+    } else {
+      newSelection.push(muscleName);
+    }
+    selectedMuscle.value = newSelection.length > 0 ? newSelection : ['Todos'];
   }
-
-  // Si el array queda vacío, volver a 'Todos'.
-  selectedMuscle.value = newSelection.length > 0 ? newSelection : ['Todos'];
+  // Reset and reload from server
+  currentPage.value = 1;
+  exercises.value = [];
+  hasMore.value = false;
+  loadExercises();
 };
 
-// Filtrar ejercicios
-const filteredExercises = computed(() => {
-  let result = exercises.value;
+// The exercises array IS the filtered result (filtering is done server-side)
+const filteredExercises = computed(() => exercises.value);
 
-  if (!selectedMuscle.value.includes('Todos') && selectedMuscle.value.length > 0) {
-    result = result.filter(ex => selectedMuscle.value.includes(ex.muscle));
-  }
 
-  if (searchText.value) {
-    const search = searchText.value.toLowerCase();
-    result = result.filter(ex =>
-      ex.name.toLowerCase().includes(search) ||
-      ex.description?.toLowerCase().includes(search)
-    );
-  }
-
-  return result;
-});
+const allExercisesLight = ref<Exercise[]>([]);
+const isLoadingLight = ref(false);
 
 const exercisesAvailableToAdd = computed(() => {
   if (!selectedRoutine.value) return [];
 
   const exerciseIdsInRoutine = selectedRoutine.value.exercises.map(ex => ex.id);
 
-  let available = exercises.value.filter(ex => !exerciseIdsInRoutine.includes(ex.id));
+  let available = allExercisesLight.value.filter(ex => !exerciseIdsInRoutine.includes(ex.id));
 
   if (addExerciseSearchText.value) {
     const search = addExerciseSearchText.value.toLowerCase();
     available = available.filter(ex =>
       ex.name.toLowerCase().includes(search) ||
-      ex.description?.toLowerCase().includes(search)
+      ex.muscle?.toLowerCase().includes(search)
     );
   }
 
@@ -194,21 +180,64 @@ const getDifficultyColor = (difficulty: string) => {
   }
 };
 
-// Cargar ejercicios
-const loadExercises = async () => {
-  try {
+// Cargar ejercicios (paginado, server-side filtrado)
+const loadExercises = async (append = false) => {
+  if (!append) {
     isLoading.value = true;
-    const response = await fetch(`${API_URL}/exercises`);
+  } else {
+    isLoadingMore.value = true;
+  }
+  try {
+    const params = new URLSearchParams();
+    params.set('page', String(currentPage.value));
+    params.set('limit', '30');
+    if (searchText.value) params.set('search', searchText.value);
+    const muscles = selectedMuscle.value.filter(m => m !== 'Todos');
+    if (muscles.length === 1) params.set('muscle', muscles[0]);
+
+    const response = await fetch(`${API_URL}/exercises?${params.toString()}`);
     if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
-    const data = await response.json();
-    exercises.value = Array.isArray(data) ? data : [];
+    const result = await response.json();
+
+    const newExercises: Exercise[] = result.data || [];
+    totalExercises.value = result.total || 0;
+    hasMore.value = result.hasMore || false;
+
+    if (append) {
+      exercises.value = [...exercises.value, ...newExercises];
+    } else {
+      exercises.value = newExercises;
+    }
   } catch (error) {
-    console.error("Error fetching", error);
+    console.error("Error fetching exercises", error);
     showToast('Error al cargar ejercicios', 'danger');
-    exercises.value = [];
+    if (!append) exercises.value = [];
   } finally {
     isLoading.value = false;
+    isLoadingMore.value = false;
   }
+};
+
+// Load more for infinite scroll
+const loadMoreExercises = async (event: CustomEvent) => {
+  if (!hasMore.value) {
+    (event.target as any).complete();
+    return;
+  }
+  currentPage.value++;
+  await loadExercises(true);
+  (event.target as any).complete();
+};
+
+// Debounced search
+const onSearchInput = (event: CustomEvent) => {
+  searchText.value = (event.detail.value as string) || '';
+  if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = setTimeout(() => {
+    currentPage.value = 1;
+    exercises.value = [];
+    loadExercises();
+  }, 400);
 };
 
 // Cargar rutinas
@@ -425,6 +454,10 @@ const addToRoutine = async (exercise: Exercise) => {
 const openAddExerciseModal = () => {
   addExerciseSearchText.value = ''; // Reset search on open
   isAddExerciseModalOpen.value = true;
+  // Load light exercise list for adding to routine if not already loaded
+  if (allExercisesLight.value.length === 0) {
+    loadAllExercisesLight();
+  }
 };
 
 const addExerciseToCurrentRoutine = async (exercise: Exercise) => {
@@ -462,9 +495,29 @@ const addExerciseToCurrentRoutine = async (exercise: Exercise) => {
 
 // Refrescar
 const handleRefresh = async (event: CustomEvent) => {
+  currentPage.value = 1;
+  exercises.value = [];
+  hasMore.value = false;
   await loadExercises();
   await loadRoutines();
   (event.target as any).complete();
+};
+
+// Load lightweight exercise list for routine building
+const loadAllExercisesLight = async () => {
+  if (isLoadingLight.value) return;
+  isLoadingLight.value = true;
+  try {
+    const response = await fetch(`${API_URL}/exercises?paginate=false`);
+    if (response.ok) {
+      const data = await response.json();
+      allExercisesLight.value = Array.isArray(data) ? data : [];
+    }
+  } catch (e) {
+    console.error('Error loading light exercises:', e);
+  } finally {
+    isLoadingLight.value = false;
+  }
 };
 
 // Reordenar ejercicios en una rutina
@@ -836,22 +889,27 @@ const confirmDeleteRoutine = async (routine: Routine) => {
   await alert.present();
 };
 
-const openRoutineDetail = (routine: Routine) => {
+const openRoutineDetail = async (routine: Routine) => {
   (document.activeElement as HTMLElement)?.blur();
 
+  // Ensure we have all exercises loaded (light list) for hydration
+  if (allExercisesLight.value.length === 0) {
+    await loadAllExercisesLight();
+  }
+
   // The 'routine' object from the list has an 'exercises' array of {exerciseId, order}.
-  // We need to map these to the full Exercise objects from our `exercises` ref.
+  // We need to map these to the full Exercise objects from our allExercisesLight ref.
   const hydratedExercises = (routine.exercises || [])
     .map(routineExercise => {
-      const fullExercise = exercises.value.find(e => e.id === routineExercise.exerciseId);
-      // We also need to preserve the order from the routine
+      const fullExercise = allExercisesLight.value.find(e => e.id === routineExercise.exerciseId)
+                        || exercises.value.find(e => e.id === routineExercise.exerciseId);
       if (fullExercise) {
         return { ...fullExercise, order: routineExercise.order };
       }
-      return null; // Return null if exercise not found
+      return null;
     })
-    .filter(Boolean) // Remove any nulls
-    .sort((a, b) => (a?.order || 0) - (b?.order || 0)); // Sort by the order property
+    .filter(Boolean)
+    .sort((a, b) => (a?.order || 0) - (b?.order || 0));
 
   selectedRoutine.value = {
     ...routine,
@@ -916,15 +974,21 @@ const selectImageFromDevice = async () => {
 };
 
 onIonViewWillEnter(() => {
+  // Reset and load first page
+  currentPage.value = 1;
+  exercises.value = [];
+  hasMore.value = false;
+  selectedMuscle.value = ['Todos'];
+  searchText.value = '';
   loadExercises();
   loadRoutines();
-  selectedMuscle.value = ['Todos']; // Opcional: Reinicia los filtros
-  searchText.value = ''; // Opcional: Limpia la búsqueda
   socket = io(API_URL.replace('/api', ''), {
     auth: { token: localStorage.getItem('token') }
   });
   socket.on('exercises-updated', () => {
-    console.log("🔔 Datos actualizados");
+    console.log('Datos actualizados');
+    currentPage.value = 1;
+    exercises.value = [];
     loadExercises();
   });
 });
@@ -962,10 +1026,11 @@ onIonViewWillLeave(() => {
       <!-- Barra de búsqueda -->
       <ion-toolbar v-if="viewMode === 'exercises'">
         <ion-searchbar
-          v-model="searchText"
-          placeholder="Buscar ejercicios..."
+          :value="searchText"
+          @ionInput="onSearchInput"
+          placeholder="Buscar entre 1,500+ ejercicios..."
           :animated="true"
-          show-clear-button="focus"
+          show-clear-button="always"
           class="custom-searchbar"
         ></ion-searchbar>
       </ion-toolbar>
@@ -1008,7 +1073,7 @@ onIonViewWillLeave(() => {
         <ion-button
           fill="clear"
           size="small"
-          @click="selectedMuscle = ['Todos']"
+          @click="() => { selectedMuscle = ['Todos']; currentPage = 1; exercises = []; hasMore = false; loadExercises(); }"
         >
           <ion-icon
             slot="start"
@@ -1020,8 +1085,8 @@ onIonViewWillLeave(() => {
 
       <!-- Contador de resultados -->
       <div class="results-count">
-        <ion-badge color="primary">{{ filteredExercises.length }}</ion-badge>
-        <span>ejercicios encontrados</span>
+        <ion-badge color="primary">{{ totalExercises }}</ion-badge>
+        <span>ejercicios disponibles &middot; mostrando {{ filteredExercises.length }}</span>
       </div>
 
       <!-- Loading skeleton -->
@@ -1079,11 +1144,15 @@ onIonViewWillLeave(() => {
                   </ion-chip>
                 </div>
               </div>
+              <!-- GIF thumbnail -->
+              <div v-if="ex.gifUrl" class="exercise-gif-thumb">
+                <img :src="ex.gifUrl" :alt="ex.name" loading="lazy" />
+              </div>
             </div>
           </ion-card-header>
 
           <ion-card-content>
-            <p class="exercise-description">{{ ex.description || 'Sin descripción' }}</p>
+            <p class="exercise-description">{{ ex.description || ex.equipment || 'Toca para ver detalles' }}</p>
 
             <div
               v-if="ex.equipment"
@@ -1095,6 +1164,18 @@ onIonViewWillLeave(() => {
           </ion-card-content>
         </ion-card>
       </div>
+
+      <!-- Infinite Scroll -->
+      <ion-infinite-scroll
+        v-if="!isLoading"
+        @ionInfinite="loadMoreExercises($event)"
+        :disabled="!hasMore"
+      >
+        <ion-infinite-scroll-content
+          loading-spinner="crescent"
+          loading-text="Cargando más ejercicios..."
+        ></ion-infinite-scroll-content>
+      </ion-infinite-scroll>
 
       <!-- Mensaje vacío -->
       <div
@@ -1372,6 +1453,10 @@ onIonViewWillLeave(() => {
         v-if="selectedExercise"
       >
         <div class="ion-text-center ion-margin-bottom">
+          <!-- Exercise GIF -->
+          <div v-if="selectedExercise.gifUrl" class="exercise-gif-modal">
+            <img :src="selectedExercise.gifUrl" :alt="selectedExercise.name" />
+          </div>
           <h1>{{ selectedExercise.name }}</h1>
           <ion-chip color="tertiary">
             {{ getMuscleEmoji(selectedExercise.muscle) }} {{ selectedExercise.muscle }}
@@ -2056,5 +2141,37 @@ ion-card-title {
 
 .set-row ion-checkbox {
   justify-self: center;
+}
+
+/* GIF thumbnail in exercise card */
+.exercise-gif-thumb {
+  width: 72px;
+  height: 72px;
+  border-radius: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--forgy-input-bg);
+}
+
+.exercise-gif-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Full GIF in detail modal */
+.exercise-gif-modal {
+  width: 200px;
+  height: 200px;
+  margin: 0 auto 16px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--forgy-input-bg);
+}
+
+.exercise-gif-modal img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 </style>

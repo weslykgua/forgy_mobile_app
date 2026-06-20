@@ -694,7 +694,19 @@ onIonViewWillEnter(() => {
 <template>
     <ion-page>
         <ion-header class="forgy-header">
-            <ion-toolbar class="date-switcher-toolbar">
+            <ion-toolbar>
+                <ion-title class="forgy-title">
+                    FORGY
+                </ion-title>
+            </ion-toolbar>
+        </ion-header>
+
+        <ion-content
+            :fullscreen="true"
+            class="home-content"
+        >
+            <!-- Date Switcher Banner (Below Header) -->
+            <div class="home-date-switcher-container">
                 <div class="header-date-switcher">
                     <ion-button fill="clear" size="small" class="date-nav-btn" @click="changeHomeDate(-1)">
                         <ion-icon :icon="chevronBack" slot="icon-only"></ion-icon>
@@ -706,13 +718,7 @@ onIonViewWillEnter(() => {
                         <ion-icon :icon="chevronForward" slot="icon-only"></ion-icon>
                     </ion-button>
                 </div>
-            </ion-toolbar>
-        </ion-header>
-
-        <ion-content
-            :fullscreen="true"
-            class="home-content"
-        >
+            </div>
             <div class="hero-section">
                 <div class="hero-content">
                     <div class="greeting-section">
@@ -2229,5 +2235,13 @@ onIonViewWillEnter(() => {
     font-size: 14px;
     color: var(--ion-color-secondary);
     font-weight: 700;
+}
+.home-date-switcher-container {
+    background: var(--forgy-card-bg);
+    border-bottom: 1px solid var(--ion-border-color);
+    padding: 10px 16px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 </style>
