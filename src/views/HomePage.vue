@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import {
     IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
-    IonButton,
-    onIonViewWillEnter, toastController, useIonRouter
+    IonButton, IonIcon,
+    onIonViewWillEnter, toastController, useIonRouter, alertController
 } from '@ionic/vue';
 import { ref, computed } from 'vue'
 import { useProfile } from '../utils/useProfile'
+import {
+    flame, water, barbell, scaleOutline, resizeOutline,
+    moonOutline, nutritionOutline, pencilOutline, calculatorOutline, addOutline
+} from 'ionicons/icons';
 
 interface DashboardMetrics {
     totalWorkouts: number;
@@ -22,10 +26,12 @@ const router = useIonRouter();
 const { userName, loadProfileData, logout, getHeaders, API_URL } = useProfile();
 
 const metrics = ref<DashboardMetrics | null>(null);
+const allProgress = ref<any[]>([]);
 const todayProgress = ref<any | null>(null);
 const userProfile = ref<any | null>(null);
 const userPlan = ref<any | null>(null);
 const quoteIndex = ref(0);
+
 function getLocalDateKey(date = new Date()) {
     return date.toLocaleDateString('en-CA');
 }
@@ -61,7 +67,7 @@ const streakOffset = computed(() => {
 
 const waterOffset = computed(() => {
     const water = todayProgress.value?.waterIntake || 0;
-    const goal = 5000;
+    const goal = 2000; // Meta estándar de 2 Litros (2000 ml)
     const progress = Math.min(water / goal, 1);
     return circumference * (1 - progress);
 });
@@ -72,6 +78,54 @@ const workoutsOffset = computed(() => {
     const goal = 20; // Ej: 20 entrenos en un mes
     const progress = Math.min(metrics.value.last30DaysWorkouts / goal, 1);
     return circumference * (1 - progress);
+});
+
+// Racha de agua calculada dinámicamente desde el historial de progreso (consecutivos >= 2000 ml)
+const waterStreak = computed(() => {
+    if (!Array.isArray(allProgress.value) || allProgress.value.length === 0) return 0;
+
+    const waterDays = allProgress.value
+        .filter(p => p.waterIntake !== null && p.waterIntake !== undefined)
+        .map(p => ({
+            dateStr: toDateKey(p.date),
+            water: p.waterIntake
+        }))
+        .sort((a, b) => new Date(b.dateStr).getTime() - new Date(a.dateStr).getTime());
+
+    if (waterDays.length === 0) return 0;
+
+    let streak = 0;
+    let expectedDate = new Date();
+    expectedDate.setHours(0, 0, 0, 0);
+
+    for (let i = 0; i < waterDays.length; i++) {
+        const day = waterDays[i];
+        const dayDate = new Date(day.dateStr);
+        dayDate.setHours(0, 0, 0, 0);
+
+        const diffTime = expectedDate.getTime() - dayDate.getTime();
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays === 0) {
+            if (day.water >= 2000) {
+                streak++;
+                expectedDate.setDate(expectedDate.getDate() - 1);
+            } else {
+                // Si hoy no se ha alcanzado la meta, permitimos continuar racha si ayer se cumplió
+                expectedDate.setDate(expectedDate.getDate() - 1);
+            }
+        } else if (diffDays === 1) {
+            if (day.water >= 2000) {
+                streak++;
+                expectedDate = new Date(dayDate.getTime() - 24 * 60 * 60 * 1000);
+            } else {
+                break;
+            }
+        } else if (diffDays > 1) {
+            break;
+        }
+    }
+    return streak;
 });
 
 function formatVolumeShort(volume: number): string {
@@ -110,7 +164,7 @@ function goToPlan() {
 }
 
 function formatWater(ml: number | null | undefined) {
-    if (!ml) return '--';
+    if (!ml) return '0.0';
     return (ml / 1000).toFixed(1);
 }
 
@@ -124,7 +178,7 @@ const summary = computed(() => {
 });
 
 const waterPercent = computed(() => {
-    const goal = 5000;
+    const goal = 2000;
     const progress = Math.min((summary.value.water || 0) / goal, 1);
     return Math.round(progress * 100);
 });
@@ -151,6 +205,248 @@ async function showToast(message: string, color = 'success') {
     await toast.present();
 }
 
+// Guardar campos del progreso diario
+const saveProgressField = async (fieldName: string, value: any) => {
+    try {
+        const headers = getHeaders();
+        const currentData = todayProgress.value || {};
+        const bodyData = {
+            date: today,
+            ...currentData,
+            [fieldName]: value
+        };
+        
+        if ('token' in bodyData) {
+            delete bodyData.token;
+        }
+
+        const response = await fetch(`${API_URL}/progress`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(bodyData)
+        });
+
+        if (!response.ok) {
+            throw new Error('No se pudo guardar el progreso');
+        }
+
+        await loadMetrics();
+    } catch (error) {
+        console.error(error);
+        showToast('Error al registrar progreso diario', 'danger');
+    }
+};
+
+// Incrementar ingesta de agua
+const addWater = async (amountMl: number) => {
+    const currentWater = todayProgress.value?.waterIntake || 0;
+    const newWater = currentWater + amountMl;
+    await saveProgressField('waterIntake', newWater);
+    showToast(`💧 +${amountMl}ml de agua registrados`);
+};
+
+// Guardar Peso / Altura en el perfil
+const updateProfileData = async (weight: number | null, height: number | null) => {
+    try {
+        const headers = getHeaders();
+        const bodyData: any = {};
+        if (weight !== null) bodyData.weight = weight;
+        if (height !== null) bodyData.height = height;
+
+        const response = await fetch(`${API_URL}/user/profile`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify(bodyData)
+        });
+
+        if (!response.ok) {
+            throw new Error('No se pudo actualizar el perfil');
+        }
+
+        if (weight !== null) {
+            await saveProgressField('weight', weight);
+        }
+
+        await loadMetrics();
+        showToast('Perfil actualizado correctamente');
+    } catch (error) {
+        console.error(error);
+        showToast('Error al actualizar perfil', 'danger');
+    }
+};
+
+// Cuadros de Alerta Modales
+const editWeight = async () => {
+    const alert = await alertController.create({
+        header: 'Registrar Peso (kg)',
+        inputs: [
+            {
+                name: 'weight',
+                type: 'number',
+                placeholder: 'Ej: 75.5',
+                value: summary.value.weight || ''
+            }
+        ],
+        buttons: [
+            { text: 'Cancelar', role: 'cancel' },
+            {
+                text: 'Guardar',
+                handler: (data) => {
+                    const weightVal = parseFloat(data.weight);
+                    if (!isNaN(weightVal) && weightVal > 0) {
+                        updateProfileData(weightVal, null);
+                    } else {
+                        showToast('Peso inválido', 'danger');
+                    }
+                }
+            }
+        ]
+    });
+    await alert.present();
+};
+
+const editHeight = async () => {
+    const alert = await alertController.create({
+        header: 'Registrar Estatura (cm)',
+        inputs: [
+            {
+                name: 'height',
+                type: 'number',
+                placeholder: 'Ej: 175',
+                value: summary.value.height || ''
+            }
+        ],
+        buttons: [
+            { text: 'Cancelar', role: 'cancel' },
+            {
+                text: 'Guardar',
+                handler: (data) => {
+                    const heightVal = parseFloat(data.height);
+                    if (!isNaN(heightVal) && heightVal > 0) {
+                        updateProfileData(null, heightVal);
+                    } else {
+                        showToast('Estatura inválida', 'danger');
+                    }
+                }
+            }
+        ]
+    });
+    await alert.present();
+};
+
+const editSleep = async () => {
+    const alert = await alertController.create({
+        header: 'Registrar Sueño (horas)',
+        inputs: [
+            {
+                name: 'sleep',
+                type: 'number',
+                placeholder: 'Horas (Ej: 7.5)',
+                value: summary.value.sleep || ''
+            }
+        ],
+        buttons: [
+            { text: 'Cancelar', role: 'cancel' },
+            {
+                text: 'Guardar',
+                handler: (data) => {
+                    const sleepVal = parseFloat(data.sleep);
+                    if (!isNaN(sleepVal) && sleepVal >= 0 && sleepVal <= 24) {
+                        saveProgressField('sleepHours', sleepVal);
+                        showToast(`😴 ${sleepVal} hrs de sueño registradas`);
+                    } else {
+                        showToast('Horas inválidas', 'danger');
+                    }
+                }
+            }
+        ]
+    });
+    await alert.present();
+};
+
+const editCalories = async () => {
+    const alert = await alertController.create({
+        header: 'Registrar Calorías Consumidas',
+        inputs: [
+            {
+                name: 'calories',
+                type: 'number',
+                placeholder: 'Ej: 2200',
+                value: summary.value.calories || ''
+            }
+        ],
+        buttons: [
+            { text: 'Cancelar', role: 'cancel' },
+            {
+                text: 'Guardar',
+                handler: (data) => {
+                    const caloriesVal = parseInt(data.calories);
+                    if (!isNaN(caloriesVal) && caloriesVal >= 0) {
+                        saveProgressField('caloriesConsumed', caloriesVal);
+                        showToast(`🔥 ${caloriesVal} kcal registradas`);
+                    } else {
+                        showToast('Calorías inválidas', 'danger');
+                    }
+                }
+            }
+        ]
+    });
+    await alert.present();
+};
+
+// Calculadora IMC
+const calculateIMC = async () => {
+    const weight = summary.value.weight;
+    const height = summary.value.height;
+
+    if (!weight || !height) {
+        const alert = await alertController.create({
+            header: 'Faltan Datos ⚖️',
+            message: 'Por favor, registra tu Peso y Estatura antes de calcular tu IMC.',
+            buttons: ['Entendido']
+        });
+        await alert.present();
+        return;
+    }
+
+    const heightInMeters = height / 100;
+    const imc = weight / (heightInMeters * heightInMeters);
+    const imcFormatted = imc.toFixed(1);
+
+    let classification = '';
+    let color = '';
+    if (imc < 18.5) {
+        classification = 'Bajo peso ⚠️';
+        color = '#ffc107';
+    } else if (imc < 25) {
+        classification = 'Peso Saludable ✨';
+        color = '#28a745';
+    } else if (imc < 30) {
+        classification = 'Sobrepeso ⚠️';
+        color = '#fd7e14';
+    } else {
+        classification = 'Obesidad 🚨';
+        color = '#dc3545';
+    }
+
+    const alert = await alertController.create({
+        header: 'Cálculo de IMC ⚖️',
+        message: `
+            <div style="text-align: center; margin-bottom: 12px;">
+                <p style="font-size: 14px; margin: 4px 0;">Tu Índice de Masa Corporal es:</p>
+                <h1 style="font-size: 38px; font-weight: 800; margin: 6px 0; color: ${color};">${imcFormatted}</h1>
+                <p style="font-size: 16px; font-weight: 700; margin: 4px 0;">Clasificación: ${classification}</p>
+            </div>
+            <hr style="opacity: 0.15; margin: 12px 0;" />
+            <p style="font-size: 11px; color: var(--ion-color-medium); text-align: justify; line-height: 1.35; margin: 0;">
+                ⚠️ <b>Aviso Importante:</b> Este cálculo es puramente orientativo y de uso deportivo general. No representa ningún tipo de diagnóstico clínico, médico o nutricional personalizado. Por favor, consulta a un médico matriculado o nutricionista profesional para evaluaciones terapéuticas.
+            </p>
+        `,
+        buttons: ['Entendido']
+    });
+    await alert.present();
+};
+
 const loadMetrics = async () => {
     try {
         const headers = getHeaders();
@@ -175,9 +471,8 @@ const loadMetrics = async () => {
         }
         metrics.value = await dashboardRes.json();
         const progressData = await progressRes.json();
-        todayProgress.value = Array.isArray(progressData)
-            ? progressData.find((p: any) => toDateKey(p.date) === today)
-            : null;
+        allProgress.value = Array.isArray(progressData) ? progressData : [];
+        todayProgress.value = allProgress.value.find((p: any) => toDateKey(p.date) === today) || null;
         userProfile.value = await profileRes.json();
         userPlan.value = await planRes.json();
     } catch (error) {
@@ -326,35 +621,67 @@ onIonViewWillEnter(() => {
             <!-- Resumen diario -->
             <div class="section-container">
                 <div class="section-title">
-                    <span>🧾 Resumen de hoy</span>
+                    <span>🧾 Registro de hoy</span>
                 </div>
                 <div class="summary-grid">
-                    <div class="summary-card">
-                        <span class="summary-label">Peso</span>
-                        <span class="summary-value">{{ summary.weight ?? '--' }} kg</span>
+                    <!-- Tarjeta de Peso -->
+                    <div class="summary-card interactive-card" @click="editWeight">
+                        <div class="card-header-row">
+                            <span class="summary-label">Peso Actual</span>
+                            <ion-icon :icon="pencilOutline" class="edit-icon"></ion-icon>
+                        </div>
+                        <span class="summary-value">{{ summary.weight ?? '--' }} <small>kg</small></span>
+                        <span class="summary-meta">Toca para registrar peso</span>
                     </div>
-                    <div class="summary-card">
-                        <span class="summary-label">Estatura</span>
-                        <span class="summary-value">{{ summary.height ?? '--' }} cm</span>
+
+                    <!-- Tarjeta de Estatura -->
+                    <div class="summary-card interactive-card" @click="editHeight">
+                        <div class="card-header-row">
+                            <span class="summary-label">Estatura</span>
+                            <ion-icon :icon="pencilOutline" class="edit-icon"></ion-icon>
+                        </div>
+                        <span class="summary-value">{{ summary.height ?? '--' }} <small>cm</small></span>
+                        <span class="summary-meta">Toca para cambiar</span>
                     </div>
+
+                    <!-- Tarjeta de Agua (Con animación, racha y botones rápidos) -->
                     <div class="summary-card summary-water">
                         <div class="summary-water-header">
-                            <span class="summary-label">Agua hoy</span>
-                            <span class="summary-value">{{ formatWater(summary.water) }} L</span>
+                            <span class="summary-label">💧 Ingesta de Agua</span>
+                            <span class="water-streak-badge" v-if="waterStreak > 0">🔥 Racha: {{ waterStreak }} días</span>
+                            <span class="summary-value">{{ formatWater(summary.water) }} <small>L</small></span>
                         </div>
                         <div class="summary-water-bar">
-                            <div class="summary-water-fill" :style="{ width: waterPercent + '%' }"></div>
+                            <div class="summary-water-fill animate-wave" :style="{ width: waterPercent + '%' }"></div>
                         </div>
-                        <span class="summary-meta">{{ waterPercent }}% de 5L</span>
+                        <div class="summary-water-meta-row">
+                            <span class="summary-meta">{{ waterPercent }}% de la meta (2.0L)</span>
+                        </div>
+                        <div class="water-quick-buttons">
+                            <ion-button size="small" fill="clear" class="btn-quick-water" @click="addWater(250)">+250ml</ion-button>
+                            <ion-button size="small" fill="clear" class="btn-quick-water" @click="addWater(500)">+500ml</ion-button>
+                            <ion-button size="small" fill="clear" class="btn-quick-water" @click="addWater(1000)">+1.0L</ion-button>
+                        </div>
                     </div>
-                    <div class="summary-card">
-                        <span class="summary-label">Sueño hoy</span>
-                        <span class="summary-value">{{ summary.sleep ?? '--' }} hrs</span>
-                        <span class="summary-meta">Último registro del día</span>
+
+                    <!-- Tarjeta de Sueño -->
+                    <div class="summary-card interactive-card" @click="editSleep">
+                        <div class="card-header-row">
+                            <span class="summary-label">Horas de Sueño</span>
+                            <ion-icon :icon="pencilOutline" class="edit-icon"></ion-icon>
+                        </div>
+                        <span class="summary-value">{{ summary.sleep ?? '--' }} <small>hrs</small></span>
+                        <span class="summary-meta">Toca para registrar sueño</span>
                     </div>
-                    <div class="summary-card">
-                        <span class="summary-label">Calorías</span>
-                        <span class="summary-value">{{ summary.calories ?? '--' }} kcal</span>
+
+                    <!-- Tarjeta de Calorías -->
+                    <div class="summary-card interactive-card" @click="editCalories">
+                        <div class="card-header-row">
+                            <span class="summary-label">Ingesta Calórica</span>
+                            <ion-icon :icon="pencilOutline" class="edit-icon"></ion-icon>
+                        </div>
+                        <span class="summary-value">{{ summary.calories ?? '--' }} <small>kcal</small></span>
+                        <span class="summary-meta">Toca para añadir calorías</span>
                     </div>
                 </div>
             </div>
@@ -414,17 +741,24 @@ onIonViewWillEnter(() => {
                     </div>
                     <div
                         class="action-card"
-                        @click="goToProgress"
+                        @click="editWeight"
                     >
                         <span class="action-icon">⚖️</span>
                         <span class="action-label">Registrar peso</span>
                     </div>
                     <div
                         class="action-card"
+                        @click="calculateIMC"
+                    >
+                        <span class="action-icon">🧮</span>
+                        <span class="action-label">Calculadora IMC</span>
+                    </div>
+                    <div
+                        class="action-card"
                         @click="goToExercises"
                     >
                         <span class="action-icon">📚</span>
-                        <span class="action-label">Ver ejercicios</span>
+                        <span class="action-label">Ejercicios</span>
                     </div>
                 </div>
             </div>
@@ -692,16 +1026,41 @@ ion-icon {
 
 .summary-card {
     background: var(--forgy-card-bg);
-    padding: 14px;
-    border-radius: 16px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    padding: 16px;
+    border-radius: 20px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
     display: flex;
     flex-direction: column;
     gap: 6px;
+    border: 1px solid var(--forgy-border);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.interactive-card {
+    cursor: pointer;
+}
+
+.interactive-card:active {
+    transform: scale(0.97);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    background: var(--forgy-input-bg);
+}
+
+.card-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.edit-icon {
+    font-size: 14px;
+    color: var(--ion-color-primary);
+    opacity: 0.7;
 }
 
 .summary-card.summary-water {
     grid-column: span 2;
+    gap: 10px;
 }
 
 .summary-water-header {
@@ -710,18 +1069,90 @@ ion-icon {
     align-items: center;
 }
 
+.water-streak-badge {
+    background: linear-gradient(135deg, #FF512F, #DD2476);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(221, 36, 118, 0.3);
+}
+
 .summary-water-bar {
-    height: 10px;
+    height: 12px;
     background: var(--forgy-input-bg);
     border-radius: 10px;
     overflow: hidden;
+    border: 1px solid var(--forgy-border);
 }
 
 .summary-water-fill {
     height: 100%;
     background: linear-gradient(90deg, #56CCF2, #2F80ED);
     border-radius: 10px;
-    transition: width 0.4s ease;
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-wave {
+    position: relative;
+    overflow: hidden;
+}
+
+.animate-wave::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transform: translateX(-100%);
+    animation: wave-glow 2.5s infinite linear;
+}
+
+@keyframes wave-glow {
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+.summary-water-meta-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: -4px;
+}
+
+.water-quick-buttons {
+    display: flex;
+    gap: 8px;
+    justify-content: space-between;
+    margin-top: 4px;
+}
+
+.btn-quick-water {
+    flex: 1;
+    --background: var(--forgy-input-bg);
+    --color: var(--ion-color-primary);
+    --border-radius: 10px;
+    --border-color: var(--forgy-border);
+    --border-style: solid;
+    --border-width: 1px;
+    font-size: 11px;
+    font-weight: 700;
+    margin: 0;
+    height: 32px;
+    transition: background-color 0.2s;
+}
+
+.btn-quick-water::part(native) {
+    padding: 0 4px;
+}
+
+.btn-quick-water:active {
+    --background: var(--ion-color-primary-tint);
+    --color: white;
 }
 
 .summary-label {
@@ -731,13 +1162,19 @@ ion-icon {
 }
 
 .summary-value {
-    font-size: 18px;
+    font-size: 20px;
     font-weight: 800;
     color: var(--forgy-text-primary);
 }
 
+.summary-value small {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--forgy-text-secondary);
+}
+
 .summary-meta {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--forgy-text-secondary);
 }
 
