@@ -1,7 +1,7 @@
 import { ref, readonly } from 'vue';
 import router from '@/router';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL
 
 // --- Estado (Singleton) ---
 // Este estado será compartido entre todos los componentes que usen este composable.

@@ -335,7 +335,7 @@ import {
   add, scaleOutline, waterOutline, moonOutline, nutritionOutline, barbell, flame, bodyOutline
 } from 'ionicons/icons';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL
 const router = useIonRouter();
 
 interface DailyProgress {
