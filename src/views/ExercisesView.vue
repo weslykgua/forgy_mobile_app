@@ -1187,7 +1187,6 @@ onIonViewWillLeave(() => {
           size="large"
         ></ion-icon>
         <h3>No hay ejercicios</h3>
-        <p>Agrega tu primer ejercicio con el botón +</p>
       </div>
 
       <!-- FAB para agregar eliminado -->
