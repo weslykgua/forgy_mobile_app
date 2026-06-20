@@ -510,7 +510,7 @@ const loadAllExercisesLight = async () => {
     const response = await fetch(`${API_URL}/exercises?paginate=false`);
     if (response.ok) {
       const data = await response.json();
-      allExercisesLight.value = Array.isArray(data) ? data : [];
+      allExercisesLight.value = Array.isArray(data) ? data : (data.data ?? []);
     }
   } catch (e) {
     console.error('Error loading light exercises:', e);

@@ -606,14 +606,21 @@ function calculateVolume(): number {
   return workoutForm.value.sets.reduce((acc, s) => acc + (s.reps * s.weight), 0);
 }
 
+// Fuera del componente, a nivel de módulo
+let cachedExercises: Exercise[] = [];
+
+// Dentro del componente
 async function loadExercises() {
+  if (cachedExercises.length > 0) {
+    exercises.value = cachedExercises;
+    return;
+  }
   try {
-    const response = await fetch(`${API_URL}/exercises`, { headers: getHeaders() });
+    const response = await fetch(`${API_URL}/exercises?paginate=false`, { headers: getHeaders() });
     if (response.ok) {
       const data = await response.json();
-      exercises.value = Array.isArray(data) ? data : [];
-    } else {
-      throw new Error('Error loading exercises');
+      cachedExercises = Array.isArray(data) ? data : (data.data ?? []);
+      exercises.value = cachedExercises;
     }
   } catch (error) {
     console.error('Error loading exercises:', error);
