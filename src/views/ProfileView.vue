@@ -10,12 +10,19 @@ import { ref, computed } from 'vue'
 import {
     personCircle, camera, star, personOutline,
     notificationsOutline, settingsOutline, moonOutline,
-    helpCircleOutline, chatbubbleOutline, starOutline, logOutOutline
+    helpCircleOutline, chatbubbleOutline, starOutline, logOutOutline,
+    pulseOutline
 } from 'ionicons/icons';
 import { useProfile } from '../utils/useProfile'
 
 const darkMode = ref(false);
+const healthDevicesConnected = ref(false);
 const stats = ref({ totalWorkouts: 0, totalVolume: 0, streakDays: 0 })
+
+const toggleHealthDevices = (checked: boolean) => {
+    healthDevicesConnected.value = checked;
+    localStorage.setItem('health_devices_connected', checked ? 'true' : 'false');
+};
 const { userName, userEmail, loadProfileData, logout } = useProfile()
 
 // Configuración local para acceso a la API para no modificar useProfile.ts
@@ -27,10 +34,10 @@ const getHeaders = () => ({
 
 const totalDays = computed(() => stats.value.streakDays || 0);
 const level = computed(() => {
-    if (stats.value.totalWorkouts >= 100) return '🏆 Élite';
-    if (stats.value.totalWorkouts >= 50) return '💪 Pro';
-    if (stats.value.totalWorkouts >= 20) return '⭐ Intermedio';
-    return 'Empezando💪';
+    if (stats.value.totalWorkouts >= 100) return 'Élite';
+    if (stats.value.totalWorkouts >= 50) return 'Pro';
+    if (stats.value.totalWorkouts >= 20) return 'Intermedio';
+    return 'Empezando';
 })
 
 async function getStatsFromServer() {
@@ -72,6 +79,7 @@ onIonViewWillEnter(() => {
     loadProfileData()
     getStatsFromServer()
     darkMode.value = document.body.classList.contains('dark')
+    healthDevicesConnected.value = localStorage.getItem('health_devices_connected') === 'true'
 })
 
 async function confirmLogout() {
@@ -90,14 +98,10 @@ async function confirmLogout() {
 
 <template>
     <ion-page>
-        <ion-header>
-            <ion-toolbar color="primary">
-                <ion-title>
-                    <ion-icon
-                        :icon="personCircle"
-                        style="margin-right: 8px;"
-                    ></ion-icon>
-                    Mi Perfil
+        <ion-header class="forgy-header">
+            <ion-toolbar>
+                <ion-title class="forgy-title">
+                    Perfil
                 </ion-title>
             </ion-toolbar>
         </ion-header>
@@ -199,6 +203,20 @@ async function confirmLogout() {
                         @ionChange="(e: CustomEvent) => { darkMode = e.detail.checked; toggleDarkMode() }"
                     ></ion-toggle>
                 </ion-item>
+
+                <ion-item>
+                    <ion-icon
+                        :icon="pulseOutline"
+                        slot="start"
+                        color="primary"
+                    ></ion-icon>
+                    <ion-label>Dispositivos de Salud</ion-label>
+                    <ion-toggle
+                        slot="end"
+                        :checked="healthDevicesConnected"
+                        @ionChange="(e: any) => toggleHealthDevices(e.detail.checked)"
+                    ></ion-toggle>
+                </ion-item>
             </ion-list>
 
             <ion-list class="menu-list">
@@ -267,7 +285,7 @@ async function confirmLogout() {
             <!-- App Version -->
             <div class="app-version">
                 <p>Forgy v1.0.0</p>
-                <p>Hecho con 💪 para atletas</p>
+                <p>Creado para atletas</p>
             </div>
         </ion-content>
     </ion-page>
@@ -279,8 +297,9 @@ async function confirmLogout() {
     flex-direction: column;
     align-items: center;
     padding: 32px 16px;
-    background: linear-gradient(135deg, var(--ion-color-primary), var(--ion-color-primary-shade));
-    color: white;
+    background: var(--ion-background-color);
+    color: var(--forgy-text-primary);
+    border-bottom: 1px solid var(--ion-border-color);
 }
 
 .avatar-container {
@@ -289,49 +308,52 @@ async function confirmLogout() {
 }
 
 .avatar-container ion-avatar {
-    width: 100px;
-    height: 100px;
-    border: 4px solid white;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    width: 90px;
+    height: 90px;
+    border: 2px solid var(--ion-border-color);
 }
 
 .edit-avatar-btn {
     position: absolute;
     bottom: 0;
     right: -8px;
-    --background: white;
+    --background: var(--forgy-input-bg);
     --color: var(--ion-color-primary);
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
+    --border-width: 1px;
+    --border-style: solid;
+    --border-color: var(--ion-border-color);
 }
 
 .user-name {
     margin: 0 0 4px;
-    font-size: 24px;
+    font-size: 20px;
     font-weight: 700;
 }
 
 .user-email {
     margin: 0 0 12px;
-    opacity: 0.8;
-    font-size: 14px;
+    color: var(--forgy-text-secondary);
+    font-size: 13px;
 }
 
 .profile-header ion-chip {
-    --background: rgba(255, 255, 255, 0.2);
-    --color: white;
+    --background: var(--forgy-input-bg);
+    --color: var(--ion-color-primary);
+    border: 1px solid var(--ion-border-color);
 }
 
 .stats-summary {
     display: flex;
     justify-content: space-around;
     align-items: center;
-    padding: 20px;
+    padding: 16px;
     background: var(--forgy-card-bg);
-    margin: -20px 16px 16px;
-    border-radius: 16px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    margin: 20px 16px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--ion-border-color);
     color: var(--forgy-text-primary);
 }
 
@@ -342,78 +364,81 @@ async function confirmLogout() {
 }
 
 .stat-value {
-    font-size: 24px;
+    font-size: 18px;
     font-weight: 700;
     color: var(--ion-color-primary);
 }
 
 .stat-label {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--forgy-text-secondary);
     margin-top: 4px;
 }
 
 .stat-divider {
     width: 1px;
-    height: 40px;
-    background: var(--forgy-border);
+    height: 32px;
+    background: var(--ion-border-color);
 }
 
 .menu-list {
     margin: 16px;
-    border-radius: 16px;
+    border-radius: 8px;
     overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    border: 1px solid var(--ion-border-color);
+    background: var(--forgy-card-bg);
 }
 
 .menu-list ion-list-header {
-    font-size: 12px;
+    font-size: 11px;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 0.05em;
     color: var(--forgy-text-secondary);
+    border-bottom: 1px solid var(--ion-border-color);
 }
 
 .menu-list ion-item {
     --padding-start: 16px;
+    --border-color: var(--ion-border-color);
 }
 
 .menu-list ion-icon {
-    font-size: 22px;
+    font-size: 20px;
 }
 
 .logout-item {
-    --background: rgba(235, 68, 90, 0.05);
+    --background: transparent;
 }
 
 .logout-button {
     width: 100%;
-    --border-radius: 14px;
-    --border-width: 2px;
-    --border-color: rgba(235, 68, 90, 0.45);
-    --padding-top: 12px;
-    --padding-bottom: 12px;
-    --box-shadow: 0 10px 18px rgba(235, 68, 90, 0.15);
+    --border-radius: 6px;
+    --border-width: 1px;
+    --border-color: var(--ion-color-danger);
+    --border-style: solid;
+    --padding-top: 10px;
+    --padding-bottom: 10px;
+    margin: 0;
 }
 
 .logout-button::part(native) {
     text-transform: none;
-    letter-spacing: 0.2px;
     font-weight: 600;
 }
 
 .logout-text {
     display: inline-block;
-    font-size: 15px;
+    font-size: 13px;
 }
 
 .app-version {
     text-align: center;
     padding: 24px;
     color: var(--forgy-text-secondary);
-    font-size: 12px;
+    font-size: 11px;
 }
 
 .app-version p {
-    margin: 4px 0;
+    margin: 2px 0;
 }
 </style>

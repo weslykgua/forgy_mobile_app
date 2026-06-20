@@ -5,7 +5,7 @@
                 <div class="auth-card">
                     <!-- Header -->
                     <div class="auth-header">
-                        <div class="brand-logo">💪</div>
+                        <div class="brand-logo">FORGY</div>
                         <h2>{{ isLogin ? 'Bienvenido de nuevo' : 'Únete a Forgy' }}</h2>
                         <p class="subtitle">
                             {{ isLogin ? 'Ingresa tus datos para continuar' : 'Crea tu cuenta y empieza a entrenar' }}
@@ -511,7 +511,7 @@ async function login() {
         // Guardar sesión
         saveSession(data);
 
-        await showToast(`¡Bienvenido de nuevo, ${data.user.name}! 💪`, 'success');
+        await showToast(`¡Bienvenido de nuevo, ${data.user.name}!`, 'success');
 
         // Redirigir al home
         setTimeout(() => {
@@ -550,7 +550,7 @@ function clearSession() {
  */
 async function showWelcomeAlert(userName: string) {
     const alert = await alertController.create({
-        header: '¡Bienvenido a Forgy! 💪',
+        header: 'Bienvenido a Forgy',
         message: `Hola ${userName}, tu cuenta ha sido creada exitosamente. ¡Comienza tu viaje fitness ahora!`,
         buttons: ['¡Empecemos!']
     });
@@ -600,23 +600,18 @@ async function showToast(message: string, color: 'primary' | 'success' | 'warnin
     display: flex;
     align-items: center;
     justify-content: center;
-
-    /* Usamos tu primary + secondary */
-    background: linear-gradient(135deg,
-            var(--ion-color-primary) 0%,
-            var(--ion-color-secondary) 100%);
-
+    background: var(--ion-background-color);
     padding: 20px;
 }
 
 /* Tarjeta */
 .auth-card {
-    background: white;
+    background: var(--forgy-card-bg);
     width: 100%;
     max-width: 360px;
-    border-radius: 24px;
+    border-radius: 8px;
     padding: 32px 24px;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--ion-border-color);
 }
 
 /* Header */
@@ -626,25 +621,25 @@ async function showToast(message: string, color: 'primary' | 'success' | 'warnin
 }
 
 .brand-logo {
-    font-size: 48px;
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: 0.15em;
+    color: var(--ion-color-primary);
     margin-bottom: 12px;
     display: inline-block;
-
-    /* pequeño toque con tus colores */
-    filter: drop-shadow(0 6px 14px rgba(var(--ion-color-primary-rgb), 0.35));
 }
 
 .auth-header h2 {
     margin: 0 0 8px;
-    color: var(--ion-color-dark);
-    font-weight: 800;
-    font-size: 24px;
+    color: var(--forgy-text-primary);
+    font-weight: 700;
+    font-size: 20px;
 }
 
 .subtitle {
     margin: 0;
-    color: var(--ion-color-medium);
-    font-size: 14px;
+    color: var(--forgy-text-secondary);
+    font-size: 13px;
 }
 
 /* Toggle Switch */
@@ -655,16 +650,13 @@ async function showToast(message: string, color: 'primary' | 'success' | 'warnin
 }
 
 .auth-toggle {
-    /* más coherente con la paleta */
-    background: rgba(255, 255, 255, 0.65);
-    border-radius: 12px;
+    background: var(--forgy-input-bg);
+    border-radius: 6px;
     padding: 4px;
     display: flex;
     position: relative;
     width: 100%;
-
-    /* borde suave con primary */
-    box-shadow: 0 6px 18px rgba(var(--ion-color-primary-rgb), 0.15);
+    border: 1px solid var(--ion-border-color);
 }
 
 .toggle-bg {
@@ -673,15 +665,9 @@ async function showToast(message: string, color: 'primary' | 'success' | 'warnin
     left: 4px;
     width: calc(50% - 4px);
     height: calc(100% - 8px);
-
-    /* Fondo del “selector” con tu gradiente */
-    background: linear-gradient(135deg,
-            var(--ion-color-primary),
-            var(--ion-color-secondary));
-
-    border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
-    transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+    background: var(--ion-color-primary);
+    border-radius: 4px;
+    transition: transform 0.25s cubic-bezier(0.4, 0.0, 0.2, 1);
 }
 
 .toggle-btn {
@@ -690,19 +676,15 @@ async function showToast(message: string, color: 'primary' | 'success' | 'warnin
     border: none;
     padding: 10px;
     z-index: 1;
-    font-weight: 700;
-    font-size: 14px;
-
-    /* Por defecto más sobrio */
-    color: rgba(0, 0, 0, 0.55);
-
-    transition: color 0.25s ease;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--forgy-text-secondary);
+    transition: color 0.2s ease;
     cursor: pointer;
     outline: none;
 }
 
 .toggle-btn.active {
-    /* Cuando está “activo”, va encima del gradiente, por eso blanco */
     color: #ffffff;
 }
 
@@ -713,21 +695,16 @@ async function showToast(message: string, color: 'primary' | 'success' | 'warnin
     gap: 16px;
 }
 
-/* Inputs wrapper - antes estaba azul fijo (#185592) */
+/* Inputs wrapper */
 .input-wrapper {
-    border-radius: 12px;
-    transition: all 0.25s ease;
-
-    /* un fondo suave cálido */
-    background: rgba(var(--ion-color-primary-rgb), 0.10);
-    border: 1px solid rgba(var(--ion-color-primary-rgb), 0.18);
+    border-radius: 6px;
+    background: var(--forgy-input-bg);
+    border: 1px solid var(--ion-border-color);
+    transition: border-color 0.2s ease;
 }
 
 .input-wrapper:focus-within {
-    /* antes estaba rojo fijo */
-    background: rgba(var(--ion-color-primary-rgb), 0.16);
-    border-color: rgba(var(--ion-color-primary-rgb), 0.45);
-    box-shadow: 0 0 0 3px rgba(var(--ion-color-primary-rgb), 0.22);
+    border-color: var(--ion-color-primary);
 }
 
 /* Ion item */
@@ -735,21 +712,19 @@ async function showToast(message: string, color: 'primary' | 'success' | 'warnin
     --background: transparent;
     --padding-start: 8px;
     --inner-padding-end: 8px;
-
-    /* mejora visual del item */
-    --border-radius: 12px;
+    --border-radius: 6px;
 }
 
 /* Iconos */
 .custom-input ion-icon {
-    color: rgba(var(--ion-color-primary-rgb), 0.85);
+    color: var(--forgy-text-secondary);
     margin-right: 8px;
 }
 
-/* Input texto (importante en iOS/Android) */
+/* Input texto */
 .custom-input ion-input {
-    --placeholder-color: rgba(0, 0, 0, 0.45);
-    --color: #111;
+    --placeholder-color: var(--forgy-text-secondary);
+    --color: var(--forgy-text-primary);
 }
 
 /* Forgot Password */
@@ -760,49 +735,30 @@ async function showToast(message: string, color: 'primary' | 'success' | 'warnin
 .forgot-password span {
     color: var(--ion-color-primary);
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 500;
     cursor: pointer;
 }
 
-/* Botón submit (usa primary por defecto, pero lo reforzamos) */
+/* Botón submit */
 .submit-btn {
     margin-top: 8px;
-    --border-radius: 12px;
-    font-weight: 800;
-    height: 48px;
-
-    /* Gradiente con tu paleta */
-    --background: linear-gradient(135deg,
-            var(--ion-color-primary),
-            var(--ion-color-secondary));
-
-    --box-shadow: 0 10px 22px rgba(var(--ion-color-primary-rgb), 0.30);
+    --border-radius: 6px;
+    font-weight: 600;
+    height: 44px;
+    --background: var(--ion-color-primary);
 }
 
 /* Animación */
 .fade-in {
-    animation: fadeIn 0.3s ease-out;
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    opacity: 1;
 }
 
 .error-message {
     color: var(--ion-color-danger);
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 500;
     padding: 4px 16px 8px;
     text-align: left;
-    animation: fadeIn 0.3s ease-out;
 }
 
 /* Password Strength & Requirements */
@@ -812,23 +768,22 @@ async function showToast(message: string, color: 'primary' | 'success' | 'warnin
 }
 
 .strength-bar {
-    height: 6px;
-    background: var(--ion-color-step-150, #e0e0e0);
-    border-radius: 3px;
+    height: 4px;
+    background: var(--ion-border-color);
+    border-radius: 2px;
     overflow: hidden;
 }
 
 .strength-fill {
     height: 100%;
-    transition: width 0.3s ease, background-color 0.3s ease;
+    transition: width 0.2s ease, background-color 0.2s ease;
 }
 
 .strength-text {
     margin: 4px 0 0;
-    font-size: 12px;
-    font-weight: 600;
+    font-size: 11px;
+    font-weight: 500;
     text-align: right;
-    transition: color 0.3s ease;
 }
 
 .strength-fill.weak {
@@ -861,33 +816,22 @@ async function showToast(message: string, color: 'primary' | 'success' | 'warnin
 
 .requirements-title {
     margin: 0 0 8px;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
-    color: var(--ion-color-dark-shade);
+    color: var(--forgy-text-primary);
 }
 
 .requirement {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 13px;
-    color: var(--ion-color-medium-shade);
+    font-size: 12px;
+    color: var(--forgy-text-secondary);
     margin-bottom: 6px;
 }
 
 .requirement ion-icon {
-    font-size: 16px;
+    font-size: 14px;
     flex-shrink: 0;
-}
-
-.list-enter-active,
-.list-leave-active {
-    transition: all 0.3s ease;
-}
-
-.list-enter-from,
-.list-leave-to {
-    opacity: 0;
-    transform: translateX(20px);
 }
 </style>

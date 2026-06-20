@@ -74,8 +74,7 @@ import { homeOutline, barbellOutline, calendarOutline, statsChartOutline, person
 .custom-tab-bar {
   --background: var(--ion-tab-bar-background);
   --border: none;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
-  border-radius: 20px 20px 0 0;
+  border-top: 1px solid var(--ion-border-color);
   padding-bottom: env(safe-area-inset-bottom);
 }
 

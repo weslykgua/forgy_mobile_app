@@ -4,7 +4,9 @@
       <ion-toolbar class="progress-toolbar">
         <ion-title>
           <div class="header-title">
-            <div class="title-badge">📈</div>
+            <div class="title-badge">
+              <ion-icon :icon="statsChartOutline" style="color: #ffffff; font-size: 20px;"></ion-icon>
+            </div>
             <div class="title-text">
               <span class="title-main">Mi Progreso</span>
               <span class="title-sub">Tu resumen diario</span>
@@ -30,7 +32,7 @@
       <div class="tab-content">
         <!-- Tarjeta principal del día -->
         <div class="hero-card">
-          <div class="hero-date">{{ todayFormatted }}</div>
+          <div class="hero-date">{{ formattedSelectedDate }}</div>
           <div class="hero-greeting">{{ getGreeting() }}</div>
 
           <div class="hero-stats">
@@ -87,10 +89,46 @@
           </div>
         </div>
 
+        <!-- Google Calendar-like Monthly Calendar Grid -->
+        <div class="calendar-section">
+          <div class="calendar-header-nav">
+            <ion-button fill="clear" size="small" class="cal-nav-btn" @click="prevMonth">
+              <ion-icon :icon="chevronBack" slot="icon-only"></ion-icon>
+            </ion-button>
+            <span class="calendar-month-title">
+              {{ monthNames[currentMonth] }} {{ currentYear }}
+            </span>
+            <ion-button fill="clear" size="small" class="cal-nav-btn" @click="nextMonth">
+              <ion-icon :icon="chevronForward" slot="icon-only"></ion-icon>
+            </ion-button>
+          </div>
+
+          <div class="calendar-weekdays">
+            <span v-for="d in ['L', 'M', 'M', 'J', 'V', 'S', 'D']" :key="d" class="weekday">{{ d }}</span>
+          </div>
+
+          <div class="calendar-grid">
+            <div
+              v-for="cell in calendarDays"
+              :key="cell.dateKey"
+              class="calendar-cell"
+              :class="{
+                'other-month': !cell.isCurrentMonth,
+                'selected-day': cell.dateKey === selectedDate,
+                'today-day': cell.dateKey === today
+              }"
+              @click="selectDate(cell.dateKey)"
+            >
+              <span class="day-number">{{ cell.dayNum }}</span>
+              <div v-if="cell.hasData" class="data-indicator"></div>
+            </div>
+          </div>
+        </div>
+
         <!-- Racha y logros -->
         <div class="streak-card">
           <div class="streak-info">
-            <span class="streak-flame">🔥</span>
+            <ion-icon :icon="flame" style="color: var(--ion-color-danger); font-size: 24px; margin-right: 8px;"></ion-icon>
             <div class="streak-text">
               <span class="streak-number">{{ progressStats.streakDays || 0 }}</span>
               <span class="streak-label">días de racha</span>
@@ -100,22 +138,22 @@
             <span
               class="badge"
               v-if="progressStats.streakDays >= 7"
-            >🏅 1 semana</span>
+            >1 semana</span>
             <span
               class="badge"
               v-if="progressStats.streakDays >= 30"
-            >🏆 1 mes</span>
+            >1 mes</span>
             <span
               class="badge"
               v-if="progressStats.totalWorkouts >= 10"
-            >💪 10 entrenos</span>
+            >10 entrenos</span>
           </div>
         </div>
 
         <!-- Hidratación -->
         <div class="section-card">
           <div class="section-header">
-            <span class="section-icon">💧</span>
+            <ion-icon :icon="waterOutline" color="secondary" style="font-size: 20px; margin-right: 8px;"></ion-icon>
             <h3>Hidratación</h3>
             <span class="section-value">{{ todayProgress?.waterIntake || 0 }} / 5000 ml</span>
           </div>
@@ -135,21 +173,18 @@
               class="water-btn"
               @click="addWater(250)"
             >
-              <span class="btn-icon">🥤</span>
               <span>+250ml</span>
             </button>
             <button
               class="water-btn"
               @click="addWater(500)"
             >
-              <span class="btn-icon">🫗</span>
               <span>+500ml</span>
             </button>
             <button
               class="water-btn"
               @click="addWater(1000)"
             >
-              <span class="btn-icon">🍶</span>
               <span>+1L</span>
             </button>
           </div>
@@ -159,7 +194,7 @@
         <!-- Calculadora IMC -->
         <div class="section-card bmi-card" @click="goToBmiTest">
           <div class="section-header">
-            <span class="section-icon">⚖️</span>
+            <ion-icon :icon="scaleOutline" color="primary" style="font-size: 20px; margin-right: 8px;"></ion-icon>
             <h3>Calculadora de IMC</h3>
             <span class="section-value" v-if="bmiValue">{{ bmiValue }}</span>
           </div>
@@ -173,7 +208,7 @@
         <!-- Calculadora RM -->
         <div class="section-card rm-card" @click="goToRmCalculator">
           <div class="section-header">
-            <span class="section-icon">🏋️</span>
+            <ion-icon :icon="barbell" color="primary" style="font-size: 20px; margin-right: 8px;"></ion-icon>
             <h3>Calculadora de RM</h3>
           </div>
           <div class="bmi-body">
@@ -187,7 +222,7 @@
           v-if="weightHistory.length > 0"
         >
           <div class="section-header">
-            <span class="section-icon">📈</span>
+            <ion-icon :icon="statsChartOutline" color="primary" style="font-size: 20px; margin-right: 8px;"></ion-icon>
             <h3>Peso esta semana</h3>
             <span
               class="section-value"
@@ -244,7 +279,7 @@
             <ion-buttons slot="start">
               <ion-button @click="isProgressModalOpen = false">Cancelar</ion-button>
             </ion-buttons>
-            <ion-title>Registrar Hoy</ion-title>
+            <ion-title>Registrar Día</ion-title>
             <ion-buttons slot="end">
               <ion-button
                 strong
@@ -257,7 +292,6 @@
           <div class="form-section">
             <div class="form-row">
               <label>
-                <span class="form-icon">⚖️</span>
                 Peso (kg)
               </label>
               <div class="number-control">
@@ -272,7 +306,6 @@
             </div>
             <div class="form-row">
               <label>
-                <span class="form-icon">💧</span>
                 Agua (ml)
               </label>
               <div class="number-control">
@@ -287,7 +320,6 @@
             </div>
             <div class="form-row">
               <label>
-                <span class="form-icon">😴</span>
                 Horas de sueño
               </label>
               <div class="number-control">
@@ -302,7 +334,6 @@
             </div>
             <div class="form-row">
               <label>
-                <span class="form-icon">🍽️</span>
                 Calorías consumidas
               </label>
               <div class="number-control">
@@ -332,7 +363,8 @@ import {
 } from '@ionic/vue';
 import { ref, computed } from 'vue';
 import {
-  add, scaleOutline, waterOutline, moonOutline, nutritionOutline, barbell, flame, bodyOutline
+  add, scaleOutline, waterOutline, moonOutline, nutritionOutline, barbell, flame, bodyOutline,
+  chevronBack, chevronForward, statsChartOutline
 } from 'ionicons/icons';
 
 const API_URL = import.meta.env.VITE_API_URL
@@ -380,8 +412,106 @@ const progressForm = ref({
   weight: 0, waterIntake: 0, caloriesConsumed: 0, caloriesBurned: 0, sleepHours: 0
 });
 
-const todayFormatted = computed(() => new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }));
-const todayProgress = computed(() => progressData.value.find(p => p.date === today));
+const isHealthDeviceConnected = ref(false);
+const checkDeviceConnection = () => {
+  isHealthDeviceConnected.value = localStorage.getItem('health_devices_connected') === 'true';
+};
+
+const selectedDate = ref(today);
+
+const now = new Date();
+const currentYear = ref(now.getFullYear());
+const currentMonth = ref(now.getMonth());
+
+const monthNames = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+];
+
+function selectDate(dateKey: string) {
+  selectedDate.value = dateKey;
+}
+
+function prevMonth() {
+  if (currentMonth.value === 0) {
+    currentMonth.value = 11;
+    currentYear.value--;
+  } else {
+    currentMonth.value--;
+  }
+}
+
+function nextMonth() {
+  if (currentMonth.value === 11) {
+    currentMonth.value = 0;
+    currentYear.value++;
+  } else {
+    currentMonth.value++;
+  }
+}
+
+const formattedSelectedDate = computed(() => {
+  if (selectedDate.value === today) return 'Hoy';
+  const d = new Date(selectedDate.value + 'T12:00:00');
+  return d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+});
+
+function checkIfDateHasData(dateKey: string) {
+  return progressData.value.some(p => p.date === dateKey && (p.waterIntake || p.weight || p.sleepHours || p.caloriesConsumed));
+}
+
+const calendarDays = computed(() => {
+  const year = currentYear.value;
+  const month = currentMonth.value;
+
+  const firstDay = new Date(year, month, 1);
+  let startDayOfWeek = firstDay.getDay() - 1;
+  if (startDayOfWeek < 0) startDayOfWeek = 6;
+
+  const numDays = new Date(year, month + 1, 0).getDate();
+  const prevMonthNumDays = new Date(year, month, 0).getDate();
+  const days: { dateKey: string; dayNum: number; isCurrentMonth: boolean; hasData: boolean }[] = [];
+
+  for (let i = startDayOfWeek - 1; i >= 0; i--) {
+    const day = prevMonthNumDays - i;
+    const prevMonth = month === 0 ? 11 : month - 1;
+    const prevYear = month === 0 ? year - 1 : year;
+    const dateKey = `${prevYear}-${(prevMonth + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+    days.push({
+      dateKey,
+      dayNum: day,
+      isCurrentMonth: false,
+      hasData: checkIfDateHasData(dateKey)
+    });
+  }
+
+  for (let day = 1; day <= numDays; day++) {
+    const dateKey = `${year}-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+    days.push({
+      dateKey,
+      dayNum: day,
+      isCurrentMonth: true,
+      hasData: checkIfDateHasData(dateKey)
+    });
+  }
+
+  const remainingCells = 42 - days.length;
+  for (let day = 1; day <= remainingCells; day++) {
+    const nextMonth = month === 11 ? 0 : month + 1;
+    const nextYear = month === 11 ? year + 1 : year;
+    const dateKey = `${nextYear}-${(nextMonth + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+    days.push({
+      dateKey,
+      dayNum: day,
+      isCurrentMonth: false,
+      hasData: checkIfDateHasData(dateKey)
+    });
+  }
+
+  return days;
+});
+
+const todayProgress = computed(() => progressData.value.find(p => p.date === selectedDate.value));
 const displayWeight = computed(() => {
   const weight = todayProgress.value?.weight ?? userProfile.value.weight ?? progressStats.value.currentWeight ?? null;
   return weight === 0 ? null : weight;
@@ -393,10 +523,10 @@ const displayHeight = computed(() => {
 const waterPercentage = computed(() => Math.min(((todayProgress.value?.waterIntake || 0) / 5000) * 100, 100));
 const waterStatusMessage = computed(() => {
   const intake = todayProgress.value?.waterIntake || 0;
-  if (intake >= 5000) return '¡Excelente! Hidratación completa hoy 💧';
-  if (intake >= 2000) return 'Vas bien: hidratación normal 👌';
-  if (intake >= 1000) return 'Vas a mitad: toma un poco más 🚰';
-  return 'Hidratación baja: suma más agua hoy 🥤';
+  if (intake >= 5000) return '¡Excelente! Hidratación completa hoy';
+  if (intake >= 2000) return 'Vas bien: hidratación normal';
+  if (intake >= 1000) return 'Vas a mitad: toma un poco más';
+  return 'Hidratación baja: suma más agua hoy';
 });
 const weightHistory = computed(() => progressStats.value.weightHistory.slice(-7));
 const weightChange = computed(() => {
@@ -434,14 +564,14 @@ const bmiMessage = computed(() => {
 
 function getGreeting() {
   const hour = new Date().getHours();
-  if (hour < 12) return '¡Buenos días! ☀️';
-  if (hour < 18) return '¡Buenas tardes! 🌤️';
-  return '¡Buenas noches! 🌙';
+  if (hour < 12) return '¡Buenos días!';
+  if (hour < 18) return '¡Buenas tardes!';
+  return '¡Buenas noches!';
 }
 
 function toDateKey(value: string) {
-  if (!value) return value;
-  return value.includes('T') ? getLocalDateKey(new Date(value)) : value;
+  if (!value) return '';
+  return value.includes('T') ? value.split('T')[0] : value;
 }
 
 function getAuthHeaders() {
@@ -494,6 +624,10 @@ async function loadAllData() {
       : [];
     progressStats.value = await statsRes.json();
     userProfile.value = await profileRes.json();
+
+    localStorage.setItem('cache_all_progress', JSON.stringify(progressJson));
+    localStorage.setItem('cache_progress_stats', JSON.stringify(progressStats.value));
+    localStorage.setItem('cache_user_profile', JSON.stringify(userProfile.value));
   } catch (error) {
     console.error('Error loading data:', error);
   }
@@ -560,7 +694,7 @@ async function saveProgress() {
     const saveRes = await fetch(`${API_URL}/progress`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders },
-      body: JSON.stringify({ date: today, ...payload })
+      body: JSON.stringify({ date: selectedDate.value, ...payload })
     });
     if (!saveRes.ok) {
       throw new Error('No se pudo guardar el progreso');
@@ -586,7 +720,7 @@ async function addWater(amount: number) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({
-        date: today,
+        date: selectedDate.value,
         waterIntake: currentWater + amount
       })
     });
@@ -610,7 +744,28 @@ async function handleRefresh(event: CustomEvent) {
   (event.target as any).complete();
 }
 
-onIonViewWillEnter(() => loadAllData());
+onIonViewWillEnter(() => {
+  checkDeviceConnection();
+
+  const cachedProgress = localStorage.getItem('cache_all_progress');
+  const cachedStats = localStorage.getItem('cache_progress_stats');
+  const cachedProfile = localStorage.getItem('cache_user_profile');
+
+  if (cachedProgress) {
+    const progressJson = JSON.parse(cachedProgress);
+    progressData.value = Array.isArray(progressJson)
+      ? progressJson.map((item: any) => ({ ...item, date: toDateKey(item.date) }))
+      : [];
+  }
+  if (cachedStats) {
+    progressStats.value = JSON.parse(cachedStats);
+  }
+  if (cachedProfile) {
+    userProfile.value = JSON.parse(cachedProfile);
+  }
+
+  loadAllData();
+});
 </script>
 
 <style scoped>
@@ -1067,6 +1222,107 @@ onIonViewWillEnter(() => loadAllData());
   font-size: 18px;
   font-weight: 600;
   color: var(--forgy-text-primary);
+}
+
+/* Calendar Styles */
+.calendar-section {
+  background: var(--forgy-card-bg);
+  border-radius: 20px;
+  padding: 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--ion-border-color);
+}
+
+.calendar-header-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.cal-nav-btn {
+  --color: var(--forgy-text-secondary);
+  margin: 0;
+}
+
+.calendar-month-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--forgy-text-primary);
+  text-transform: capitalize;
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.weekday {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--forgy-text-secondary);
+  opacity: 0.7;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.calendar-cell {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  position: relative;
+  cursor: pointer;
+  background: var(--forgy-input-bg);
+}
+
+.calendar-cell:active {
+  opacity: 0.8;
+}
+
+.calendar-cell.other-month {
+  opacity: 0.35;
+}
+
+.calendar-cell.selected-day {
+  background: var(--ion-color-primary);
+}
+
+.calendar-cell.selected-day .day-number {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.calendar-cell.today-day:not(.selected-day) {
+  border: 1px solid var(--ion-color-primary);
+}
+
+.day-number {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--forgy-text-primary);
+}
+
+.data-indicator {
+  position: absolute;
+  bottom: 4px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--ion-color-secondary);
+}
+
+.calendar-cell.selected-day .data-indicator {
+  background: #ffffff;
 }
 
 </style>
