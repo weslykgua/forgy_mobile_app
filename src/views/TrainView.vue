@@ -617,7 +617,6 @@ async function loadExercises() {
     }
   } catch (error) {
     console.error('Error loading exercises:', error);
-    showToast('Error al cargar ejercicios', 'danger');
   }
 }
 

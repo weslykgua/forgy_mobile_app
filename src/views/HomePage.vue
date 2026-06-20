@@ -666,7 +666,6 @@ const loadMetrics = async () => {
         localStorage.setItem('cache_user_plan', JSON.stringify(userPlan.value));
     } catch (error) {
         console.error(error);
-        showToast('Error al cargar datos del dashboard', 'danger');
     }
 };
 

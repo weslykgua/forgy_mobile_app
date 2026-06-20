@@ -210,7 +210,6 @@ const loadExercises = async (append = false) => {
     }
   } catch (error) {
     console.error("Error fetching exercises", error);
-    showToast('Error al cargar ejercicios', 'danger');
     if (!append) exercises.value = [];
   } finally {
     isLoading.value = false;
