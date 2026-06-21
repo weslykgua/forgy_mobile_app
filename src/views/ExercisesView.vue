@@ -6,7 +6,7 @@ import {
   IonIcon, IonCard, IonCardHeader, IonCardTitle, IonCardContent,
   IonFab, IonFabButton, IonModal, IonButtons, IonInput, IonTextarea,
   IonSelect, IonSelectOption, IonRefresher, IonRefresherContent, IonInfiniteScroll, IonInfiniteScrollContent, actionSheetController,
-  IonSkeletonText, IonBadge,
+  IonSkeletonText, IonBadge, IonSpinner,
   onIonViewWillEnter, onIonViewWillLeave, alertController, toastController
 } from '@ionic/vue';
 import { useProfile } from '../utils/useProfile'
@@ -14,7 +14,7 @@ import { ref, computed } from 'vue';
 import { io } from 'socket.io-client';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import {
-  add, fitness, barbell, closeCircle, videocam, list, bookmark, albums, reorderThreeOutline, ellipsisVertical, imageOutline, camera, addCircleOutline, trash, removeCircleOutline
+  add, fitness, barbell, closeCircle, videocam, list, bookmark, albums, reorderThreeOutline, ellipsisVertical, imageOutline, camera, addCircleOutline, trash, removeCircleOutline, calendarOutline, starOutline, star, timeOutline
 } from 'ionicons/icons';
 
 interface Exercise {
@@ -36,6 +36,10 @@ interface Routine {
   name: string;
   exercises: { exerciseId: string; order: number }[];
   imageUrl?: string;
+  isFavorite?: boolean;
+  difficulty?: string;
+  description?: string;
+  estimatedDuration?: number;
 }
 
 // Interfaz para el detalle (ejercicios completos)
@@ -70,13 +74,26 @@ const isExerciseLogModalOpen = ref(false);
 const exerciseToLog = ref<Exercise | null>(null);
 const isAddExerciseModalOpen = ref(false);
 const addExerciseSearchText = ref('');
+const addExerciseSelectedMuscle = ref<string>('Todos');
 const currentTrainingSessionId = ref<string | null>(null);
 const workoutLogs = ref<Record<string, {
   sets: { reps: string; weight: string; completed: boolean }[];
   notes: string;
   duration: string;
 }>>({});
-const newRoutineForm = ref({ name: '', description: '' });
+const routineViewStyle = ref<'grid' | 'calendar'>('grid');
+const routineImages = ref<Record<string, string>>({});
+const routineMuscles = ref<Record<string, string>>({});
+const isSavingRoutine = ref(false);
+const isSelectionModeActive = ref(false);
+const selectedRoutineIds = ref<string[]>([]);
+const newRoutineForm = ref({
+  name: '',
+  description: '',
+  muscleFocus: 'Pecho',
+  imageUrl: '',
+  scheduledDays: [] as string[]
+});
 const predefinedImages = ref([
     // Imágenes prediseñadas
     'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=870&q=80',
@@ -95,24 +112,41 @@ const predefinedImages = ref([
 
 let socket: any = null;
 
-const musclesWithEmoji = [
-  { name: 'Todos', emoji: '🏋️' },
-  { name: 'Pecho', emoji: '💪' },
-  { name: 'Espalda', emoji: '🔙' },
-  { name: 'Piernas', emoji: '🦵' },
-  { name: 'Hombros', emoji: '🤷' },
-  { name: 'Bíceps', emoji: '💪' },
-  { name: 'Tríceps', emoji: '💪' },
-  { name: 'Abdomen', emoji: '🎯' }
-];
-const muscles = musclesWithEmoji.map(m => m.name);
-const difficulties = ['Principiante', 'Intermedio', 'Avanzado'];
-const difficultyEmoji = { 'Principiante': '🟢', 'Intermedio': '🟡', 'Avanzado': '🔴' };
-
-// Obtener emoji del músculo
-const getMuscleEmoji = (muscle: string) => {
-  return musclesWithEmoji.find(m => m.name === muscle)?.emoji || '💪';
+const muscleIcons: Record<string, string> = {
+  'Todos': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="muscle-svg"><path d="M6.5 6.5 11 11"/><path d="M21 21-1.5-1.5"/><path d="M3 3 1.5 1.5"/><path d="M18.5 5.5 3-3"/><path d="M2.5 21.5 3-3"/><path d="M14 5s.5 1.5 3 3"/><path d="M5 14s1.5.5 3 3"/><path d="M10 5.5A3.5 3.5 0 0 0 5.5 10"/><path d="M18.5 14a3.5 3.5 0 0 1-4.5 4.5"/></svg>`,
+  'Brazos Superiores': `<img src="/src/assets/biceps.png" class="muscle-icon-img" alt="Brazos Superiores" />`,
+  'Piernas Superiores': `<img src="/src/assets/cuadriceps.png" class="muscle-icon-img" alt="Piernas Superiores" />`,
+  'Espalda': `<img src="/src/assets/dorsales.png" class="muscle-icon-img" alt="Espalda" />`,
+  'Cintura': `<img src="/src/assets/abs.png" class="muscle-icon-img" alt="Cintura" />`,
+  'Pecho': `<img src="/src/assets/pecho.png" class="muscle-icon-img" alt="Pecho" />`,
+  'Hombros': `<img src="/src/assets/hombros.png" class="muscle-icon-img" alt="Hombros" />`,
+  'Piernas Inferiores': `<img src="/src/assets/pantorillas.png" class="muscle-icon-img" alt="Piernas Inferiores" />`,
+  'Antebrazos': `<img src="/src/assets/antebrazo.png" class="muscle-icon-img" alt="Antebrazos" />`,
+  'Cardio': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="muscle-svg"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>`,
+  'Cuello': `<img src="/src/assets/trapecio.png" class="muscle-icon-img" alt="Cuello" />`
 };
+
+const musclesWithEmoji = Object.keys(muscleIcons).map(name => ({ name }));
+const muscles = musclesWithEmoji.map(m => m.name);
+const isExpandedMuscles = ref(false);
+const isExpandedAddExerciseMuscles = ref(false);
+const mainMuscles = ['Todos', 'Brazos Superiores', 'Piernas Superiores', 'Espalda', 'Cintura', 'Pecho', 'Hombros'];
+
+const visibleMusclesWithEmoji = computed(() => {
+  if (isExpandedMuscles.value) return musclesWithEmoji;
+  return musclesWithEmoji.filter(m => mainMuscles.includes(m.name));
+});
+
+const visibleAddExerciseMusclesWithEmoji = computed(() => {
+  if (isExpandedAddExerciseMuscles.value) return musclesWithEmoji;
+  return musclesWithEmoji.filter(m => mainMuscles.includes(m.name));
+});
+const difficulties = ['Principiante', 'Intermedio', 'Avanzado'];
+
+// Días de la semana para programación
+const daysOfWeek = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+const selectedRoutineDay = ref<string>('Todos');
+const routineSchedule = ref<Record<string, string[]>>({});
 
 const form = ref({
   name: '',
@@ -148,6 +182,23 @@ const toggleMuscleFilter = (muscleName: string) => {
 // The exercises array IS the filtered result (filtering is done server-side)
 const filteredExercises = computed(() => exercises.value);
 
+const filteredRoutines = computed(() => {
+  if (selectedRoutineDay.value === 'Todos') {
+    return routines.value;
+  }
+  return routines.value.filter(r => isRoutineScheduledOnDay(r.id, selectedRoutineDay.value));
+});
+
+const dayLabels = [
+  { label: 'L', name: 'Lunes' },
+  { label: 'M', name: 'Martes' },
+  { label: 'M', name: 'Miércoles' },
+  { label: 'J', name: 'Jueves' },
+  { label: 'V', name: 'Viernes' },
+  { label: 'S', name: 'Sábado' },
+  { label: 'D', name: 'Domingo' }
+];
+
 
 const allExercisesLight = ref<Exercise[]>([]);
 const isLoadingLight = ref(false);
@@ -159,11 +210,19 @@ const exercisesAvailableToAdd = computed(() => {
 
   let available = allExercisesLight.value.filter(ex => !exerciseIdsInRoutine.includes(ex.id));
 
+  // Filtrado por músculo
+  if (addExerciseSelectedMuscle.value !== 'Todos') {
+    available = available.filter(ex => ex.muscle === addExerciseSelectedMuscle.value);
+  }
+
+  // Filtrado por búsqueda
   if (addExerciseSearchText.value) {
     const search = addExerciseSearchText.value.toLowerCase();
     available = available.filter(ex =>
       ex.name.toLowerCase().includes(search) ||
-      ex.muscle?.toLowerCase().includes(search)
+      ex.muscle?.toLowerCase().includes(search) ||
+      ex.description?.toLowerCase().includes(search) ||
+      ex.equipment?.toLowerCase().includes(search)
     );
   }
 
@@ -183,7 +242,7 @@ const getDifficultyColor = (difficulty: string) => {
 // Cargar ejercicios (paginado, server-side filtrado)
 const loadExercises = async (append = false) => {
   if (!append) {
-    isLoading.value = true;
+    isLoading.value = exercises.value.length === 0; // Only show main loading spinner if no cached data
   } else {
     isLoadingMore.value = true;
   }
@@ -208,9 +267,16 @@ const loadExercises = async (append = false) => {
     } else {
       exercises.value = newExercises;
     }
+
+    // Guardar en cache local
+    localStorage.setItem('cache_exercises', JSON.stringify(exercises.value));
+    localStorage.setItem('cache_exercises_page', String(currentPage.value));
+    localStorage.setItem('cache_exercises_total', String(totalExercises.value));
+    localStorage.setItem('cache_exercises_has_more', String(hasMore.value));
+
   } catch (error) {
     console.error("Error fetching exercises", error);
-    if (!append) exercises.value = [];
+    if (!append && exercises.value.length === 0) exercises.value = [];
   } finally {
     isLoading.value = false;
     isLoadingMore.value = false;
@@ -253,13 +319,15 @@ const loadRoutines = async () => {
     const data = await response.json();
     if (Array.isArray(data)) {
       routines.value = data;
+      // Guardar en cache local
+      localStorage.setItem('cache_routines', JSON.stringify(routines.value));
     } else {
       console.error("La respuesta de la API para rutinas no es un array:", data);
       routines.value = []; // Asegurarse de que siempre sea un array
     }
   } catch (error) {
     console.error("Error fetching routines", error);
-    routines.value = []; // Resetear en caso de error de red
+    if (routines.value.length === 0) routines.value = []; // Resetear solo si no hay cache
   }
 };
 
@@ -341,32 +409,162 @@ const createRoutine = async () => {
     }
   }
   (document.activeElement as HTMLElement)?.blur();
-  newRoutineForm.value = { name: '', description: '' };
+  newRoutineForm.value = {
+    name: '',
+    description: '',
+    muscleFocus: 'Pecho',
+    imageUrl: '',
+    scheduledDays: []
+  };
   isCreateRoutineModalOpen.value = true;
 };
 
 // Guardar la nueva rutina creada desde el modal
 const saveNewRoutine = async () => {
+  if (isSavingRoutine.value) return;
   if (!newRoutineForm.value.name) {
     showToast('Por favor, dale un nombre a la rutina', 'warning');
     return;
   }
+  isSavingRoutine.value = true;
   try {
     const response = await fetch(`${API_URL}/routines`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify({
-        ...newRoutineForm.value
+        name: newRoutineForm.value.name,
+        description: newRoutineForm.value.description
       })
     });
     if (!response.ok) throw new Error('Error en la respuesta del servidor');
+    
+    const createdRoutine = await response.json();
+    
+    // Si se seleccionó una imagen durante la creación, guardarla localmente
+    if (newRoutineForm.value.imageUrl) {
+      routineImages.value[createdRoutine.id] = newRoutineForm.value.imageUrl;
+      localStorage.setItem('forgy_routine_images', JSON.stringify(routineImages.value));
+    }
+
+    // Guardar el foco muscular localmente
+    if (newRoutineForm.value.muscleFocus) {
+      routineMuscles.value[createdRoutine.id] = newRoutineForm.value.muscleFocus;
+      localStorage.setItem('forgy_routine_muscles', JSON.stringify(routineMuscles.value));
+    }
+
+    // Guardar la programación de días locales
+    if (newRoutineForm.value.scheduledDays && newRoutineForm.value.scheduledDays.length > 0) {
+      routineSchedule.value[createdRoutine.id] = newRoutineForm.value.scheduledDays;
+      localStorage.setItem('forgy_routine_schedule', JSON.stringify(routineSchedule.value));
+    }
 
     showToast('Rutina creada con éxito');
     loadRoutines();
     isCreateRoutineModalOpen.value = false;
   } catch (e) {
     showToast('Error al crear la rutina', 'danger');
+  } finally {
+    isSavingRoutine.value = false;
   }
+};
+
+const toggleFormDay = (day: string) => {
+  const index = newRoutineForm.value.scheduledDays.indexOf(day);
+  if (index > -1) {
+    newRoutineForm.value.scheduledDays.splice(index, 1);
+  } else {
+    newRoutineForm.value.scheduledDays.push(day);
+  }
+};
+
+const toggleRoutineDay = (routineId: string, dayName: string) => {
+  if (!routineSchedule.value[routineId]) {
+    routineSchedule.value[routineId] = [];
+  }
+  const index = routineSchedule.value[routineId].indexOf(dayName);
+  if (index > -1) {
+    routineSchedule.value[routineId].splice(index, 1);
+  } else {
+    routineSchedule.value[routineId].push(dayName);
+  }
+  localStorage.setItem('forgy_routine_schedule', JSON.stringify(routineSchedule.value));
+  showToast('Programación de días actualizada', 'success');
+};
+
+const toggleSelectionMode = () => {
+  isSelectionModeActive.value = !isSelectionModeActive.value;
+  selectedRoutineIds.value = [];
+};
+
+const toggleRoutineSelection = (routineId: string) => {
+  const index = selectedRoutineIds.value.indexOf(routineId);
+  if (index > -1) {
+    selectedRoutineIds.value.splice(index, 1);
+  } else {
+    selectedRoutineIds.value.push(routineId);
+  }
+};
+
+const bulkScheduleDays = async () => {
+  if (selectedRoutineIds.value.length === 0) return;
+  const alert = await alertController.create({
+    header: 'Programar Rutinas',
+    subHeader: `Asignar días para ${selectedRoutineIds.value.length} rutinas:`,
+    inputs: daysOfWeek.map(day => ({
+      type: 'checkbox',
+      label: day,
+      value: day,
+      checked: false
+    })),
+    buttons: [
+      { text: 'Cancelar', role: 'cancel' },
+      {
+        text: 'Guardar',
+        handler: (selectedDays: string[]) => {
+          selectedRoutineIds.value.forEach(id => {
+            routineSchedule.value[id] = selectedDays;
+          });
+          localStorage.setItem('forgy_routine_schedule', JSON.stringify(routineSchedule.value));
+          showToast('Programación masiva guardada', 'success');
+          toggleSelectionMode();
+        }
+      }
+    ]
+  });
+  await alert.present();
+};
+
+const bulkDeleteRoutines = async () => {
+  if (selectedRoutineIds.value.length === 0) return;
+  const alert = await alertController.create({
+    header: 'Eliminar Rutinas',
+    message: `¿Estás seguro de que quieres eliminar las ${selectedRoutineIds.value.length} rutinas seleccionadas? Esta acción no se puede deshacer.`,
+    buttons: [
+      { text: 'Cancelar', role: 'cancel' },
+      {
+        text: 'Eliminar',
+        role: 'destructive',
+        handler: async () => {
+          try {
+            const deletePromises = selectedRoutineIds.value.map(id =>
+              fetch(`${API_URL}/routines/${id}`, {
+                method: 'DELETE',
+                headers: getHeaders()
+              })
+            );
+            await Promise.all(deletePromises);
+            showToast('Rutinas eliminadas con éxito', 'success');
+            loadRoutines();
+            toggleSelectionMode();
+          } catch (error) {
+            console.error(error);
+            showToast('Error al eliminar las rutinas', 'danger');
+          }
+        }
+      }
+    ]
+  });
+  await alert.present();
 };
 
 // Agregar ejercicio a rutina
@@ -511,6 +709,7 @@ const loadAllExercisesLight = async () => {
     if (response.ok) {
       const data = await response.json();
       allExercisesLight.value = Array.isArray(data) ? data : (data.data ?? []);
+      localStorage.setItem('cache_all_exercises_light', JSON.stringify(allExercisesLight.value));
     }
   } catch (e) {
     console.error('Error loading light exercises:', e);
@@ -804,6 +1003,13 @@ const presentRoutineOptions = async (routine: Routine) => {
         },
       },
       {
+        text: 'Cambiar Días',
+        icon: calendarOutline,
+        handler: () => {
+          scheduleRoutineDays(routine);
+        },
+      },
+      {
         text: 'Eliminar',
         role: 'destructive',
         handler: () => {
@@ -927,10 +1133,14 @@ const updateRoutineImage = async (imageUrl: string) => {
   if (routineForImageChange.value) {
     const routine = routineForImageChange.value;
     try {
+      // Guardar la imagen localmente
+      routineImages.value[routine.id] = imageUrl;
+      localStorage.setItem('forgy_routine_images', JSON.stringify(routineImages.value));
+
       const response = await fetch(`${API_URL}/routines/${routine.id}`, {
         method: 'PUT',
         headers: getHeaders(),
-        body: JSON.stringify({ imageUrl: imageUrl }),
+        body: JSON.stringify({ imageUrl: imageUrl }), // Note: backend ignores imageUrl but we try for future compatibility
       });
       if (!response.ok) throw new Error('Error al cambiar la imagen');
 
@@ -940,12 +1150,16 @@ const updateRoutineImage = async (imageUrl: string) => {
         routineInList.imageUrl = imageUrl;
       }
       isImagePickerOpen.value = false;
+      showToast('Imagen de rutina actualizada', 'success');
     } catch (error) {
       console.error(error);
-      await showToast('No se pudo cambiar la imagen', 'danger');
+      // Aún si la red falla, lo dejamos guardado en local y cerramos
+      isImagePickerOpen.value = false;
+      showToast('Imagen actualizada de forma local', 'success');
     }
   } else {
     // Si no, estamos creando una nueva rutina. Solo actualizamos el formulario.
+    newRoutineForm.value.imageUrl = imageUrl;
     isImagePickerOpen.value = false;
   }
 };
@@ -972,21 +1186,166 @@ const selectImageFromDevice = async () => {
   }
 };
 
+// Toggle favoritar rutina
+const toggleFavoriteRoutine = async (routine: Routine) => {
+  try {
+    const nextFavoriteState = !routine.isFavorite;
+    const response = await fetch(`${API_URL}/routines/${routine.id}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify({ isFavorite: nextFavoriteState })
+    });
+    if (!response.ok) throw new Error('Error al favoritar rutina');
+    
+    routine.isFavorite = nextFavoriteState;
+    const r = routines.value.find(item => item.id === routine.id);
+    if (r) r.isFavorite = nextFavoriteState;
+    
+    localStorage.setItem('cache_routines', JSON.stringify(routines.value));
+    showToast(nextFavoriteState ? 'Añadida a favoritos' : 'Eliminada de favoritos', 'success');
+  } catch (e) {
+    console.error(e);
+    showToast('No se pudo actualizar favoritos', 'danger');
+  }
+};
+
+// Programar rutina por días de la semana
+const scheduleRoutineDays = async (routine: Routine) => {
+  const currentDays = routineSchedule.value[routine.id] || [];
+  const alert = await alertController.create({
+    header: 'Programar Rutina',
+    subHeader: 'Selecciona los días de entrenamiento:',
+    inputs: daysOfWeek.map(day => ({
+      type: 'checkbox',
+      label: day,
+      value: day,
+      checked: currentDays.includes(day)
+    })),
+    buttons: [
+      { text: 'Cancelar', role: 'cancel' },
+      {
+        text: 'Guardar',
+        handler: (selectedDays: string[]) => {
+          routineSchedule.value[routine.id] = selectedDays;
+          localStorage.setItem('forgy_routine_schedule', JSON.stringify(routineSchedule.value));
+          showToast('Programación guardada con éxito', 'success');
+        }
+      }
+    ]
+  });
+  await alert.present();
+};
+
+const isRoutineScheduledOnDay = (routineId: string, dayName: string) => {
+  const activeDays = routineSchedule.value[routineId] || [];
+  return activeDays.includes(dayName);
+};
+
+const getRoutinesForDay = (dayName: string) => {
+  return routines.value.filter(r => isRoutineScheduledOnDay(r.id, dayName));
+};
+
+const quickStartTraining = async (routine: Routine) => {
+  await openRoutineDetail(routine);
+  startTrainingSession();
+};
+
+// Manejo de errores de carga de imágenes
+const onImageError = (event: Event, type: 'routine' | 'gif' | 'preview') => {
+  const img = event.target as HTMLImageElement;
+  if (type === 'routine' || type === 'preview') {
+    img.src = 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=600&q=80';
+  } else {
+    // Para gifs rotos, intentar cargar la imagen estática JPG correspondiente
+    if (img.src.includes('/videos/') && img.src.endsWith('.gif')) {
+      img.src = img.src.replace('/videos/', '/images/').replace('.gif', '.jpg');
+    } else {
+      // Si la imagen estática JPG también falla o no es del dataset de videos, ocultar
+      img.style.display = 'none';
+    }
+  }
+};
+
 onIonViewWillEnter(() => {
-  // Reset and load first page
-  currentPage.value = 1;
-  exercises.value = [];
-  hasMore.value = false;
+  // Cargar caché local para 0ms de carga en transiciones
+  const cachedExercises = localStorage.getItem('cache_exercises');
+  const cachedRoutines = localStorage.getItem('cache_routines');
+  const cachedAllExercisesLight = localStorage.getItem('cache_all_exercises_light');
+  const savedSchedule = localStorage.getItem('forgy_routine_schedule');
+  const savedImages = localStorage.getItem('forgy_routine_images');
+  const savedMuscles = localStorage.getItem('forgy_routine_muscles');
+
+  if (savedImages) {
+    try {
+      routineImages.value = JSON.parse(savedImages);
+    } catch (e) {
+      console.error('Error parseando forgy_routine_images', e);
+    }
+  }
+
+  if (savedMuscles) {
+    try {
+      routineMuscles.value = JSON.parse(savedMuscles);
+    } catch (e) {
+      console.error('Error parseando forgy_routine_muscles', e);
+    }
+  }
+
+  if (cachedExercises) {
+    try {
+      exercises.value = JSON.parse(cachedExercises);
+      currentPage.value = Number(localStorage.getItem('cache_exercises_page') || '1');
+      totalExercises.value = Number(localStorage.getItem('cache_exercises_total') || '0');
+      hasMore.value = localStorage.getItem('cache_exercises_has_more') === 'true';
+      isLoading.value = false;
+    } catch (e) {
+      console.error('Error parseando cache_exercises', e);
+    }
+  } else {
+    currentPage.value = 1;
+    exercises.value = [];
+    hasMore.value = false;
+  }
+
+  if (cachedRoutines) {
+    try {
+      routines.value = JSON.parse(cachedRoutines);
+    } catch (e) {
+      console.error('Error parseando cache_routines', e);
+    }
+  }
+
+  if (cachedAllExercisesLight) {
+    try {
+      allExercisesLight.value = JSON.parse(cachedAllExercisesLight);
+    } catch (e) {
+      console.error('Error parseando cache_all_exercises_light', e);
+    }
+  }
+
+  if (savedSchedule) {
+    try {
+      routineSchedule.value = JSON.parse(savedSchedule);
+    } catch (e) {
+      console.error('Error parseando forgy_routine_schedule', e);
+    }
+  }
+
   selectedMuscle.value = ['Todos'];
   searchText.value = '';
+
+  // Load from API in the background to ensure freshness
   loadExercises();
   loadRoutines();
+  if (allExercisesLight.value.length === 0) {
+    loadAllExercisesLight();
+  }
+
   socket = io(API_URL.replace('/api', ''), {
     auth: { token: localStorage.getItem('token') }
   });
   socket.on('exercises-updated', () => {
     console.log('Datos actualizados');
-    currentPage.value = 1;
     exercises.value = [];
     loadExercises();
   });
@@ -999,13 +1358,9 @@ onIonViewWillLeave(() => {
 
 <template>
   <ion-page>
-    <ion-header class="ion-no-border">
-      <ion-toolbar color="primary">
-        <ion-title>
-          <ion-icon
-            :icon="fitness"
-            style="margin-right: 8px;"
-          ></ion-icon>
+    <ion-header class="forgy-header">
+      <ion-toolbar>
+        <ion-title class="forgy-title">
           Biblioteca
         </ion-title>
       </ion-toolbar>
@@ -1027,7 +1382,7 @@ onIonViewWillLeave(() => {
         <ion-searchbar
           :value="searchText"
           @ionInput="onSearchInput"
-          placeholder="Buscar entre 1,500+ ejercicios..."
+          placeholder="Buscar ejercicios..."
           :animated="true"
           show-clear-button="always"
           class="custom-searchbar"
@@ -1049,18 +1404,27 @@ onIonViewWillLeave(() => {
         <ion-refresher-content></ion-refresher-content>
       </ion-refresher>
 
-      <!-- Filtros por músculo mejorados -->
+      <!-- Filtros por músculo mejorados (sin emojis, usando SVGs) -->
       <div class="muscle-chips">
         <ion-chip
-          v-for="m in musclesWithEmoji"
+          v-for="m in visibleMusclesWithEmoji"
           :key="m.name"
           :color="selectedMuscle.includes(m.name) ? 'primary' : undefined"
           @click="toggleMuscleFilter(m.name)"
           class="muscle-chip"
           :class="{ 'chip-inactive': !selectedMuscle.includes(m.name) }"
         >
-          <span class="chip-emoji">{{ m.emoji }}</span>
-          <ion-label>{{ m.name }}</ion-label>
+          <span class="chip-svg-icon" v-html="muscleIcons[m.name]"></span>
+          <ion-label class="chip-text">{{ m.name }}</ion-label>
+        </ion-chip>
+        <ion-chip
+          class="muscle-chip expand-chip"
+          color="medium"
+          @click="isExpandedMuscles = !isExpandedMuscles"
+          :outline="!isExpandedMuscles"
+        >
+          <ion-icon :icon="isExpandedMuscles ? removeCircleOutline : addCircleOutline" style="font-size: 16px; margin-right: 4px;"></ion-icon>
+          <ion-label class="chip-text">{{ isExpandedMuscles ? 'Ver menos' : 'Ver más' }}</ion-label>
         </ion-chip>
       </div>
 
@@ -1131,21 +1495,23 @@ onIonViewWillLeave(() => {
                     size="small"
                     color="tertiary"
                   >
-                    <span class="chip-emoji-small">{{ getMuscleEmoji(ex.muscle) }}</span>
-                    <ion-label>{{ ex.muscle }}</ion-label>
+                    <span class="chip-svg-icon" v-html="muscleIcons[ex.muscle]"></span>
+                    <ion-label class="chip-text">{{ ex.muscle }}</ion-label>
                   </ion-chip>
                   <ion-chip
                     size="small"
                     :color="getDifficultyColor(ex.difficulty)"
+                    class="difficulty-chip"
+                    :class="ex.difficulty.toLowerCase()"
                   >
-                    <span class="chip-emoji-small">{{ difficultyEmoji[ex.difficulty] }}</span>
+                    <span class="difficulty-dot"></span>
                     <ion-label>{{ ex.difficulty }}</ion-label>
                   </ion-chip>
                 </div>
               </div>
-              <!-- GIF thumbnail -->
+              <!-- GIF thumbnail con manejador de error -->
               <div v-if="ex.gifUrl" class="exercise-gif-thumb">
-                <img :src="ex.gifUrl" :alt="ex.name" loading="lazy" />
+                <img :src="ex.gifUrl" :alt="ex.name" loading="lazy" @error="onImageError($event, 'gif')" />
               </div>
             </div>
           </ion-card-header>
@@ -1187,8 +1553,6 @@ onIonViewWillLeave(() => {
         ></ion-icon>
         <h3>No hay ejercicios</h3>
       </div>
-
-      <!-- FAB para agregar eliminado -->
     </ion-content>
 
     <!-- VISTA DE RUTINAS -->
@@ -1204,63 +1568,251 @@ onIonViewWillLeave(() => {
         <ion-refresher-content></ion-refresher-content>
       </ion-refresher>
 
-      <ion-grid v-if="routines.length > 0">
-        <ion-row>
-          <ion-col
-            size="6"
-            v-for="routine in routines"
-            :key="routine.id"
+      <!-- Selector de Vista: Lista / Calendario Semanal -->
+      <div class="view-switcher-container">
+        <div class="glass-segment-wrapper">
+          <button 
+            type="button"
+            class="view-switch-btn" 
+            :class="{ active: routineViewStyle === 'grid' }"
+            @click="routineViewStyle = 'grid'"
           >
-            <ion-card
-              button
-              @click="openRoutineDetail(routine)"
-              class="routine-card"
-            >
-              <ion-button
-                fill="clear"
-                class="routine-options-button"
-                @click.stop="presentRoutineOptions(routine)"
-              >
-                <ion-icon
-                  slot="icon-only"
-                  :icon="ellipsisVertical"
-                ></ion-icon>
-              </ion-button>
-              <img
-                alt="Routine image"
-                :src="routine.imageUrl || 'https://ionicframework.com/docs/img/demos/card-media.png'"
-              />
-              <ion-card-header>
-                <ion-card-title>{{ routine.name }}</ion-card-title>
-              </ion-card-header>
-              <ion-card-content>
-                <ion-icon
-                  :icon="albums"
-                  style="vertical-align: middle;"
-                ></ion-icon>
-                {{ routine.exercises?.length || 0 }} ejercicios
-              </ion-card-content>
-            </ion-card>
-          </ion-col>
-        </ion-row>
-      </ion-grid>
+            <ion-icon :icon="list" class="switcher-icon"></ion-icon>
+            <span>Lista</span>
+          </button>
+          <button 
+            type="button"
+            class="view-switch-btn" 
+            :class="{ active: routineViewStyle === 'calendar' }"
+            @click="routineViewStyle = 'calendar'"
+          >
+            <ion-icon :icon="calendarOutline" class="switcher-icon"></ion-icon>
+            <span>Calendario</span>
+          </button>
+        </div>
+      </div>
 
-      <div
-        v-else
-        class="empty-state"
-      >
-        <ion-icon
-          :icon="albums"
-          size="large"
-        ></ion-icon>
-        <h3>No tienes rutinas</h3>
-        <p>Crea una playlist de ejercicios para organizar tus entrenamientos.</p>
+      <!-- VISTA EN CUADRÍCULA / LISTA -->
+      <div v-if="routineViewStyle === 'grid'">
+        <!-- Barra Semanal de Filtro -->
+        <div class="weekly-schedule-bar">
+          <span 
+            class="schedule-day-chip" 
+            :class="{ active: selectedRoutineDay === 'Todos' }" 
+            @click="selectedRoutineDay = 'Todos'"
+          >
+            Todas
+          </span>
+          <span 
+            v-for="day in daysOfWeek" 
+            :key="day" 
+            class="schedule-day-chip" 
+            :class="{ active: selectedRoutineDay === day }" 
+            @click="selectedRoutineDay = day"
+          >
+            {{ day.substring(0, 3) }}
+          </span>
+        </div>
+
+        <!-- Botón Selección Múltiple debajo de los días de calendario -->
+        <div class="grid-select-action-container">
+          <ion-button 
+            fill="clear" 
+            size="small" 
+            class="bulk-select-btn-grid"
+            @click="toggleSelectionMode"
+          >
+            <ion-icon slot="start" :icon="isSelectionModeActive ? closeCircle : list" style="font-size: 16px;"></ion-icon>
+            {{ isSelectionModeActive ? 'Cancelar Selección' : 'Seleccionar Múltiple' }}
+          </ion-button>
+        </div>
+
+        <ion-grid v-if="filteredRoutines.length > 0">
+          <ion-row>
+            <ion-col
+              size="6"
+              v-for="routine in filteredRoutines"
+              :key="routine.id"
+            >
+              <ion-card
+                button
+                @click="isSelectionModeActive ? toggleRoutineSelection(routine.id) : openRoutineDetail(routine)"
+                class="routine-card"
+                :class="{ 'is-selected': selectedRoutineIds.includes(routine.id) }"
+              >
+                <div class="routine-card-img-container">
+                  <!-- Checkbox de selección múltiple -->
+                  <div 
+                    v-if="isSelectionModeActive" 
+                    class="routine-card-selection-check"
+                    @click.stop="toggleRoutineSelection(routine.id)"
+                  >
+                    <ion-checkbox 
+                      :checked="selectedRoutineIds.includes(routine.id)"
+                      aria-label="select-routine"
+                      class="custom-checkbox"
+                    ></ion-checkbox>
+                  </div>
+                  <!-- Botón de Favorito directo (solo si no estamos seleccionando) -->
+                  <div 
+                    v-if="!isSelectionModeActive"
+                    class="routine-card-favorite-btn" 
+                    :class="{ 'is-fav': routine.isFavorite }" 
+                    @click.stop="toggleFavoriteRoutine(routine)"
+                  >
+                    <ion-icon :icon="routine.isFavorite ? star : starOutline"></ion-icon>
+                  </div>
+                  <!-- Botón de Opciones (solo si no estamos seleccionando) -->
+                  <ion-button
+                    v-if="!isSelectionModeActive"
+                    fill="clear"
+                    class="routine-options-button"
+                    @click.stop="presentRoutineOptions(routine)"
+                  >
+                    <ion-icon
+                      slot="icon-only"
+                      :icon="ellipsisVertical"
+                    ></ion-icon>
+                  </ion-button>
+                  <img
+                    alt="Routine image"
+                    :src="routineImages[routine.id] || routine.imageUrl || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=600&q=80'"
+                    @error="onImageError($event, 'routine')"
+                  />
+                  <div class="routine-card-overlay"></div>
+                </div>
+                <ion-card-header>
+                  <ion-card-title>{{ routine.name }}</ion-card-title>
+                </ion-card-header>
+                <ion-card-content>
+                  <div class="routine-meta-row">
+                    <div class="routine-meta-item">
+                      <ion-icon :icon="albums" style="font-size: 14px;"></ion-icon>
+                      <span>{{ routine.exercises?.length || 0 }} ej.</span>
+                    </div>
+                    <div v-if="routineMuscles[routine.id]" class="routine-meta-item">
+                      <span class="chip-svg-icon" v-html="muscleIcons[routineMuscles[routine.id]]"></span>
+                      <span>{{ routineMuscles[routine.id] }}</span>
+                    </div>
+                  </div>
+                </ion-card-content>
+
+                <!-- Indicadores de Días Programados -->
+                <div class="routine-schedule-dots">
+                  <span 
+                    v-for="d in dayLabels" 
+                    :key="d.name" 
+                    class="schedule-dot"
+                    :class="{ active: isRoutineScheduledOnDay(routine.id, d.name) }"
+                  >
+                    {{ d.label }}
+                  </span>
+                </div>
+              </ion-card>
+            </ion-col>
+          </ion-row>
+        </ion-grid>
+
+        <div
+          v-else
+          class="empty-state"
+        >
+          <ion-icon
+            :icon="albums"
+            size="large"
+          ></ion-icon>
+          <h3>No hay rutinas</h3>
+          <p>No se encontraron rutinas programadas para este día.</p>
+        </div>
+      </div>
+
+      <!-- VISTA EN CALENDARIO / PLANIFICADOR SEMANAL -->
+      <div v-else-if="routineViewStyle === 'calendar'" class="calendar-planner-board">
+        <div 
+          v-for="day in daysOfWeek" 
+          :key="day" 
+          class="calendar-day-section"
+        >
+          <div class="calendar-day-header">
+            <h3>{{ day }}</h3>
+            <span class="day-dot-indicator" :class="{ 'has-routines': getRoutinesForDay(day).length > 0 }"></span>
+          </div>
+
+          <div class="calendar-routines-container">
+            <div 
+              v-for="routine in getRoutinesForDay(day)" 
+              :key="routine.id"
+              class="calendar-routine-item"
+              @click="openRoutineDetail(routine)"
+            >
+              <img 
+                :src="routineImages[routine.id] || routine.imageUrl || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=600&q=80'" 
+                class="calendar-routine-cover"
+                @error="onImageError($event, 'routine')"
+              />
+              <div class="calendar-routine-info">
+                <h4 class="calendar-routine-name">{{ routine.name }}</h4>
+                <div class="calendar-routine-details">
+                  <span class="details-text">
+                    <ion-icon :icon="barbell" style="font-size: 12px; vertical-align: middle; margin-right: 2px;"></ion-icon>
+                    {{ routine.exercises?.length || 0 }} ej.
+                  </span>
+                  <span v-if="routineMuscles[routine.id]" class="details-text">
+                    &middot; {{ routineMuscles[routine.id] }}
+                  </span>
+                </div>
+              </div>
+              
+              <!-- Quick Train button -->
+              <ion-button 
+                fill="clear" 
+                size="small" 
+                color="success"
+                class="quick-train-btn"
+                @click.stop="quickStartTraining(routine)"
+              >
+                Entrenar
+              </ion-button>
+            </div>
+
+            <!-- Empty State for Day -->
+            <div v-if="getRoutinesForDay(day).length === 0" class="calendar-day-empty">
+              <span>Día de descanso 🧘</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Barra Acciones Masivas -->
+      <div v-if="isSelectionModeActive && selectedRoutineIds.length > 0" class="bulk-action-bar">
+        <span class="bulk-selected-count">{{ selectedRoutineIds.length }} seleccionadas</span>
+        <div class="bulk-action-buttons">
+          <ion-button 
+            size="small" 
+            color="primary"
+            fill="outline"
+            @click="bulkScheduleDays"
+          >
+            <ion-icon slot="start" :icon="calendarOutline"></ion-icon>
+            Cambiar Días
+          </ion-button>
+          <ion-button 
+            size="small" 
+            color="danger"
+            fill="solid"
+            @click="bulkDeleteRoutines"
+          >
+            <ion-icon slot="start" :icon="trash"></ion-icon>
+            Eliminar
+          </ion-button>
+        </div>
       </div>
 
       <ion-fab
         slot="fixed"
         vertical="bottom"
         horizontal="end"
+        v-if="!isSelectionModeActive"
       >
         <ion-fab-button
           @click="createRoutine"
@@ -1276,52 +1828,110 @@ onIonViewWillLeave(() => {
       :is-open="isCreateRoutineModalOpen"
       @didDismiss="isCreateRoutineModalOpen = false"
     >
-      <ion-header>
-        <ion-toolbar color="primary">
+      <ion-header class="forgy-header">
+        <ion-toolbar class="modal-header-toolbar">
           <ion-buttons slot="start">
-            <ion-button @click="isCreateRoutineModalOpen = false">Cancelar</ion-button>
+            <ion-button 
+              fill="clear" 
+              color="medium" 
+              class="modal-btn-cancel" 
+              @click="isCreateRoutineModalOpen = false"
+            >
+              Cancelar
+            </ion-button>
           </ion-buttons>
-          <ion-title>Nueva Rutina</ion-title>
+          <ion-title class="forgy-title">Nueva Rutina</ion-title>
           <ion-buttons slot="end">
             <ion-button
-              strong
+              fill="solid"
+              color="primary"
+              class="modal-btn-create"
+              :disabled="isSavingRoutine"
               @click="saveNewRoutine"
-            >Crear</ion-button>
+            >
+              <span v-if="!isSavingRoutine">Crear</span>
+              <ion-spinner v-else name="crescent" size="small"></ion-spinner>
+            </ion-button>
           </ion-buttons>
         </ion-toolbar>
       </ion-header>
-      <ion-content>
+      <ion-content class="routine-create-content">
         <div class="routine-image-preview-container">
           <div
             class="routine-image-preview"
             @click="openImagePicker(null)"
           >
             <img
-              :src="'./assets/placeholder-image.png'"
+              :src="newRoutineForm.imageUrl || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=600&q=80'"
               alt="Routine preview"
+              @error="onImageError($event, 'preview')"
             />
-            <div class="edit-overlay">Elegir Imagen</div>
+            <div class="preview-edit-badge">
+              <ion-icon :icon="camera" style="font-size: 15px; margin-right: 4px;"></ion-icon>
+              <span>Elegir Portada</span>
+            </div>
+            <div class="routine-image-overlay"></div>
           </div>
         </div>
-        <ion-list>
-          <ion-item>
+
+        <div class="routine-form-container">
+          <div class="form-group">
+            <label class="form-label">Nombre de la Rutina</label>
             <ion-input
               v-model="newRoutineForm.name"
-              label="Nombre de la rutina"
-              label-placement="stacked"
               placeholder="Ej: Día de Piernas"
+              required
+              class="clean-form-input"
+              aria-label="Nombre de la rutina"
             ></ion-input>
-          </ion-item>
-          <ion-item>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Foco Muscular</label>
+            <ion-select
+              v-model="newRoutineForm.muscleFocus"
+              placeholder="Selecciona el foco principal"
+              interface="action-sheet"
+              class="clean-form-select"
+              aria-label="Foco Muscular"
+            >
+              <ion-select-option
+                v-for="m in muscles.slice(1)"
+                :key="m"
+                :value="m"
+              >
+                {{ m }}
+              </ion-select-option>
+            </ion-select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Descripción <span class="optional-text">(Opcional)</span></label>
             <ion-textarea
               v-model="newRoutineForm.description"
-              label="Descripción (opcional)"
-              label-placement="stacked"
               placeholder="Describe brevemente la rutina..."
               :auto-grow="true"
+              :rows="3"
+              class="clean-form-textarea"
+              aria-label="Descripción"
             ></ion-textarea>
-          </ion-item>
-        </ion-list>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Programar Días de Entrenamiento</label>
+            <div class="form-days-row">
+              <span 
+                v-for="day in daysOfWeek" 
+                :key="day" 
+                class="form-day-toggle-chip" 
+                :class="{ active: newRoutineForm.scheduledDays.includes(day) }"
+                @click="toggleFormDay(day)"
+              >
+                {{ day.substring(0, 3) }}
+              </span>
+            </div>
+          </div>
+        </div>
       </ion-content>
     </ion-modal>
 
@@ -1434,12 +2044,12 @@ onIonViewWillLeave(() => {
     <ion-modal
       :is-open="isDetailModalOpen"
       @didDismiss="isDetailModalOpen = false"
-      :initial-breakpoint="0.85"
-      :breakpoints="[0, 0.5, 0.85, 1]"
+      :initial-breakpoint="0.75"
+      :breakpoints="[0, 0.4, 0.75, 1]"
     >
-      <ion-header>
+      <ion-header class="forgy-header">
         <ion-toolbar>
-          <ion-title>Detalles</ion-title>
+          <ion-title class="forgy-title">Detalles</ion-title>
           <ion-buttons slot="end">
             <ion-button @click="isDetailModalOpen = false">Cerrar</ion-button>
           </ion-buttons>
@@ -1450,57 +2060,56 @@ onIonViewWillLeave(() => {
         class="ion-padding"
         v-if="selectedExercise"
       >
-        <div class="ion-text-center ion-margin-bottom">
-          <!-- Exercise GIF -->
-          <div v-if="selectedExercise.gifUrl" class="exercise-gif-modal">
-            <img :src="selectedExercise.gifUrl" :alt="selectedExercise.name" />
+        <!-- Compact info header (GIF left, title/meta right) -->
+        <div class="exercise-detail-compact-header">
+          <div class="detail-gif-container" v-if="selectedExercise.gifUrl">
+            <img :src="selectedExercise.gifUrl" :alt="selectedExercise.name" @error="onImageError($event, 'gif')" />
           </div>
-          <h1>{{ selectedExercise.name }}</h1>
-          <ion-chip color="tertiary">
-            {{ getMuscleEmoji(selectedExercise.muscle) }} {{ selectedExercise.muscle }}
-          </ion-chip>
-          <ion-chip :color="getDifficultyColor(selectedExercise.difficulty)">
-            {{ difficultyEmoji[selectedExercise.difficulty] }} {{ selectedExercise.difficulty }}
-          </ion-chip>
+          <div class="detail-info-container">
+            <h2 class="detail-title">{{ selectedExercise.name }}</h2>
+            <div class="detail-badges-row">
+              <span class="detail-badge muscle-badge">
+                <span class="chip-svg-icon" v-html="muscleIcons[selectedExercise.muscle] || muscleIcons['Todos']"></span>
+                <span>{{ selectedExercise.muscle }}</span>
+              </span>
+              <span class="detail-badge difficulty-badge" :class="selectedExercise.difficulty.toLowerCase()">
+                <span class="difficulty-dot"></span>
+                <span>{{ selectedExercise.difficulty }}</span>
+              </span>
+            </div>
+            <div class="detail-equipment-row" v-if="selectedExercise.equipment">
+              <ion-icon :icon="barbell" class="equipment-icon"></ion-icon>
+              <span>{{ selectedExercise.equipment }}</span>
+            </div>
+          </div>
         </div>
 
-        <div class="ion-margin-bottom">
-          <h3>Descripción</h3>
-          <p style="line-height: 1.6; color: var(--forgy-text-secondary);">
-            {{ selectedExercise.description || 'Sin descripción detallada.' }}
-          </p>
+        <!-- Description -->
+        <div class="detail-section" v-if="selectedExercise.description">
+          <h4 class="detail-section-title">Descripción</h4>
+          <p class="detail-description-text">{{ selectedExercise.description }}</p>
         </div>
 
-        <div
-          v-if="selectedExercise.equipment"
-          class="ion-margin-bottom"
-        >
-          <h3><ion-icon
-              :icon="barbell"
-              style="vertical-align: text-bottom;"
-            ></ion-icon> Equipamiento</h3>
-          <p>{{ selectedExercise.equipment }}</p>
-        </div>
-
-        <div
-          v-if="selectedExercise.instructions && selectedExercise.instructions.length"
-          class="ion-margin-bottom"
-        >
-          <h3>Instrucciones</h3>
-          <ol style="padding-left: 20px; line-height: 1.6;">
-            <li
-              v-for="(step, i) in selectedExercise.instructions"
-              :key="i"
-              style="margin-bottom: 8px;"
+        <!-- Step-by-step instructions -->
+        <div class="detail-section" v-if="selectedExercise.instructions && selectedExercise.instructions.length">
+          <h4 class="detail-section-title">Instrucciones técnicas</h4>
+          <div class="technical-steps">
+            <div
+              v-for="(step, idx) in selectedExercise.instructions"
+              :key="idx"
+              class="technical-step-row"
             >
-              {{ step }}
-            </li>
-          </ol>
+              <span class="step-number-circle">{{ idx + 1 }}</span>
+              <span class="step-text">{{ step }}</span>
+            </div>
+          </div>
         </div>
 
-        <div class="ion-margin-top">
+        <!-- Action buttons (compact and aligned) -->
+        <div class="ion-margin-top" style="display: flex; flex-direction: column; gap: 8px;">
           <ion-button
             expand="block"
+            color="primary"
             @click="openVideo(selectedExercise.video || 'https://www.youtube.com/results?search_query=' + selectedExercise.name + ' exercise')"
           >
             <ion-icon
@@ -1510,19 +2119,17 @@ onIonViewWillLeave(() => {
             {{ selectedExercise.video ? 'Ver Video Tutorial' : 'Buscar Video en YouTube' }}
           </ion-button>
 
-          <div class="ion-text-center ion-margin-top">
-            <ion-button
-              expand="block"
-              fill="outline"
-              @click="addToRoutine(selectedExercise!)"
-            >
-              <ion-icon
-                slot="start"
-                :icon="bookmark"
-              ></ion-icon>
-              Guardar en Rutina
-            </ion-button>
-          </div>
+          <ion-button
+            expand="block"
+            fill="outline"
+            @click="addToRoutine(selectedExercise!)"
+          >
+            <ion-icon
+              slot="start"
+              :icon="bookmark"
+            ></ion-icon>
+            Guardar en Rutina
+          </ion-button>
         </div>
       </ion-content>
     </ion-modal>
@@ -1533,31 +2140,60 @@ onIonViewWillLeave(() => {
       @didDismiss="onRoutineDetailDismiss"
       :can-dismiss="canDismissRoutineDetail"
     >
-      <ion-header>
-        <ion-toolbar>
+      <ion-header class="forgy-header">
+        <ion-toolbar class="modal-header-toolbar">
           <ion-buttons slot="start">
             <ion-button
               v-if="selectedRoutine?.exercises && selectedRoutine.exercises.length > 0"
+              fill="clear"
+              color="primary"
               @click="isReorderMode = !isReorderMode"
               :disabled="isTrainingMode"
+              class="modal-btn-order"
             >
               {{ isReorderMode ? 'Hecho' : 'Ordenar' }}
             </ion-button>
           </ion-buttons>
-          <ion-title>{{ selectedRoutine?.name }}</ion-title>
+          <ion-title class="forgy-title">{{ selectedRoutine?.name }}</ion-title>
           <ion-buttons slot="end">
             <ion-button
               v-if="isTrainingMode"
-              @click="finishWorkout"
+              fill="solid"
               color="success"
+              @click="finishWorkout"
               strong
-            >Finalizar</ion-button>
-            <ion-button @click="isRoutineDetailOpen = false">Cerrar</ion-button>
+              class="modal-btn-finish"
+            >
+              Finalizar
+            </ion-button>
+            <ion-button 
+              fill="clear" 
+              color="medium" 
+              class="modal-btn-close" 
+              @click="isRoutineDetailOpen = false"
+            >
+              Cerrar
+            </ion-button>
           </ion-buttons>
         </ion-toolbar>
       </ion-header>
       <ion-content class="ion-padding">
         <template v-if="selectedRoutine">
+          <!-- Modificación de días asignados (programación) -->
+          <div class="detail-schedule-section">
+            <h4 class="form-section-title">Asignar Días</h4>
+            <div class="detail-days-row">
+              <span
+                v-for="day in daysOfWeek"
+                :key="day"
+                class="detail-day-toggle-chip"
+                :class="{ active: isRoutineScheduledOnDay(selectedRoutine.id, day) }"
+                @click="toggleRoutineDay(selectedRoutine.id, day)"
+              >
+                {{ day.substring(0, 3) }}
+              </span>
+            </div>
+          </div>
           <ion-reorder-group
             v-if="selectedRoutine.exercises && selectedRoutine.exercises.length > 0"
             :disabled="!isReorderMode"
@@ -1591,8 +2227,8 @@ onIonViewWillLeave(() => {
                   v-if="!isReorderMode"
                   slot="start"
                   class="exercise-avatar"
+                  v-html="muscleIcons[ex.muscle]"
                 >
-                  {{ getMuscleEmoji(ex.muscle) }}
                 </div>
                 <ion-label>
                   <h2>{{ ex.name }}</h2>
@@ -1660,9 +2296,9 @@ onIonViewWillLeave(() => {
       :is-open="isAddExerciseModalOpen"
       @didDismiss="isAddExerciseModalOpen = false"
     >
-      <ion-header>
+      <ion-header class="forgy-header">
         <ion-toolbar>
-          <ion-title>Agregar Ejercicio</ion-title>
+          <ion-title class="forgy-title">Agregar Ejercicio</ion-title>
           <ion-buttons slot="end">
             <ion-button @click="isAddExerciseModalOpen = false">Cerrar</ion-button>
           </ion-buttons>
@@ -1671,10 +2307,34 @@ onIonViewWillLeave(() => {
           <ion-searchbar
             v-model="addExerciseSearchText"
             placeholder="Buscar ejercicio para agregar..."
+            class="custom-searchbar"
           ></ion-searchbar>
         </ion-toolbar>
       </ion-header>
       <ion-content class="ion-padding">
+        <!-- Filtros por músculo locales -->
+        <div class="muscle-chips" style="margin-bottom: 12px; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px;">
+          <ion-chip
+            v-for="m in visibleAddExerciseMusclesWithEmoji"
+            :key="m.name"
+            :color="addExerciseSelectedMuscle === m.name ? 'primary' : undefined"
+            @click="addExerciseSelectedMuscle = m.name"
+            class="muscle-chip"
+            :class="{ 'chip-inactive': addExerciseSelectedMuscle !== m.name }"
+          >
+            <span class="chip-svg-icon" v-html="muscleIcons[m.name]"></span>
+            <ion-label class="chip-text">{{ m.name }}</ion-label>
+          </ion-chip>
+          <ion-chip
+            class="muscle-chip expand-chip"
+            color="medium"
+            @click="isExpandedAddExerciseMuscles = !isExpandedAddExerciseMuscles"
+            :outline="!isExpandedAddExerciseMuscles"
+          >
+            <ion-icon :icon="isExpandedAddExerciseMuscles ? removeCircleOutline : addCircleOutline" style="font-size: 16px; margin-right: 4px;"></ion-icon>
+            <ion-label class="chip-text">{{ isExpandedAddExerciseMuscles ? 'Ver menos' : 'Ver más' }}</ion-label>
+          </ion-chip>
+        </div>
         <ion-list>
           <ion-item
             v-for="ex in exercisesAvailableToAdd"
@@ -1684,7 +2344,8 @@ onIonViewWillLeave(() => {
             <div
               slot="start"
               class="exercise-avatar"
-            >{{ getMuscleEmoji(ex.muscle) }}</div>
+              v-html="muscleIcons[ex.muscle]"
+            ></div>
             <ion-label>
               <h2>{{ ex.name }}</h2>
               <p>{{ ex.muscle }}</p>
@@ -1868,12 +2529,22 @@ onIonViewWillLeave(() => {
 .muscle-chip {
   margin: 0;
   font-weight: 600;
+  --background: var(--forgy-input-bg);
+  --color: var(--forgy-text-secondary);
+  border: 1px solid var(--ion-border-color);
+  transition: all 0.2s ease;
+}
+
+.muscle-chip[color="primary"] {
+  --background: var(--ion-color-primary);
+  --color: white;
+  border-color: var(--ion-color-primary);
 }
 
 .chip-inactive {
-  --background: #f2f4f8;
-  --color: #111111;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  --background: var(--forgy-input-bg);
+  --color: var(--forgy-text-secondary);
+  border: 1px solid var(--ion-border-color);
 }
 
 .filter-actions {
@@ -1887,14 +2558,15 @@ onIonViewWillLeave(() => {
   font-weight: 600;
 }
 
-.chip-emoji {
-  font-size: 16px;
-  margin-right: 4px;
+.chip-svg-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.chip-emoji-small {
-  font-size: 12px;
-  margin-right: 2px;
+.chip-text {
+  margin-left: 6px;
+  vertical-align: middle;
 }
 
 .results-count {
@@ -1912,6 +2584,7 @@ onIonViewWillLeave(() => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   --background: var(--forgy-card-bg);
   color: var(--forgy-text-primary);
+  border: 1px solid var(--ion-border-color);
 }
 
 .card-header-content {
@@ -1934,6 +2607,25 @@ onIonViewWillLeave(() => {
 .exercise-meta ion-chip {
   height: 28px;
   font-size: 12px;
+}
+
+.difficulty-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--ion-color-medium);
+  display: inline-block;
+  margin-right: 4px;
+}
+
+.principiante .difficulty-dot {
+  background-color: var(--ion-color-success);
+}
+.intermedio .difficulty-dot {
+  background-color: var(--ion-color-warning);
+}
+.avanzado .difficulty-dot {
+  background-color: var(--ion-color-danger);
 }
 
 .exercise-description {
@@ -1989,36 +2681,208 @@ ion-card-title {
   padding-bottom: 10px;
 }
 
+/* Glassy header */
+.forgy-header {
+  background: transparent !important;
+  border-bottom: 1px solid var(--ion-border-color) !important;
+}
+.forgy-header ion-toolbar {
+  --background: rgba(var(--ion-background-color-rgb), 0.8) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  --border-style: none !important;
+}
+.forgy-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--forgy-text-primary);
+}
+
+/* Weekly Schedule Bar */
+.weekly-schedule-bar {
+  display: flex;
+  overflow-x: auto;
+  gap: 8px;
+  padding: 8px 4px 16px;
+  scrollbar-width: none;
+}
+.weekly-schedule-bar::-webkit-scrollbar {
+  display: none;
+}
+.schedule-day-chip {
+  padding: 8px 14px;
+  background: var(--forgy-input-bg);
+  border: 1px solid var(--ion-border-color);
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--forgy-text-secondary);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.schedule-day-chip.active {
+  background: var(--ion-color-primary);
+  border-color: var(--ion-color-primary);
+  color: white;
+}
+
+/* Custom segment design */
+ion-segment {
+  --background: var(--forgy-input-bg);
+  border-radius: 8px;
+  padding: 3px;
+  margin: 8px 16px !important;
+  width: calc(100% - 32px) !important;
+  max-width: none !important;
+  display: flex !important;
+}
+ion-segment-button {
+  --background-checked: var(--ion-color-primary);
+  --color-checked: white;
+  --color: var(--forgy-text-secondary);
+  border-radius: 6px;
+  font-weight: 600;
+  min-height: 36px;
+}
+
+/* Muscle SVG icon sizing */
+:deep(.muscle-svg) {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  display: inline-block;
+  vertical-align: middle;
+}
+:deep(.muscle-icon-img),
+.muscle-icon-img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  display: inline-block;
+  vertical-align: middle;
+  transition: transform 0.2s ease;
+}
+
+/* Routine Card styles matching Home */
 .routine-card {
   margin: 0;
   height: 100%;
   display: flex;
   flex-direction: column;
   position: relative;
+  border-radius: 12px;
+  border: 1px solid var(--ion-border-color);
+  overflow: hidden;
+  background: var(--forgy-card-bg);
+  box-shadow: none;
+}
+
+.routine-card-img-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+}
+
+.routine-card-img-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.routine-card:active .routine-card-img-container img {
+  transform: scale(1.04);
+}
+
+.routine-card-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0) 50%);
+}
+
+.routine-card-favorite-btn {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+  transition: transform 0.2s ease;
+}
+
+.routine-card-favorite-btn.is-fav {
+  color: var(--ion-color-warning);
+}
+
+.routine-card-favorite-btn:active {
+  transform: scale(0.9);
 }
 
 .routine-options-button {
   position: absolute;
-  top: 4px;
-  right: 4px;
+  top: 6px;
+  right: 6px;
   z-index: 10;
   --color: white;
   background-color: rgba(0, 0, 0, 0.4);
   border-radius: 50%;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   --padding-start: 0;
   --padding-end: 0;
+  margin: 0;
 }
 
 .routine-card ion-card-header {
-  padding-bottom: 8px;
+  padding: 10px 10px 4px 10px;
 }
 
 .routine-card ion-card-content {
   flex-grow: 1;
+  padding: 0 10px 10px 10px;
 }
 
+/* Routine Schedule Dots */
+.routine-schedule-dots {
+  display: flex;
+  gap: 3px;
+  padding: 0 10px 10px 10px;
+  margin-top: auto;
+}
+
+.schedule-dot {
+  width: 16px;
+  height: 16px;
+  font-size: 8px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--forgy-input-bg);
+  color: var(--forgy-text-secondary);
+  border: 1px solid var(--ion-border-color);
+}
+
+.schedule-dot.active {
+  background: var(--ion-color-primary);
+  color: white;
+  border-color: var(--ion-color-primary);
+}
+
+/* Image Picker */
 .image-picker-item {
   cursor: pointer;
   border-radius: 12px;
@@ -2157,19 +3021,777 @@ ion-card-title {
   object-fit: cover;
 }
 
-/* Full GIF in detail modal */
-.exercise-gif-modal {
-  width: 200px;
-  height: 200px;
-  margin: 0 auto 16px;
-  border-radius: 16px;
-  overflow: hidden;
-  background: var(--forgy-input-bg);
+/* Compact exercise detail header */
+.exercise-detail-compact-header {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+  align-items: center;
 }
 
-.exercise-gif-modal img {
+.detail-gif-container {
+  width: 90px;
+  height: 90px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--ion-border-color);
+  background: var(--forgy-input-bg);
+  flex-shrink: 0;
+}
+
+.detail-gif-container img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
+}
+
+.detail-info-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.detail-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--forgy-text-primary);
+}
+
+.detail-badges-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.detail-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--forgy-input-bg);
+  border: 1px solid var(--ion-border-color);
+  color: var(--forgy-text-secondary);
+}
+
+.detail-badge :deep(.muscle-svg) {
+  width: 12px;
+  height: 12px;
+}
+
+.detail-badge.principiante {
+  border-color: rgba(var(--ion-color-success-rgb), 0.3);
+  color: var(--ion-color-success);
+}
+
+.detail-badge.intermedio {
+  border-color: rgba(var(--ion-color-warning-rgb), 0.3);
+  color: var(--ion-color-warning);
+}
+
+.detail-badge.avanzado {
+  border-color: rgba(var(--ion-color-danger-rgb), 0.3);
+  color: var(--ion-color-danger);
+}
+
+.detail-equipment-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--forgy-text-secondary);
+}
+
+.equipment-icon {
+  font-size: 14px;
+}
+
+/* Detail Section style */
+.detail-section {
+  margin-bottom: 18px;
+}
+
+.detail-section-title {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--forgy-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.detail-description-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--forgy-text-secondary);
+}
+
+/* Step rows style */
+.technical-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.technical-step-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.step-number-circle {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(var(--ion-color-primary-rgb), 0.15);
+  border: 1px solid rgba(var(--ion-color-primary-rgb), 0.3);
+  color: var(--ion-color-primary);
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.step-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--forgy-text-primary);
+}
+
+/* Premium buttons override */
+ion-button {
+  --border-radius: 8px !important;
+  font-weight: 600;
+}
+
+/* Custom View Switcher Style */
+.view-switcher-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+  padding: 0 4px;
+}
+
+.glass-segment-wrapper {
+  display: flex;
+  background: var(--forgy-input-bg);
+  border-radius: 20px;
+  padding: 3px;
+  border: 1px solid var(--ion-border-color);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  width: 100%;
+  max-width: 320px;
+}
+
+.view-switch-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 17px;
+  color: var(--forgy-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.view-switch-btn.active {
+  background: var(--ion-color-primary);
+  color: white;
+  box-shadow: 0 2px 8px rgba(var(--ion-color-primary-rgb), 0.3);
+}
+
+.switcher-icon {
+  font-size: 16px;
+}
+
+/* Calendar Planner Board Styles */
+.calendar-planner-board {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 80px;
+}
+
+.calendar-day-section {
+  background: var(--forgy-card-bg);
+  border-radius: 14px;
+  border: 1px solid var(--ion-border-color);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+}
+
+.calendar-day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(var(--ion-border-color-rgb), 0.5);
+  padding-bottom: 6px;
+}
+
+.calendar-day-header h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--forgy-text-primary);
+  letter-spacing: 0.02em;
+}
+
+.day-dot-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.day-dot-indicator.has-routines {
+  background: var(--ion-color-primary);
+  box-shadow: 0 0 6px var(--ion-color-primary);
+}
+
+.calendar-routines-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.calendar-routine-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  background: rgba(var(--ion-border-color-rgb), 0.2);
+  border-radius: 10px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.calendar-routine-item:active {
+  transform: scale(0.98);
+  border-color: rgba(var(--ion-color-primary-rgb), 0.3);
+}
+
+.calendar-routine-cover {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.calendar-routine-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.calendar-routine-name {
+  margin: 0 0 2px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--forgy-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calendar-routine-details {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--forgy-text-secondary);
+}
+
+.details-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.calendar-diff-badge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--forgy-input-bg);
+  border: 1px solid var(--ion-border-color);
+  margin-left: auto;
+}
+
+.calendar-diff-badge.principiante {
+  color: var(--ion-color-success);
+  border-color: rgba(var(--ion-color-success-rgb), 0.2);
+}
+
+.calendar-diff-badge.intermedio {
+  color: var(--ion-color-warning);
+  border-color: rgba(var(--ion-color-warning-rgb), 0.2);
+}
+
+.calendar-diff-badge.avanzado {
+  color: var(--ion-color-danger);
+  border-color: rgba(var(--ion-color-danger-rgb), 0.2);
+}
+
+.quick-train-btn {
+  margin: 0;
+  --padding-start: 8px;
+  --padding-end: 8px;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.calendar-day-empty {
+  padding: 10px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--forgy-text-secondary);
+  font-style: italic;
+  background: rgba(var(--ion-border-color-rgb), 0.1);
+  border-radius: 8px;
+}
+
+/* Routine Card Meta Styles */
+.routine-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--forgy-text-secondary);
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.routine-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.routine-difficulty-badge-container {
+  margin-top: 4px;
+  display: flex;
+}
+
+.routine-diff-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--forgy-input-bg);
+  border: 1px solid var(--ion-border-color);
+}
+
+.routine-diff-badge.principiante {
+  color: var(--ion-color-success);
+  border-color: rgba(var(--ion-color-success-rgb), 0.3);
+}
+
+.routine-diff-badge.intermedio {
+  color: var(--ion-color-warning);
+  border-color: rgba(var(--ion-color-warning-rgb), 0.3);
+}
+
+.routine-diff-badge.avanzado {
+  color: var(--ion-color-danger);
+  border-color: rgba(var(--ion-color-danger-rgb), 0.3);
+}
+
+/* Premium Form Design overrides */
+.modal-header-toolbar {
+  --background: rgba(var(--ion-background-color-rgb), 0.95);
+}
+
+.modal-btn-cancel {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.modal-btn-create {
+  --border-radius: 20px !important;
+  --padding-start: 16px;
+  --padding-end: 16px;
+  font-size: 14px;
+  font-weight: 700;
+  height: 36px;
+  margin-right: 8px;
+}
+
+.routine-create-content {
+  --background: var(--ion-background-color) !important;
+}
+
+.routine-form-container {
+  padding: 12px 20px 32px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--forgy-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding-left: 2px;
+}
+
+.optional-text {
+  font-size: 11px;
+  text-transform: lowercase;
+  font-weight: 500;
+  opacity: 0.6;
+}
+
+.clean-form-input,
+.clean-form-select,
+.clean-form-textarea {
+  --background: var(--forgy-input-bg) !important;
+  --color: var(--forgy-text-primary) !important;
+  --placeholder-color: var(--forgy-text-secondary) !important;
+  --placeholder-opacity: 0.5 !important;
+  --padding-start: 16px !important;
+  --padding-end: 16px !important;
+  border-radius: 14px !important;
+  border: 1px solid var(--ion-border-color) !important;
+  background: var(--forgy-input-bg) !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.clean-form-input {
+  height: 52px;
+}
+
+.clean-form-select {
+  --padding-top: 0 !important;
+  --padding-bottom: 0 !important;
+  height: 52px;
+  display: flex;
+  align-items: center;
+}
+
+.clean-form-textarea {
+  --padding-top: 14px !important;
+  --padding-bottom: 14px !important;
+  min-height: 90px;
+}
+
+.clean-form-input:focus-within,
+.clean-form-select:focus-within,
+.clean-form-textarea:focus-within {
+  border-color: var(--ion-color-primary) !important;
+  box-shadow: 0 0 0 3px rgba(var(--ion-color-primary-rgb), 0.15) !important;
+}
+
+.form-days-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  width: 100%;
+}
+
+.form-day-toggle-chip {
+  aspect-ratio: 1;
+  flex: 1;
+  max-width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--forgy-input-bg);
+  border: 1px solid var(--ion-border-color);
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--forgy-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+}
+
+.form-day-toggle-chip.active {
+  background: var(--ion-color-primary);
+  border-color: var(--ion-color-primary);
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(var(--ion-color-primary-rgb), 0.35);
+  transform: scale(1.08);
+}
+
+.form-day-toggle-chip:active {
+  transform: scale(0.9);
+}
+
+.routine-image-preview-container {
+  padding: 16px 20px 8px 20px;
+}
+
+.routine-image-preview {
+  width: 100%;
+  height: 130px;
+  border-radius: 16px;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  background-color: var(--forgy-input-bg);
+  border: 1px solid var(--ion-border-color);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  transition: all 0.2s ease;
+}
+
+.routine-image-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.routine-image-preview:active {
+  transform: scale(0.98);
+}
+
+.routine-image-preview:active img {
+  transform: scale(1.05);
+}
+
+.preview-edit-badge {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 6px 12px;
+  border-radius: 20px;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+}
+
+.routine-image-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0) 60%);
+  pointer-events: none;
+}
+
+/* Detail Schedule Styles */
+.detail-schedule-section {
+  background: var(--forgy-input-bg);
+  border: 1px solid var(--ion-border-color);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.detail-days-row {
+  display: flex;
+  overflow-x: auto;
+  gap: 6px;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+
+.detail-days-row::-webkit-scrollbar {
+  display: none;
+}
+
+.detail-day-toggle-chip {
+  flex: 1;
+  text-align: center;
+  padding: 8px 0;
+  background: rgba(var(--ion-border-color-rgb), 0.2);
+  border: 1px solid var(--ion-border-color);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--forgy-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  min-width: 36px;
+}
+
+.detail-day-toggle-chip.active {
+  background: var(--ion-color-primary);
+  border-color: var(--ion-color-primary);
+  color: white;
+  box-shadow: 0 2px 6px rgba(var(--ion-color-primary-rgb), 0.2);
+}
+
+/* Bulk Action Bar Styles */
+.bulk-action-bar {
+  position: fixed;
+  bottom: 20px;
+  left: 16px;
+  right: 16px;
+  background: rgba(var(--ion-background-color-rgb), 0.9);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--ion-border-color);
+  border-radius: 16px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.24);
+  z-index: 1000;
+  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.bulk-selected-count {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--forgy-text-primary);
+}
+
+.bulk-action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.bulk-action-buttons ion-button {
+  --border-radius: 10px !important;
+  font-weight: 700;
+  margin: 0;
+}
+
+.routine-card-selection-check {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.grid-select-action-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+  padding: 0 4px;
+}
+
+.bulk-select-btn-grid {
+  margin: 0;
+  font-weight: 700;
+  font-size: 13px;
+  --color: var(--ion-color-primary);
+}
+
+.routine-card.is-selected {
+  border-color: var(--ion-color-primary);
+  box-shadow: 0 0 10px rgba(var(--ion-color-primary-rgb), 0.2);
+}
+
+/* Mobile-Focused Large Layout Overrides */
+ion-segment-button {
+  font-size: 15px;
+  min-height: 44px;
+}
+ion-card-title {
+  font-size: 20px;
+  font-weight: 700;
+}
+.results-count {
+  font-size: 15px;
+  padding: 0 4px;
+}
+.muscle-chip {
+  height: 38px;
+  --border-radius: 12px;
+}
+.chip-text {
+  font-size: 13px;
+}
+.chip-svg-icon :deep(.muscle-svg) {
+  width: 18px;
+  height: 18px;
+}
+.chip-svg-icon :deep(.muscle-icon-img),
+.chip-svg-icon .muscle-icon-img {
+  width: 20px;
+  height: 20px;
+}
+.exercise-card {
+  border-radius: 20px;
+  margin-bottom: 20px;
+}
+.routine-card {
+  border-radius: 18px;
+}
+.view-switch-btn {
+  font-size: 14px;
+  padding: 10px 16px;
+}
+.switcher-icon {
+  font-size: 18px;
+}
+.calendar-day-header h3 {
+  font-size: 17px;
+}
+.calendar-routine-name {
+  font-size: 16px;
+}
+.calendar-routine-details {
+  font-size: 13px;
+}
+.quick-train-btn {
+  font-size: 13px;
+  --padding-start: 12px;
+  --padding-end: 12px;
 }
 </style>

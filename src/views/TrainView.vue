@@ -227,15 +227,25 @@
             </div>
 
             <!-- Filtro por músculo -->
-            <div class="muscle-filter">
+            <div class="muscle-filter" style="display: flex; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px;">
               <ion-chip
-                v-for="muscle in muscleGroups"
+                v-for="muscle in visibleMuscleGroups"
                 :key="muscle"
                 :color="selectedMuscle === muscle ? 'primary' : 'medium'"
                 :outline="selectedMuscle !== muscle"
                 @click="selectedMuscle = muscle"
               >
-                {{ getMuscleEmoji(muscle) }} {{ muscle }}
+                <span class="muscle-icon-span" v-html="getMuscleIcon(muscle)"></span>
+                <span class="chip-text" style="margin-left: 6px;">{{ muscle }}</span>
+              </ion-chip>
+              <ion-chip
+                class="muscle-chip expand-chip"
+                color="medium"
+                @click="isExpandedMuscleGroups = !isExpandedMuscleGroups"
+                :outline="!isExpandedMuscleGroups"
+              >
+                <ion-icon :icon="isExpandedMuscleGroups ? removeCircleOutline : addCircleOutline" style="font-size: 16px; margin-right: 4px;"></ion-icon>
+                <span class="chip-text" style="margin-left: 6px;">{{ isExpandedMuscleGroups ? 'Ver menos' : 'Ver más' }}</span>
               </ion-chip>
             </div>
 
@@ -248,7 +258,7 @@
                 :class="{ selected: workoutForm.exerciseId === ex.id }"
                 @click="selectExercise(ex)"
               >
-                <div class="exercise-icon">{{ getMuscleEmoji(ex.muscle) }}</div>
+                <div class="exercise-icon" v-html="getMuscleIcon(ex.muscle)"></div>
                 <div class="exercise-info">
                   <span class="exercise-name">{{ ex.name }}</span>
                   <span
@@ -437,7 +447,7 @@ import { useProfile } from '../utils/useProfile'
 import {
   calendar as calendarIcon, add, chevronBack, chevronForward, barbell, time,
   fitness, barbellOutline, create, trash, documentText, close, remove,
-  checkmarkCircle, warning, happy, alertCircle
+  checkmarkCircle, warning, happy, alertCircle, addCircleOutline, removeCircleOutline
 } from 'ionicons/icons';
 // Recomendación personalizada según los datos del día
 const adviceIcon = computed(() => {
@@ -499,7 +509,17 @@ const isWorkoutModalOpen = ref(false);
 const editingWorkout = ref<Workout | null>(null);
 const selectedMuscle = ref('Todos');
 
-const muscleGroups = ['Todos', 'Pecho', 'Espalda', 'Piernas', 'Hombros', 'Bíceps', 'Tríceps', 'Abdomen'];
+const muscleGroups = [
+  'Todos', 'Brazos Superiores', 'Piernas Superiores', 'Espalda', 'Cintura', 'Pecho', 
+  'Hombros', 'Piernas Inferiores', 'Antebrazos', 'Cardio', 'Cuello'
+];
+const isExpandedMuscleGroups = ref(false);
+const mainMuscles = ['Todos', 'Brazos Superiores', 'Piernas Superiores', 'Espalda', 'Cintura', 'Pecho', 'Hombros'];
+
+const visibleMuscleGroups = computed(() => {
+  if (isExpandedMuscleGroups.value) return muscleGroups;
+  return muscleGroups.filter(m => mainMuscles.includes(m));
+});
 
 const workoutForm = ref({
   exerciseId: '',
@@ -558,18 +578,21 @@ const totalDuration = computed(() => dayWorkouts.value.reduce((acc, w) => acc + 
 const totalVolume = computed(() => dayWorkouts.value.reduce((acc, w) =>
   acc + w.sets.reduce((setAcc, s) => setAcc + (s.reps * s.weight), 0), 0));
 
-function getMuscleEmoji(muscle: string): string {
-  const emojis: { [key: string]: string } = {
-    'Todos': '💪',
-    'Pecho': '🫁',
-    'Espalda': '🔙',
-    'Piernas': '🦵',
-    'Hombros': '🤷',
-    'Bíceps': '💪',
-    'Tríceps': '🦾',
-    'Abdomen': '🎯'
+function getMuscleIcon(muscle: string): string {
+  const icons: { [key: string]: string } = {
+    'Todos': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="muscle-svg" style="width:16px;height:16px;vertical-align:middle;display:inline-block;"><path d="M6.5 6.5 11 11"/><path d="M21 21-1.5-1.5"/><path d="M3 3 1.5 1.5"/><path d="M18.5 5.5 3-3"/><path d="M2.5 21.5 3-3"/><path d="M14 5s.5 1.5 3 3"/><path d="M5 14s1.5.5 3 3"/><path d="M10 5.5A3.5 3.5 0 0 0 5.5 10"/><path d="M18.5 14a3.5 3.5 0 0 1-4.5 4.5"/></svg>`,
+    'Brazos Superiores': `<img src="/src/assets/biceps.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Brazos Superiores" />`,
+    'Piernas Superiores': `<img src="/src/assets/cuadriceps.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Piernas Superiores" />`,
+    'Espalda': `<img src="/src/assets/dorsales.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Espalda" />`,
+    'Cintura': `<img src="/src/assets/abs.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Cintura" />`,
+    'Pecho': `<img src="/src/assets/pecho.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Pecho" />`,
+    'Hombros': `<img src="/src/assets/hombros.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Hombros" />`,
+    'Piernas Inferiores': `<img src="/src/assets/pantorillas.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Piernas Inferiores" />`,
+    'Antebrazos': `<img src="/src/assets/antebrazo.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Antebrazos" />`,
+    'Cardio': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="muscle-svg" style="width:16px;height:16px;vertical-align:middle;display:inline-block;"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>`,
+    'Cuello': `<img src="/src/assets/trapecio.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Cuello" />`
   };
-  return emojis[muscle] || '💪';
+  return icons[muscle] || `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="muscle-svg" style="width:16px;height:16px;vertical-align:middle;display:inline-block;"><path d="M12 20h.01M12 4h.01M4 12h.01M20 12h.01"/></svg>`;
 }
 
 function getWeekStart(date: Date): string {
