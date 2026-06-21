@@ -1,7 +1,7 @@
 import { ref, readonly } from 'vue';
 import router from '@/router';
 
-const API_URL = import.meta.env.VITE_API_URL
+const API_URL = import.meta.env.VITE_API_URL || 'https://forgybackendapi-production.up.railway.app'
 
 // --- Estado (Singleton) ---
 // Este estado será compartido entre todos los componentes que usen este composable.

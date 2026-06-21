@@ -236,7 +236,7 @@ import {
     eyeOutline, eyeOffOutline, checkmarkCircle, closeCircle
 } from 'ionicons/icons';
 
-const API_URL = import.meta.env.VITE_API_URL
+const API_URL = import.meta.env.VITE_API_URL || 'https://forgybackendapi-production.up.railway.app'
 
 const isLogin = ref(true);
 const loading = ref(false);

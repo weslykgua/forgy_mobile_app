@@ -73,7 +73,7 @@ import {
 } from '@ionic/vue';
 import { computed, ref } from 'vue';
 
-const API_URL = import.meta.env.VITE_API_URL
+const API_URL = import.meta.env.VITE_API_URL || 'https://forgybackendapi-production.up.railway.app'
 const router = useIonRouter();
 
 const heightCm = ref<number | null>(null);
