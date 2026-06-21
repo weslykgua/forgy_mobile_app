@@ -34,6 +34,32 @@ const allProgress = ref<any[]>([]);
 const todayProgress = ref<any | null>(null);
 const userProfile = ref<any | null>(null);
 const userPlan = ref<any | null>(null);
+const workoutHistory = ref<any[]>([]);
+const personalRecords = ref<any>(null);
+
+const mergeLocalWorkouts = () => {
+    const localWorkouts = JSON.parse(localStorage.getItem('local_workouts') || '[]');
+    if (localWorkouts.length > 0) {
+        const syncedIds = new Set(workoutHistory.value.map(w => w.id));
+        const unsynced = localWorkouts.filter((w: any) => !syncedIds.has(w.id));
+        if (unsynced.length > 0) {
+            const mapped = unsynced.map((lw: any) => ({
+                id: lw.id,
+                date: lw.date,
+                routine: lw.routineName || 'Entrenamiento Libre',
+                exerciseCount: lw.exercises?.length || 0,
+                totalVolume: lw.exercises?.reduce((acc: number, ex: any) => {
+                    const setVolume = ex.sets?.reduce((sAcc: number, s: any) => sAcc + (s.weight * s.reps || 0), 0) || 0;
+                    return acc + setVolume;
+                }, 0) || 0,
+                duration: lw.duration || 0,
+                exercises: lw.exercises || []
+            }));
+            workoutHistory.value = [...mapped, ...workoutHistory.value];
+        }
+    }
+};
+
 const quoteIndex = ref(0);
 
 const bedtime = ref('23:00');
@@ -241,6 +267,13 @@ function formatWater(ml: number | null | undefined) {
     return (ml / 1000).toFixed(1);
 }
 
+const getSleepQualityLabel = (score: string | number | null) => {
+    if (score === null || score === undefined) return '--';
+    const num = typeof score === 'string' ? parseInt(score) : score;
+    const labels = ['Pésima', 'Mala', 'Regular', 'Buena', 'Excelente'];
+    return labels[num - 1] || '--';
+};
+
 const summary = computed(() => {
     const weight = todayProgress.value?.weight ?? userProfile.value?.weight ?? null;
     const height = userProfile.value?.height ?? null;
@@ -261,12 +294,14 @@ const summary = computed(() => {
     const vo2Max = todayProgress.value?.vo2Max ?? null;
     const bodyFat = todayProgress.value?.bodyFat ?? null;
     const muscleMass = todayProgress.value?.muscleMass ?? null;
+    const mood = todayProgress.value?.mood ?? null;
     
     return { 
         weight, height, sleep, calories, water,
         stress, energy, muscleSoreness,
         protein, carbs, fat,
-        heartRate, vo2Max, bodyFat, muscleMass
+        heartRate, vo2Max, bodyFat, muscleMass,
+        mood
     };
 });
 
@@ -314,36 +349,167 @@ const levelProgressPercent = computed(() => {
     return Math.round((currentXP.value / nextLevelXP.value) * 100);
 });
 
-// Logros / Insignias
-const achievements = ref([
-    {
-        id: 'bench100',
-        title: 'Poder Absoluto',
-        subtitle: 'Primeros 100 kg en banca',
-        status: 'Conseguido',
-        unlocked: true,
-        progress: 100,
-        desc: 'Hito de fuerza pura en press de banca horizontal.'
-    },
-    {
-        id: 'streak30',
+// Logros / Insignias Computados Dinámicamente
+const achievements = computed(() => {
+    const list = [];
+
+    // 1. Racha de Entrenamientos
+    const streak = metrics.value?.currentStreak || 0;
+    const maxStreak = metrics.value?.longestStreak || 0;
+    const currentOrMaxStreak = Math.max(streak, maxStreak);
+    list.push({
+        id: 'streak_entreno',
         title: 'Constancia Estoica',
-        subtitle: '30 días consecutivos',
-        status: 'Conseguido',
-        unlocked: true,
-        progress: 100,
-        desc: 'Racha impecable de registro diario de bienestar.'
-    },
-    {
-        id: 'volume1m',
-        title: 'Hércules',
-        subtitle: '1M kg levantados',
-        status: '850k / 1M kg',
-        unlocked: false,
-        progress: 85,
-        desc: 'Volumen total acumulado a lo largo de tu historial.'
+        subtitle: 'Racha de entrenamiento consecutiva',
+        desc: 'Registra entrenamientos en días consecutivos.',
+        unlocked: currentOrMaxStreak >= 3,
+        progress: Math.min((currentOrMaxStreak / 7) * 100, 100),
+        status: currentOrMaxStreak >= 7 ? 'Conseguido' : `${currentOrMaxStreak} / 7 días`,
+        icon: trophyOutline
+    });
+
+    // 2. Racha de Agua
+    const wStreak = waterStreak.value || 0;
+    list.push({
+        id: 'streak_agua',
+        title: 'Hidratación de Élite',
+        subtitle: 'Racha de agua (meta >= 2.0L)',
+        desc: 'Alcanza tu meta de agua durante días seguidos.',
+        unlocked: wStreak >= 3,
+        progress: Math.min((wStreak / 7) * 100, 100),
+        status: wStreak >= 7 ? 'Conseguido' : `${wStreak} / 7 días`,
+        icon: waterOutline
+    });
+
+    // 3. Repeticiones en un Ejercicio (Max Reps en cualquier set)
+    let maxRepsRecorded = 0;
+    workoutHistory.value.forEach(session => {
+        if (Array.isArray(session.exercises)) {
+            session.exercises.forEach((ex: any) => {
+                if (Array.isArray(ex.sets)) {
+                    ex.sets.forEach((set: any) => {
+                        if (set.completed !== false && set.reps > maxRepsRecorded) {
+                            maxRepsRecorded = set.reps;
+                        }
+                    });
+                }
+            });
+        }
+    });
+    if (personalRecords.value) {
+        Object.values(personalRecords.value).forEach((exRecord: any) => {
+            if (exRecord.records && exRecord.records.max_reps) {
+                const val = exRecord.records.max_reps.value || 0;
+                if (val > maxRepsRecorded) maxRepsRecorded = val;
+            }
+        });
     }
-]);
+    list.push({
+        id: 'max_reps',
+        title: 'Bestia de Repeticiones',
+        subtitle: 'Máximas repeticiones en una serie',
+        desc: 'Realiza un alto número de repeticiones en una sola serie.',
+        unlocked: maxRepsRecorded >= 12,
+        progress: Math.min((maxRepsRecorded / 20) * 100, 100),
+        status: maxRepsRecorded >= 20 ? 'Conseguido' : `${maxRepsRecorded} / 20 repes`,
+        icon: barbellOutline
+    });
+
+    // 4. Peso Máximo Levantado
+    let maxWeightLifted = 0;
+    workoutHistory.value.forEach(session => {
+        if (Array.isArray(session.exercises)) {
+            session.exercises.forEach((ex: any) => {
+                const nameLower = ex.name.toLowerCase();
+                if (nameLower.includes('banca') || nameLower.includes('sentadilla') || nameLower.includes('peso muerto') || nameLower.includes('deadlift') || nameLower.includes('squat')) {
+                    if (Array.isArray(ex.sets)) {
+                        ex.sets.forEach((set: any) => {
+                            if (set.completed !== false && set.weight > maxWeightLifted) {
+                                maxWeightLifted = set.weight;
+                            }
+                        });
+                    }
+                }
+            });
+        }
+    });
+    if (personalRecords.value) {
+        Object.values(personalRecords.value).forEach((exRecord: any) => {
+            const nameLower = exRecord.exerciseName.toLowerCase();
+            if (nameLower.includes('banca') || nameLower.includes('sentadilla') || nameLower.includes('peso muerto') || nameLower.includes('deadlift') || nameLower.includes('squat')) {
+                if (exRecord.records && exRecord.records.max_weight) {
+                    const val = exRecord.records.max_weight.value || 0;
+                    if (val > maxWeightLifted) maxWeightLifted = val;
+                }
+            }
+        });
+    }
+    list.push({
+        id: 'max_weight',
+        title: 'Fuerza Hércules',
+        subtitle: 'Peso máximo en multiarticulares',
+        desc: 'Levanta peso elevado en Press de Banca, Sentadilla o Peso Muerto.',
+        unlocked: maxWeightLifted >= 60,
+        progress: Math.min((maxWeightLifted / 100) * 100, 100),
+        status: maxWeightLifted >= 100 ? 'Conseguido' : `${maxWeightLifted} / 100 kg`,
+        icon: barbell
+    });
+
+    // 5. Peso Corporal Cambiado
+    const weightsLogged = allProgress.value
+        .filter(p => p.weight !== null && p.weight !== undefined && p.weight > 0)
+        .map(p => ({ date: new Date(p.date), weight: p.weight }))
+        .sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    let maxWeightDiff = 0;
+    if (weightsLogged.length >= 2) {
+        const firstW = weightsLogged[0].weight;
+        const lastW = weightsLogged[weightsLogged.length - 1].weight;
+        maxWeightDiff = Math.abs(lastW - firstW);
+    }
+    list.push({
+        id: 'body_weight_change',
+        title: 'Escultor Corporal',
+        subtitle: 'Diferencia de peso registrada',
+        desc: 'Registra una variación de peso acumulada en tu bitácora.',
+        unlocked: maxWeightDiff >= 1.0,
+        progress: Math.min((maxWeightDiff / 3.0) * 100, 100),
+        status: maxWeightDiff >= 3.0 ? 'Conseguido' : `${maxWeightDiff.toFixed(1)} / 3.0 kg`,
+        icon: scaleOutline
+    });
+
+    // 6. Registro de Sueño y Calidad
+    const sleepDaysCount = allProgress.value.filter(p => p.sleepHours !== null && p.sleepHours !== undefined && p.sleepHours > 0).length;
+    list.push({
+        id: 'sleep_quality_ach',
+        title: 'Sueño Reparador',
+        subtitle: 'Registros de sueño completados',
+        desc: 'Registra tus horas de sueño y califica tu descanso.',
+        unlocked: sleepDaysCount >= 3,
+        progress: Math.min((sleepDaysCount / 5) * 100, 100),
+        status: sleepDaysCount >= 5 ? 'Conseguido' : `${sleepDaysCount} / 5 registros`,
+        icon: moonOutline
+    });
+
+    // 7. Registro de Estado Diario
+    const stateRegistryDays = allProgress.value.filter(p => 
+        (p.energy !== null && p.energy !== undefined && p.energy > 0) &&
+        (p.stress !== null && p.stress !== undefined && p.stress > 0) &&
+        (p.muscleSoreness !== null && p.muscleSoreness !== undefined && p.muscleSoreness > 0)
+    ).length;
+    list.push({
+        id: 'mind_body_connection',
+        title: 'Conexión Mente-Cuerpo',
+        subtitle: 'Registros de fatiga completos',
+        desc: 'Registra energía, estrés y dolor muscular diario.',
+        unlocked: stateRegistryDays >= 2,
+        progress: Math.min((stateRegistryDays / 4) * 100, 100),
+        status: stateRegistryDays >= 4 ? 'Conseguido' : `${stateRegistryDays} / 4 registros`,
+        icon: flashOutline
+    });
+
+    return list;
+});
 
 const waterPercent = computed(() => {
     const goal = 2000;
@@ -463,11 +629,11 @@ const updateProfileData = async (weight: number | null, height: number | null) =
 };
 
 // Modal Personalizado Lógica de Estado
-const activeModal = ref<'weight' | 'height' | 'sleep' | 'calories' | 'stress' | 'energy' | 'muscleSoreness' | 'protein' | 'carbs' | 'fat' | 'heartRate' | 'vo2Max' | 'bodyFat' | 'muscleMass' | null>(null);
+const activeModal = ref<'weight' | 'height' | 'sleep' | 'calories' | 'stress' | 'energy' | 'muscleSoreness' | 'protein' | 'carbs' | 'fat' | 'heartRate' | 'vo2Max' | 'bodyFat' | 'muscleMass' | 'sleepQuality' | null>(null);
 const modalInputValue = ref<string>('');
 const modalError = ref<string>('');
 
-const openEditModal = (type: 'weight' | 'height' | 'sleep' | 'calories' | 'stress' | 'energy' | 'muscleSoreness' | 'protein' | 'carbs' | 'fat' | 'heartRate' | 'vo2Max' | 'bodyFat' | 'muscleMass') => {
+const openEditModal = (type: 'weight' | 'height' | 'sleep' | 'calories' | 'stress' | 'energy' | 'muscleSoreness' | 'protein' | 'carbs' | 'fat' | 'heartRate' | 'vo2Max' | 'bodyFat' | 'muscleMass' | 'sleepQuality') => {
     activeModal.value = type;
     modalError.value = '';
     
@@ -486,7 +652,8 @@ const openEditModal = (type: 'weight' | 'height' | 'sleep' | 'calories' | 'stres
         heartRate: 'heartRate',
         vo2Max: 'vo2Max',
         bodyFat: 'bodyFat',
-        muscleMass: 'muscleMass'
+        muscleMass: 'muscleMass',
+        sleepQuality: 'mood'
     };
     
     const summaryField = mapFields[type] || type;
@@ -560,11 +727,13 @@ const saveModalMetric = async () => {
         } else {
             modalError.value = 'Debe ser un número mayor o igual a 0.';
         }
-    } else if (type === 'stress' || type === 'energy' || type === 'muscleSoreness') {
+    } else if (type === 'stress' || type === 'energy' || type === 'muscleSoreness' || type === 'sleepQuality') {
         const score = parseInt(modalInputValue.value);
         if (!isNaN(score) && score >= 1 && score <= 5) {
-            await saveProgressField(type, score);
-            showToast(`Nivel ${score}/5 registrado`);
+            const dbField = type === 'sleepQuality' ? 'mood' : type;
+            const saveValue = type === 'sleepQuality' ? score.toString() : score;
+            await saveProgressField(dbField, saveValue);
+            showToast(type === 'sleepQuality' ? `Calidad de sueño registrada: ${getSleepQualityLabel(score.toString())}` : `Nivel ${score}/5 registrado`);
             closeEditModal();
         } else {
             modalError.value = 'Selecciona una puntuación válida de 1 a 5.';
@@ -633,11 +802,13 @@ const calculateIMC = async () => {
 const loadMetrics = async () => {
     try {
         const headers = getHeaders();
-        const [dashboardRes, progressRes, profileRes, planRes] = await Promise.all([
+        const [dashboardRes, progressRes, profileRes, planRes, historyRes, recordsRes] = await Promise.all([
             fetch(`${API_URL}/dashboard`, { headers }),
             fetch(`${API_URL}/progress`, { headers }),
             fetch(`${API_URL}/user/profile`, { headers }),
-            fetch(`${API_URL}/goals/plan`, { headers })
+            fetch(`${API_URL}/goals/plan`, { headers }),
+            fetch(`${API_URL}/workouts/history?limit=100`, { headers }),
+            fetch(`${API_URL}/workouts/records`, { headers })
         ]);
         if (!dashboardRes.ok) {
             if (dashboardRes.status === 401 || dashboardRes.status === 403) logout();
@@ -659,6 +830,17 @@ const loadMetrics = async () => {
         userProfile.value = await profileRes.json();
         userPlan.value = await planRes.json();
 
+        if (historyRes.ok) {
+            workoutHistory.value = await historyRes.json();
+            localStorage.setItem('cache_workout_history', JSON.stringify(workoutHistory.value));
+        }
+        if (recordsRes.ok) {
+            personalRecords.value = await recordsRes.json();
+            localStorage.setItem('cache_personal_records', JSON.stringify(personalRecords.value));
+        }
+
+        mergeLocalWorkouts();
+
         // Guardar en la caché local
         localStorage.setItem('cache_metrics', JSON.stringify(metrics.value));
         localStorage.setItem('cache_all_progress', JSON.stringify(allProgress.value));
@@ -678,6 +860,8 @@ onIonViewWillEnter(() => {
     const cachedProgress = localStorage.getItem('cache_all_progress');
     const cachedProfile = localStorage.getItem('cache_user_profile');
     const cachedPlan = localStorage.getItem('cache_user_plan');
+    const cachedHistory = localStorage.getItem('cache_workout_history');
+    const cachedRecords = localStorage.getItem('cache_personal_records');
 
     if (cachedMetrics) metrics.value = JSON.parse(cachedMetrics);
     if (cachedProgress) {
@@ -686,7 +870,10 @@ onIonViewWillEnter(() => {
     }
     if (cachedProfile) userProfile.value = JSON.parse(cachedProfile);
     if (cachedPlan) userPlan.value = JSON.parse(cachedPlan);
+    if (cachedHistory) workoutHistory.value = JSON.parse(cachedHistory);
+    if (cachedRecords) personalRecords.value = JSON.parse(cachedRecords);
 
+    mergeLocalWorkouts();
     loadMetrics();
 });
 </script>
@@ -882,6 +1069,18 @@ onIonViewWillEnter(() => {
                         <span class="summary-meta">Registrar sueño</span>
                     </div>
 
+                    <!-- Calidad del Sueño -->
+                    <div class="summary-card interactive-card" @click="openEditModal('sleepQuality')">
+                        <div class="card-header-row">
+                            <span class="summary-label">Calidad de Sueño</span>
+                            <ion-icon :icon="shieldCheckmarkOutline" class="edit-icon"></ion-icon>
+                        </div>
+                        <span class="summary-value">
+                            {{ summary.mood ? getSleepQualityLabel(summary.mood) : '--' }}
+                        </span>
+                        <span class="summary-meta">Calificar descanso</span>
+                    </div>
+
                     <!-- Estrés -->
                     <div class="summary-card interactive-card" @click="openEditModal('stress')">
                         <div class="card-header-row">
@@ -907,7 +1106,7 @@ onIonViewWillEnter(() => {
                     </div>
 
                     <!-- Dolor Muscular -->
-                    <div class="summary-card interactive-card" @click="openEditModal('muscleSoreness')">
+                    <div class="summary-card interactive-card" @click="openEditModal('muscleSoreness')" style="grid-column: span 2;">
                         <div class="card-header-row">
                             <span class="summary-label">Dolor Muscular</span>
                             <ion-icon :icon="fitnessOutline" class="edit-icon"></ion-icon>
@@ -1113,7 +1312,7 @@ onIonViewWillEnter(() => {
                                 :class="{ locked: !ach.unlocked }"
                             >
                                 <div class="achievement-icon-box">
-                                    <ion-icon :icon="ach.unlocked ? trophyOutline : ribbonOutline" class="ach-icon"></ion-icon>
+                                    <ion-icon :icon="ach.unlocked ? ach.icon : ribbonOutline" class="ach-icon"></ion-icon>
                                 </div>
                                 <div class="achievement-content">
                                     <div class="ach-title-row">
@@ -1131,44 +1330,7 @@ onIonViewWillEnter(() => {
                 </div>
             </div>
 
-            <!-- Plan personalizado -->
-            <div class="section-container">
-                <div class="section-title">
-                    <span>Tu plan</span>
-                </div>
-                <div v-if="!userPlan || !userPlan.id" class="plan-cta" @click="goToPlan">
-                    <div class="plan-cta-text">
-                        <h4>Crea tu rutina y nutrición</h4>
-                        <p>Responde unas preguntas y te damos tu plan completo.</p>
-                    </div>
-                    <ion-button size="small" fill="outline">Crear plan</ion-button>
-                </div>
-                <div v-else class="plan-summary-card">
-                    <div class="plan-summary-header">
-                        <span class="plan-title">Rutina y nutrición</span>
-                        <ion-button size="small" fill="clear" @click="goToPlan">Editar</ion-button>
-                    </div>
-                    <p class="plan-summary-text">{{ userPlan.routineSummary }}</p>
-                    <div class="plan-summary-macros">
-                        <div class="macro">
-                            <span class="macro-label">Calorías</span>
-                            <span class="macro-value">{{ userPlan.caloriesTarget }} kcal</span>
-                        </div>
-                        <div class="macro">
-                            <span class="macro-label">Proteína</span>
-                            <span class="macro-value">{{ userPlan.proteinTarget }} g</span>
-                        </div>
-                        <div class="macro">
-                            <span class="macro-label">Carbs</span>
-                            <span class="macro-value">{{ userPlan.carbsTarget }} g</span>
-                        </div>
-                        <div class="macro">
-                            <span class="macro-label">Grasas</span>
-                            <span class="macro-value">{{ userPlan.fatTarget }} g</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+
 
             <!-- Seccion removida de aqui y movida arriba -->
 
@@ -1240,13 +1402,14 @@ onIonViewWillEnter(() => {
                         </div>
                     </div>
 
-                    <!-- Selector de Escala 1-5 (Estrés, Energía, Dolor Muscular) -->
-                    <div v-else-if="['stress', 'energy', 'muscleSoreness'].includes(activeModal)" class="scale-selector">
+                    <!-- Selector de Escala 1-5 (Estrés, Energía, Dolor Muscular, Calidad del Sueño) -->
+                    <div v-else-if="['stress', 'energy', 'muscleSoreness', 'sleepQuality'].includes(activeModal)" class="scale-selector">
                         <p class="scale-subtitle">
                             {{
                                 activeModal === 'stress' ? '1 = Relajado, 5 = Muy Estresado' :
                                 activeModal === 'energy' ? '1 = Muy Agotado, 5 = Energía Máxima' :
-                                activeModal === 'muscleSoreness' ? '1 = Sin Dolor, 5 = Dolor Extremo' : ''
+                                activeModal === 'muscleSoreness' ? '1 = Sin Dolor, 5 = Dolor Extremo' :
+                                activeModal === 'sleepQuality' ? '1 = Pésima, 5 = Excelente' : ''
                             }}
                         </p>
                         <div class="scale-buttons">
