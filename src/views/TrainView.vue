@@ -510,11 +510,11 @@ const editingWorkout = ref<Workout | null>(null);
 const selectedMuscle = ref('Todos');
 
 const muscleGroups = [
-  'Todos', 'Brazos Superiores', 'Piernas Superiores', 'Espalda', 'Cintura', 'Pecho', 
-  'Hombros', 'Piernas Inferiores', 'Antebrazos', 'Cardio', 'Cuello'
+  'Todos', 'Brazos', 'Piernas', 'Espalda', 'Abdomen', 'Pecho', 
+  'Hombros', 'Pantorrillas', 'Antebrazos', 'Cardio', 'Cuello'
 ];
 const isExpandedMuscleGroups = ref(false);
-const mainMuscles = ['Todos', 'Brazos Superiores', 'Piernas Superiores', 'Espalda', 'Cintura', 'Pecho', 'Hombros'];
+const mainMuscles = ['Todos', 'Brazos', 'Piernas', 'Espalda', 'Abdomen', 'Pecho', 'Hombros'];
 
 const visibleMuscleGroups = computed(() => {
   if (isExpandedMuscleGroups.value) return muscleGroups;
@@ -581,13 +581,13 @@ const totalVolume = computed(() => dayWorkouts.value.reduce((acc, w) =>
 function getMuscleIcon(muscle: string): string {
   const icons: { [key: string]: string } = {
     'Todos': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="muscle-svg" style="width:16px;height:16px;vertical-align:middle;display:inline-block;"><path d="M6.5 6.5 11 11"/><path d="M21 21-1.5-1.5"/><path d="M3 3 1.5 1.5"/><path d="M18.5 5.5 3-3"/><path d="M2.5 21.5 3-3"/><path d="M14 5s.5 1.5 3 3"/><path d="M5 14s1.5.5 3 3"/><path d="M10 5.5A3.5 3.5 0 0 0 5.5 10"/><path d="M18.5 14a3.5 3.5 0 0 1-4.5 4.5"/></svg>`,
-    'Brazos Superiores': `<img src="/src/assets/biceps.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Brazos Superiores" />`,
-    'Piernas Superiores': `<img src="/src/assets/cuadriceps.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Piernas Superiores" />`,
+    'Brazos': `<img src="/src/assets/biceps.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Brazos" />`,
+    'Piernas': `<img src="/src/assets/cuadriceps.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Piernas" />`,
     'Espalda': `<img src="/src/assets/dorsales.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Espalda" />`,
-    'Cintura': `<img src="/src/assets/abs.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Cintura" />`,
+    'Abdomen': `<img src="/src/assets/abs.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Abdomen" />`,
     'Pecho': `<img src="/src/assets/pecho.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Pecho" />`,
     'Hombros': `<img src="/src/assets/hombros.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Hombros" />`,
-    'Piernas Inferiores': `<img src="/src/assets/pantorillas.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Piernas Inferiores" />`,
+    'Pantorrillas': `<img src="/src/assets/pantorillas.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Pantorrillas" />`,
     'Antebrazos': `<img src="/src/assets/antebrazo.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Antebrazos" />`,
     'Cardio': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="muscle-svg" style="width:16px;height:16px;vertical-align:middle;display:inline-block;"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>`,
     'Cuello': `<img src="/src/assets/trapecio.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Cuello" />`
