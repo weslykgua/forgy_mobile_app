@@ -1,47 +1,58 @@
 <template>
   <ion-page>
-    <ion-header class="ion-no-border">
-      <ion-toolbar color="primary">
+    <!-- Header unificado con clase Forgy -->
+    <ion-header class="forgy-header">
+      <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-back-button default-href="/tabs/tab3"></ion-back-button>
+          <ion-back-button default-href="/tabs/tab3" :icon="chevronBack" text="" class="custom-back-btn"></ion-back-button>
         </ion-buttons>
-        <ion-title>Calculadora de RM</ion-title>
+        <ion-title class="forgy-title">Calculadora de RM</ion-title>
       </ion-toolbar>
     </ion-header>
 
     <ion-content :fullscreen="true" class="rm-content">
-      <div class="rm-card">
-        <h2>Calcula tu RM estimada</h2>
-        <p>Ingresa el peso y repeticiones. No se guarda nada.</p>
+      <div class="rm-container">
+        <div class="rm-card">
+          <h2>Calcula tu RM estimada</h2>
+          <p>Ingresa el peso levantado y el número de repeticiones para estimar tu 1 Repetición Máxima (1RM).</p>
 
-        <div class="input-row">
-          <label>Unidad</label>
-          <ion-segment v-model="unit" mode="ios">
-            <ion-segment-button value="kg">
-              <ion-label>kg</ion-label>
-            </ion-segment-button>
-            <ion-segment-button value="lb">
-              <ion-label>lb</ion-label>
-            </ion-segment-button>
-          </ion-segment>
-        </div>
+          <div class="input-row">
+            <label>Unidad de medida</label>
+            <ion-segment v-model="unit" mode="ios" class="custom-segment">
+              <ion-segment-button value="kg">
+                <ion-label>kg</ion-label>
+              </ion-segment-button>
+              <ion-segment-button value="lb">
+                <ion-label>lb</ion-label>
+              </ion-segment-button>
+            </ion-segment>
+          </div>
 
-        <div class="input-row">
-          <label>Peso levantado ({{ unit }})</label>
-          <input type="number" v-model.number="weight" min="1" max="1000" />
-        </div>
-        <div class="input-row">
-          <label>Repeticiones</label>
-          <input type="number" v-model.number="reps" min="1" max="30" />
-        </div>
+          <div class="input-row">
+            <label>Peso levantado ({{ unit }})</label>
+            <input type="number" v-model.number="weight" min="1" max="1000" placeholder="Ej. 80" />
+          </div>
+          <div class="input-row">
+            <label>Repeticiones realizadas</label>
+            <input type="number" v-model.number="reps" min="1" max="30" placeholder="Ej. 8" />
+          </div>
 
-        <div class="result-card" v-if="rmValue">
-          <div class="result-value">{{ rmValue }} {{ unit }}</div>
-          <div class="result-label">RM estimada (1 repetición)</div>
-          <p class="result-message">{{ rmMessage }}</p>
-          <div class="result-compare">
-            <img class="compare-image" :src="compareImage.src" :alt="compareImage.label" />
-            <span class="compare-text">{{ compareText }}</span>
+          <!-- Tarjeta de Resultados -->
+          <div class="result-card" v-if="rmValue">
+            <div class="result-label">Tu 1RM Estimada es de:</div>
+            <div class="result-value">{{ rmValue }} {{ unit }}</div>
+            <p class="result-message">{{ rmMessage }}</p>
+            
+            <!-- Comparativa física -->
+            <div class="result-compare">
+              <div class="compare-image-container">
+                <img class="compare-image" :src="compareImage.src" :alt="compareImage.label" />
+              </div>
+              <div class="compare-info">
+                <span class="compare-header">Equivalente a levantar:</span>
+                <span class="compare-text">{{ compareText }}</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -63,6 +74,7 @@ import {
   IonLabel
 } from '@ionic/vue';
 import { computed, ref } from 'vue';
+import { chevronBack } from 'ionicons/icons';
 
 const unit = ref<'kg' | 'lb'>('kg');
 const weight = ref<number | null>(null);
@@ -156,17 +168,17 @@ const compareImage = computed(() => {
 const compareText = computed(() => {
   const value = comparisonWeightKg.value;
   if (!value) return 'Calcula tu RM para ver la comparación.';
-  if (value < 25) return 'Sería como levantar un garrafón de agua lleno.';
-  if (value < 40) return 'Sería como levantar una maleta grande de viaje.';
-  if (value < 60) return 'Sería como levantar un saco de arena pesado.';
-  if (value < 80) return 'Sería como levantar una llanta grande de auto.';
-  if (value < 100) return 'Sería como levantar una caja grande de mudanza.';
-  if (value < 120) return 'Sería como levantar un sillón individual robusto.';
-  if (value < 140) return 'Sería como levantar una lavadora doméstica.';
-  if (value < 170) return 'Sería como levantar un sofá de 2 plazas.';
-  if (value < 200) return 'Sería como levantar un barril de acero lleno.';
-  if (value < 230) return 'Sería como levantar una moto ligera.';
-  return 'Sería como levantar un piano vertical.';
+  if (value < 25) return 'Un garrafón de agua de 20L lleno.';
+  if (value < 40) return 'Una maleta de viaje grande y pesada.';
+  if (value < 60) return 'Un saco de cemento o arena estándar.';
+  if (value < 80) return 'La llanta de repuesto de un automóvil.';
+  if (value < 100) return 'Una caja de mudanza repleta de libros.';
+  if (value < 120) return 'Un sillón de sala de un cuerpo.';
+  if (value < 140) return 'Una lavadora automática doméstica.';
+  if (value < 170) return 'Un sofá de cuero de dos cuerpos.';
+  if (value < 200) return 'Un barril de metal industrial lleno.';
+  if (value < 230) return 'Una motocicleta urbana ligera.';
+  return 'Un piano de cola o vertical grande.';
 });
 </script>
 
@@ -175,99 +187,160 @@ const compareText = computed(() => {
   --background: var(--forgy-content-bg);
 }
 
+.rm-container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
 .rm-card {
   background: var(--forgy-card-bg);
-  margin: 16px;
-  padding: 20px;
+  border: 1px solid var(--forgy-border);
   border-radius: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  padding: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
   color: var(--forgy-text-primary);
 }
 
 .rm-card h2 {
-  margin: 0 0 6px;
-  font-size: 20px;
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 700;
 }
 
 .rm-card p {
-  margin: 0 0 16px;
+  margin: 0 0 24px;
   color: var(--forgy-text-secondary);
   font-size: 13px;
+  line-height: 1.4;
 }
 
 .input-row {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .input-row label {
   font-size: 13px;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--forgy-text-secondary);
 }
 
-.input-row input,
-.input-row select,
-.input-row ion-segment {
+.input-row input {
   border: 1px solid var(--forgy-border);
   border-radius: 12px;
-  padding: 10px 12px;
-  background: var(--forgy-content-bg);
+  padding: 12px 14px;
+  background: var(--forgy-input-bg);
   color: var(--forgy-text-primary);
   font-size: 16px;
+  transition: all 0.2s ease;
 }
 
-.input-row ion-segment {
-  padding: 4px;
+.input-row input:focus {
+  outline: none;
+  border-color: var(--ion-color-primary);
+  box-shadow: 0 0 0 3px rgba(var(--ion-color-primary-rgb), 0.12);
 }
 
+.custom-segment {
+  border: 1px solid var(--forgy-border);
+  background: var(--forgy-input-bg);
+  border-radius: 10px;
+  padding: 2px;
+}
+
+/* Tarjeta de Resultados */
 .result-card {
   background: var(--forgy-input-bg);
+  border: 1px solid var(--forgy-border);
   border-radius: 16px;
-  padding: 16px;
-  margin: 10px 0 6px;
+  padding: 20px;
+  margin: 20px 0 6px;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.result-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--forgy-text-secondary);
 }
 
 .result-value {
-  font-size: 32px;
+  font-size: 38px;
   font-weight: 800;
   color: var(--ion-color-primary);
 }
 
-.result-label {
-  font-size: 14px;
-  font-weight: 600;
-  margin-top: 4px;
-}
-
 .result-message {
-  margin-top: 8px;
+  margin: 4px 0 12px;
   font-size: 13px;
   color: var(--forgy-text-secondary);
+  line-height: 1.4;
 }
 
+/* Comparativa */
 .result-compare {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 16px;
+  background: var(--forgy-card-bg);
+  border: 1px solid var(--forgy-border);
+  border-radius: 12px;
+  padding: 12px 16px;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: left;
 }
 
-.compare-emoji {
-  font-size: 20px;
+.compare-image-container {
+  background: var(--forgy-input-bg);
+  border: 1px solid var(--forgy-border);
+  border-radius: 10px;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .compare-image {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   object-fit: contain;
 }
 
-.compare-text {
-  font-size: 12px;
+.compare-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.compare-header {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
   color: var(--forgy-text-secondary);
+  letter-spacing: 0.05em;
+}
+
+.compare-text {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--forgy-text-primary);
+}
+
+.custom-back-btn {
+  --color: var(--ion-color-primary);
+  margin-left: 8px;
 }
 </style>
