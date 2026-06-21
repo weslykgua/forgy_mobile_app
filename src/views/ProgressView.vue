@@ -69,16 +69,6 @@
               <span class="stat-value">{{ caloricBalance >= 0 ? '+' : '' }}{{ caloricBalance }}</span>
               <span class="stat-unit">kcal netas</span>
             </div>
-            <div
-              class="hero-stat"
-              @click="goToBmiTest"
-            >
-              <div class="stat-circle height">
-                <ion-icon :icon="bodyOutline"></ion-icon>
-              </div>
-              <span class="stat-value">{{ displayHeight ?? '--' }}</span>
-              <span class="stat-unit">cm</span>
-            </div>
           </div>
         </div>
 

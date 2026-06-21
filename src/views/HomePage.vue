@@ -650,7 +650,7 @@ const modalInputValue = ref<string>('');
 const modalError = ref<string>('');
 const isSaving = ref(false);
 
-const openEditModal = (type: 'weight' | 'height' | 'sleep' | 'calories' | 'stress' | 'energy' | 'muscleSoreness' | 'protein' | 'carbs' | 'fat' | 'heartRate' | 'vo2Max' | 'bodyFat' | 'muscleMass' | 'sleepQuality') => {
+const openEditModal = (type: 'weight' | 'height' | 'sleep' | 'calories' | 'stress' | 'energy' | 'muscleSoreness' | 'protein' | 'carbs' | 'fat' | 'heartRate' | 'vo2Max' | 'bodyFat' | 'muscleMass') => {
     activeModal.value = type;
     modalError.value = '';
     
@@ -755,13 +755,11 @@ const saveModalMetric = async () => {
         } else {
             modalError.value = 'Debe ser un número mayor o igual a 0.';
         }
-    } else if (type === 'stress' || type === 'energy' || type === 'muscleSoreness' || type === 'sleepQuality') {
+    } else if (type === 'stress' || type === 'energy' || type === 'muscleSoreness') {
         const score = parseInt(modalInputValue.value);
         if (!isNaN(score) && score >= 1 && score <= 5) {
-            const dbField = type === 'sleepQuality' ? 'mood' : type;
-            const saveValue = type === 'sleepQuality' ? score.toString() : score;
-            await saveProgressField(dbField, saveValue);
-            showToast(type === 'sleepQuality' ? `Calidad de sueño registrada: ${getSleepQualityLabel(score.toString())}` : `Nivel ${score}/5 registrado`);
+            await saveProgressField(type, score);
+            showToast(`Nivel ${score}/5 registrado`);
             closeEditModal();
         } else {
             modalError.value = 'Selecciona una puntuación válida de 1 a 5.';
@@ -1401,14 +1399,13 @@ onIonViewWillEnter(() => {
                         </div>
                     </div>
 
-                    <!-- Selector de Escala 1-5 (Estrés, Energía, Dolor Muscular, Calidad del Sueño) -->
-                    <div v-else-if="['stress', 'energy', 'muscleSoreness', 'sleepQuality'].includes(activeModal)" class="scale-selector">
+                    <!-- Selector de Escala 1-5 (Estrés, Energía, Dolor Muscular) -->
+                    <div v-else-if="['stress', 'energy', 'muscleSoreness'].includes(activeModal)" class="scale-selector">
                         <p class="scale-subtitle">
                             {{
                                 activeModal === 'stress' ? '1 = Relajado, 5 = Muy Estresado' :
                                 activeModal === 'energy' ? '1 = Muy Agotado, 5 = Energía Máxima' :
-                                activeModal === 'muscleSoreness' ? '1 = Sin Dolor, 5 = Dolor Extremo' :
-                                activeModal === 'sleepQuality' ? '1 = Pésima, 5 = Excelente' : ''
+                                activeModal === 'muscleSoreness' ? '1 = Sin Dolor, 5 = Dolor Extremo' : ''
                             }}
                         </p>
                         <div class="scale-buttons">
