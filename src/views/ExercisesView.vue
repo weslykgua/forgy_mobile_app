@@ -243,8 +243,13 @@ const getDifficultyColor = (difficulty: string) => {
   }
 };
 
+const isFetching = ref(false);
+
 // Cargar ejercicios (paginado, server-side filtrado)
 const loadExercises = async (append = false) => {
+  if (isFetching.value) return;
+  isFetching.value = true;
+
   if (!append) {
     isLoading.value = exercises.value.length === 0; // Only show main loading spinner if no cached data
   } else {
@@ -284,6 +289,7 @@ const loadExercises = async (append = false) => {
   } finally {
     isLoading.value = false;
     isLoadingMore.value = false;
+    isFetching.value = false;
   }
 };
 
