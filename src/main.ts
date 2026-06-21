@@ -2,6 +2,26 @@ import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router';
 
+// Dark Mode Early Initialization to prevent flickering
+const darkModeSaved = localStorage.getItem('dark_mode');
+if (darkModeSaved === 'true') {
+  document.body.classList.add('dark', 'ion-palette-dark');
+  document.body.classList.remove('light');
+} else if (darkModeSaved === 'false') {
+  document.body.classList.add('light');
+  document.body.classList.remove('dark', 'ion-palette-dark');
+} else {
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (prefersDark) {
+    document.body.classList.add('dark', 'ion-palette-dark');
+    document.body.classList.remove('light');
+  } else {
+    document.body.classList.add('light');
+    document.body.classList.remove('dark', 'ion-palette-dark');
+  }
+}
+
+
 import { IonicVue } from '@ionic/vue';
 
 /* Core CSS required for Ionic components to work properly */
@@ -28,8 +48,7 @@ import 'ionicons/icons'
  */
 
 /* @import '@ionic/vue/css/palettes/dark.always.css'; */
-/* @import '@ionic/vue/css/palettes/dark.class.css'; */
-import '@ionic/vue/css/palettes/dark.system.css';
+import '@ionic/vue/css/palettes/dark.class.css';
 
 /* Theme variables */
 import './theme/variables.css';
