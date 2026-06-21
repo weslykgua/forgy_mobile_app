@@ -444,6 +444,16 @@ import {
 } from '@ionic/vue';
 import { ref, computed } from 'vue';
 import { useProfile } from '../utils/useProfile'
+
+import absImg from '../assets/abs.png';
+import antebrazoImg from '../assets/antebrazo.png';
+import bicepsImg from '../assets/biceps.png';
+import cuadricepsImg from '../assets/cuadriceps.png';
+import dorsalesImg from '../assets/dorsales.png';
+import hombrosImg from '../assets/hombros.png';
+import pantorillasImg from '../assets/pantorillas.png';
+import pechoImg from '../assets/pecho.png';
+import trapecioImg from '../assets/trapecio.png';
 import {
   calendar as calendarIcon, add, chevronBack, chevronForward, barbell, time,
   fitness, barbellOutline, create, trash, documentText, close, remove,
@@ -581,16 +591,16 @@ const totalVolume = computed(() => dayWorkouts.value.reduce((acc, w) =>
 function getMuscleIcon(muscle: string): string {
   const icons: { [key: string]: string } = {
     'Todos': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="muscle-svg" style="width:16px;height:16px;vertical-align:middle;display:inline-block;"><path d="M6.5 6.5 11 11"/><path d="M21 21-1.5-1.5"/><path d="M3 3 1.5 1.5"/><path d="M18.5 5.5 3-3"/><path d="M2.5 21.5 3-3"/><path d="M14 5s.5 1.5 3 3"/><path d="M5 14s1.5.5 3 3"/><path d="M10 5.5A3.5 3.5 0 0 0 5.5 10"/><path d="M18.5 14a3.5 3.5 0 0 1-4.5 4.5"/></svg>`,
-    'Brazos': `<img src="/src/assets/biceps.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Brazos" />`,
-    'Piernas': `<img src="/src/assets/cuadriceps.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Piernas" />`,
-    'Espalda': `<img src="/src/assets/dorsales.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Espalda" />`,
-    'Abdomen': `<img src="/src/assets/abs.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Abdomen" />`,
-    'Pecho': `<img src="/src/assets/pecho.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Pecho" />`,
-    'Hombros': `<img src="/src/assets/hombros.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Hombros" />`,
-    'Pantorrillas': `<img src="/src/assets/pantorillas.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Pantorrillas" />`,
-    'Antebrazos': `<img src="/src/assets/antebrazo.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Antebrazos" />`,
+    'Brazos': `<img src="${bicepsImg}" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Brazos" />`,
+    'Piernas': `<img src="${cuadricepsImg}" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Piernas" />`,
+    'Espalda': `<img src="${dorsalesImg}" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Espalda" />`,
+    'Abdomen': `<img src="${absImg}" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Abdomen" />`,
+    'Pecho': `<img src="${pechoImg}" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Pecho" />`,
+    'Hombros': `<img src="${hombrosImg}" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Hombros" />`,
+    'Pantorrillas': `<img src="${pantorillasImg}" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Pantorrillas" />`,
+    'Antebrazos': `<img src="${antebrazoImg}" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Antebrazos" />`,
     'Cardio': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="muscle-svg" style="width:16px;height:16px;vertical-align:middle;display:inline-block;"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>`,
-    'Cuello': `<img src="/src/assets/trapecio.png" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Cuello" />`
+    'Cuello': `<img src="${trapecioImg}" class="muscle-icon-img" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block;" alt="Cuello" />`
   };
   return icons[muscle] || `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="muscle-svg" style="width:16px;height:16px;vertical-align:middle;display:inline-block;"><path d="M12 20h.01M12 4h.01M4 12h.01M20 12h.01"/></svg>`;
 }
