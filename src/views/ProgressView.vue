@@ -261,19 +261,6 @@
           <p class="water-status">{{ waterStatusMessage }}</p>
         </div>
 
-        <!-- Calculadora IMC -->
-        <div class="section-card bmi-card" @click="goToBmiTest">
-          <div class="section-header">
-            <ion-icon :icon="scaleOutline" color="primary" style="font-size: 20px; margin-right: 8px;"></ion-icon>
-            <h3>Calculadora de IMC</h3>
-            <span class="section-value" v-if="bmiValue">{{ bmiValue }}</span>
-          </div>
-          <div class="bmi-body">
-            <p class="bmi-label">{{ bmiLabel || 'Sin datos aún' }}</p>
-            <p class="bmi-message">{{ bmiMessage }}</p>
-            <ion-button size="small" fill="outline" class="calc-btn-action">Hacer test</ion-button>
-          </div>
-        </div>
 
         <!-- Calculadora RM -->
         <div class="section-card rm-card" @click="goToRmCalculator">
@@ -721,32 +708,6 @@ const weightChange = computed(() => {
 
 const weightTrend = computed(() => weightChange.value > 0 ? 'trend-up' : weightChange.value < 0 ? 'trend-down' : '');
 
-const bmiValue = computed(() => {
-  const height = userProfile.value.height;
-  const weight = todayProgress.value?.weight ?? userProfile.value.weight ?? progressStats.value.currentWeight;
-  if (!height || !weight) return '';
-  const heightM = height / 100;
-  const bmi = weight / (heightM * heightM);
-  return bmi.toFixed(1);
-});
-
-const bmiLabel = computed(() => {
-  const value = Number(bmiValue.value);
-  if (!value) return '';
-  if (value < 18.5) return 'Bajo peso';
-  if (value < 25) return 'Peso normal';
-  if (value < 30) return 'Sobrepeso';
-  return 'Obesidad';
-});
-
-const bmiMessage = computed(() => {
-  const value = Number(bmiValue.value);
-  if (!value) return 'Ingresa tus datos para calcular tu IMC.';
-  if (value < 18.5) return 'Un poco más de energía y nutrición te ayudará a sentirte mejor.';
-  if (value < 25) return 'Buen rango. Mantén tus hábitos saludables.';
-  if (value < 30) return 'Vas bien: con constancia puedes mejorar tu bienestar.';
-  return 'No estás solo: con pasos pequeños y constancia puedes mejorar.';
-});
 
 const caloricBalance = computed(() => {
   const consumed = todayProgress.value?.caloriesConsumed || 0;
@@ -957,9 +918,6 @@ async function loadAllData() {
   }
 }
 
-function goToBmiTest() {
-  router.push('/tabs/bmi');
-}
 
 function goToRmCalculator() {
   router.push('/tabs/rm');

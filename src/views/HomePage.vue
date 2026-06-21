@@ -64,6 +64,23 @@ const quoteIndex = ref(0);
 
 const bedtime = ref('23:00');
 const waketime = ref('07:00');
+const sleepQualityInModal = ref<string>('');
+
+// 48 half-hour slots for time selectors: 00:00, 00:30, 01:00 ... 23:30
+const timeSlots = Array.from({ length: 48 }, (_, i) => {
+    const h = Math.floor(i / 2).toString().padStart(2, '0');
+    const m = i % 2 === 0 ? '00' : '30';
+    return `${h}:${m}`;
+});
+
+// Sleep quality options for the picker
+const sleepQualityOptions = [
+    { value: '1', label: 'Pésimo' },
+    { value: '2', label: 'Malo' },
+    { value: '3', label: 'Regular' },
+    { value: '4', label: 'Bueno' },
+    { value: '5', label: 'Excelente' },
+];
 
 const calculateSleepHoursFromTimes = () => {
     if (!bedtime.value || !waketime.value) return;
@@ -76,6 +93,20 @@ const calculateSleepHoursFromTimes = () => {
     }
     const hours = diffMins / 60;
     modalInputValue.value = hours.toFixed(1);
+};
+
+// Apply preset: set hours and compute wake time from bedtime
+const applyPresetHours = (hours: number) => {
+    modalInputValue.value = hours.toString();
+    if (!bedtime.value) return;
+    const [bedH, bedM] = bedtime.value.split(':').map(Number);
+    const totalMins = bedH * 60 + bedM + Math.round(hours * 60);
+    const wakeH = Math.floor((totalMins % (24 * 60)) / 60);
+    const wakeM = totalMins % 60;
+    // Snap to nearest :00 or :30
+    const snappedM = wakeM < 15 ? 0 : wakeM < 45 ? 30 : 0;
+    const snappedH = wakeM >= 45 ? (wakeH + 1) % 24 : wakeH;
+    waketime.value = `${snappedH.toString().padStart(2, '0')}:${snappedM.toString().padStart(2, '0')}`;
 };
 
 const syncSmartwatchSleep = () => {
@@ -614,9 +645,10 @@ const updateProfileData = async (weight: number | null, height: number | null) =
 };
 
 // Modal Personalizado Lógica de Estado
-const activeModal = ref<'weight' | 'height' | 'sleep' | 'calories' | 'stress' | 'energy' | 'muscleSoreness' | 'protein' | 'carbs' | 'fat' | 'heartRate' | 'vo2Max' | 'bodyFat' | 'muscleMass' | 'sleepQuality' | null>(null);
+const activeModal = ref<'weight' | 'height' | 'sleep' | 'calories' | 'stress' | 'energy' | 'muscleSoreness' | 'protein' | 'carbs' | 'fat' | 'heartRate' | 'vo2Max' | 'bodyFat' | 'muscleMass' | null>(null);
 const modalInputValue = ref<string>('');
 const modalError = ref<string>('');
+const isSaving = ref(false);
 
 const openEditModal = (type: 'weight' | 'height' | 'sleep' | 'calories' | 'stress' | 'energy' | 'muscleSoreness' | 'protein' | 'carbs' | 'fat' | 'heartRate' | 'vo2Max' | 'bodyFat' | 'muscleMass' | 'sleepQuality') => {
     activeModal.value = type;
@@ -646,6 +678,7 @@ const openEditModal = (type: 'weight' | 'height' | 'sleep' | 'calories' | 'stres
     modalInputValue.value = val !== null && val !== undefined ? val.toString() : '';
     
     if (type === 'sleep') {
+        sleepQualityInModal.value = (summary.value.mood ?? '').toString();
         if (val && !isNaN(parseFloat(val.toString()))) {
             const hours = parseFloat(val.toString());
             const bedH = 23;
@@ -668,6 +701,9 @@ const closeEditModal = () => {
 };
 
 const saveModalMetric = async () => {
+    if (isSaving.value) return;
+    isSaving.value = true;
+    setTimeout(() => { isSaving.value = false; }, 1500);
     modalError.value = '';
     const val = parseFloat(modalInputValue.value);
     const type = activeModal.value;
@@ -689,6 +725,13 @@ const saveModalMetric = async () => {
     } else if (type === 'sleep') {
         if (!isNaN(val) && val >= 0 && val <= 24) {
             await saveProgressField('sleepHours', val);
+            // Also save sleep quality if selected
+            if (sleepQualityInModal.value) {
+                const qualScore = parseInt(sleepQualityInModal.value);
+                if (!isNaN(qualScore) && qualScore >= 1 && qualScore <= 5) {
+                    await saveProgressField('mood', qualScore.toString());
+                }
+            }
             showToast(`${val} hrs de sueño registradas`);
             closeEditModal();
         } else {
@@ -970,13 +1013,7 @@ onIonViewWillEnter(() => {
                         <ion-icon :icon="scaleOutline" class="action-icon"></ion-icon>
                         <span class="action-label">Registrar peso</span>
                     </div>
-                    <div
-                        class="action-card"
-                        @click="editHeight"
-                    >
-                        <ion-icon :icon="resizeOutline" class="action-icon"></ion-icon>
-                        <span class="action-label">Registrar altura</span>
-                    </div>
+
                     <div
                         class="action-card"
                         @click="goToExercises"
@@ -994,25 +1031,16 @@ onIonViewWillEnter(() => {
                 </div>
                 <div class="summary-grid">
                     <!-- Sueño -->
-                    <div class="summary-card interactive-card" @click="openEditModal('sleep')">
+                    <div class="summary-card interactive-card" style="grid-column: span 2;" @click="openEditModal('sleep')">
                         <div class="card-header-row">
                             <span class="summary-label">Sueño</span>
                             <ion-icon :icon="moonOutline" class="edit-icon"></ion-icon>
                         </div>
-                        <span class="summary-value">{{ summary.sleep ?? '--' }} <small>hrs</small></span>
-                        <span class="summary-meta">Registrar sueño</span>
-                    </div>
-
-                    <!-- Calidad del Sueño -->
-                    <div class="summary-card interactive-card" @click="openEditModal('sleepQuality')">
-                        <div class="card-header-row">
-                            <span class="summary-label">Calidad de Sueño</span>
-                            <ion-icon :icon="shieldCheckmarkOutline" class="edit-icon"></ion-icon>
+                        <div style="display:flex; align-items:baseline; gap:6px;">
+                            <span class="summary-value">{{ summary.sleep ?? '--' }} <small>hrs</small></span>
+                            <span v-if="summary.mood" class="summary-meta" style="margin-left:auto;">Calidad: {{ getSleepQualityLabel(summary.mood) }}</span>
                         </div>
-                        <span class="summary-value">
-                            {{ summary.mood ? getSleepQualityLabel(summary.mood) : '--' }}
-                        </span>
-                        <span class="summary-meta">Calificar descanso</span>
+                        <span class="summary-meta">Registrar sueño y calidad</span>
                     </div>
 
                     <!-- Estrés -->
@@ -1296,43 +1324,80 @@ onIonViewWillEnter(() => {
                     </h3>
                 </div>
                 <div class="custom-modal-body">
-                    <!-- Interfaz de Sueño Especial -->
-                    <div v-if="activeModal === 'sleep'" class="sleep-time-picker">
-                        <div class="time-inputs-row">
-                            <div class="time-input-group">
-                                <label class="time-input-label">Hora de acostarse</label>
-                                <input
-                                    v-model="bedtime"
-                                    type="time"
-                                    class="time-picker-input"
-                                    @change="calculateSleepHoursFromTimes"
-                                />
-                            </div>
-                            <div class="time-input-group">
-                                <label class="time-input-label">Hora de levantarse</label>
-                                <input
-                                    v-model="waketime"
-                                    type="time"
-                                    class="time-picker-input"
-                                    @change="calculateSleepHoursFromTimes"
-                                />
+                    <!-- Reloj Interactivo de Sueño -->
+                    <div v-if="activeModal === 'sleep'" class="sleep-clock-picker">
+                        <!-- Arc SVG + Time Selectors -->
+                        <div class="clock-section">
+                            <div class="clock-labels-row">
+                                <!-- Bedtime selector -->
+                                <div class="clock-label-group">
+                                    <span class="clock-label">Acostarse</span>
+                                    <div class="drum-picker-wrapper">
+                                        <select v-model="bedtime" class="drum-select" @change="calculateSleepHoursFromTimes">
+                                            <option v-for="slot in timeSlots" :key="slot" :value="slot">{{ slot }}</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <!-- Arc display -->
+                                <div class="clock-arc-display">
+                                    <svg viewBox="0 0 120 120" class="sleep-arc-svg">
+                                        <circle cx="60" cy="60" r="50" fill="none" stroke="var(--forgy-input-bg)" stroke-width="10"/>
+                                        <circle cx="60" cy="60" r="50" fill="none"
+                                            stroke="var(--ion-color-secondary)"
+                                            stroke-width="10"
+                                            stroke-linecap="round"
+                                            :stroke-dasharray="314.16"
+                                            :stroke-dashoffset="314.16 * (1 - parseFloat(modalInputValue || '0') / 24)"
+                                            transform="rotate(-90 60 60)"
+                                            style="transition: stroke-dashoffset 0.4s ease;"
+                                        />
+                                        <text x="60" y="55" text-anchor="middle" class="clock-svg-hours">{{ modalInputValue || '0' }}</text>
+                                        <text x="60" y="71" text-anchor="middle" class="clock-svg-unit">horas</text>
+                                    </svg>
+                                </div>
+                                <!-- Waketime selector -->
+                                <div class="clock-label-group">
+                                    <span class="clock-label">Levantarse</span>
+                                    <div class="drum-picker-wrapper">
+                                        <select v-model="waketime" class="drum-select" @change="calculateSleepHoursFromTimes">
+                                            <option v-for="slot in timeSlots" :key="slot" :value="slot">{{ slot }}</option>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div class="smartwatch-sync-container">
-                            <ion-button
-                                expand="block"
-                                size="small"
-                                fill="outline"
-                                class="sync-smartwatch-btn"
-                                @click="syncSmartwatchSleep"
-                            >
-                                <ion-icon :icon="pulseOutline" slot="start"></ion-icon>
-                                Sincronizar Smartwatch
-                            </ion-button>
+                        <!-- Quick presets -->
+                        <div class="sleep-presets">
+                            <button v-for="h in [6, 7, 7.5, 8, 9]" :key="h"
+                                type="button"
+                                class="sleep-preset-btn"
+                                :class="{ active: modalInputValue === h.toString() }"
+                                @click="applyPresetHours(h)"
+                            >{{ h }}h</button>
                         </div>
-                        <div class="sleep-result-display">
-                            <span class="sleep-result-label">Horas de sueño:</span>
-                            <span class="sleep-result-value">{{ modalInputValue || '0.0' }} hrs</span>
+                        <!-- Smartwatch sync -->
+                        <ion-button expand="block" size="small" fill="outline" class="sync-smartwatch-btn" @click="syncSmartwatchSleep">
+                            <ion-icon :icon="pulseOutline" slot="start"></ion-icon>
+                            Sincronizar Smartwatch
+                        </ion-button>
+                        <!-- Calidad del sueño integrada -->
+                        <div class="sleep-quality-section">
+                            <span class="sleep-quality-title">Calidad del descanso</span>
+                            <p class="sleep-quality-hint">1 = Pésima &nbsp;·&nbsp; 5 = Excelente</p>
+                            <div class="sleep-quality-picker">
+                                <button
+                                    v-for="item in sleepQualityOptions"
+                                    :key="item.value"
+                                    type="button"
+                                    class="sleep-quality-option"
+                                    :class="{ active: sleepQualityInModal === item.value, [`q-${item.value}`]: true }"
+                                    @click="sleepQualityInModal = item.value"
+                                >
+                                    <span class="sq-num">{{ item.value }}</span>
+                                    <span class="sq-desc">{{ item.label }}</span>
+                                </button>
+                            </div>
+                            <span v-if="sleepQualityInModal" class="sleep-quality-label">{{ getSleepQualityLabel(sleepQualityInModal) }}</span>
                         </div>
                     </div>
 
@@ -1400,8 +1465,13 @@ onIonViewWillEnter(() => {
                     <p v-if="modalError" class="custom-modal-error">{{ modalError }}</p>
                 </div>
                 <div class="custom-modal-footer">
-                    <button class="custom-modal-btn btn-cancel" @click="closeEditModal">Cancelar</button>
-                    <button class="custom-modal-btn btn-save" @click="saveModalMetric">Guardar</button>
+                    <button class="custom-modal-btn btn-cancel" @click="closeEditModal" :disabled="isSaving">Cancelar</button>
+                    <button
+                        class="custom-modal-btn btn-save"
+                        @click="saveModalMetric"
+                        :disabled="isSaving"
+                        :class="{ 'btn-saving': isSaving }"
+                    >{{ isSaving ? 'Guardando...' : 'Guardar' }}</button>
                 </div>
             </div>
         </div>
@@ -1826,11 +1896,14 @@ onIonViewWillEnter(() => {
 .custom-modal-container {
     background: var(--forgy-card-bg);
     border: 1px solid var(--ion-border-color);
-    border-radius: 8px;
-    width: 90%;
-    max-width: 340px;
+    border-radius: 16px;
+    width: 92%;
+    max-width: 380px;
+    max-height: 88vh;
     padding: 20px;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.35);
+    display: flex;
+    flex-direction: column;
 }
 
 .custom-modal-header {
@@ -1847,7 +1920,9 @@ onIonViewWillEnter(() => {
 }
 
 .custom-modal-body {
-    margin-bottom: 20px;
+    margin-bottom: 16px;
+    overflow-y: auto;
+    flex: 1;
 }
 
 .input-container {
@@ -2267,70 +2342,219 @@ onIonViewWillEnter(() => {
     cursor: pointer;
 }
 
-/* Sleep Time Picker Styles */
-.sleep-time-picker {
+/* Sleep Clock Picker */
+.sleep-clock-picker {
     display: flex;
     flex-direction: column;
     gap: 16px;
-    padding: 8px 0;
+    padding: 4px 0;
 }
-.time-inputs-row {
+.clock-section {
     display: flex;
-    gap: 16px;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
 }
-.time-input-group {
-    flex: 1;
+.clock-labels-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    justify-content: space-between;
+}
+.clock-label-group {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    align-items: center;
+    flex: 1;
 }
-.time-input-label {
-    font-size: 11px;
-    font-weight: 600;
+.clock-label {
+    font-size: 10px;
+    font-weight: 700;
     color: var(--forgy-text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    text-align: center;
 }
-.time-picker-input {
+.clock-arc-display {
+    flex-shrink: 0;
+}
+.sleep-arc-svg {
+    width: 110px;
+    height: 110px;
+}
+.clock-svg-hours {
+    font-size: 24px;
+    font-weight: 800;
+    fill: var(--forgy-text-primary);
+    font-family: inherit;
+}
+.clock-svg-unit {
+    font-size: 9px;
+    fill: var(--forgy-text-secondary);
+    font-family: inherit;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.sleep-presets {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.sleep-preset-btn {
     background: var(--forgy-input-bg);
     border: 1px solid var(--ion-border-color);
-    border-radius: 6px;
-    padding: 10px 12px;
-    color: var(--forgy-text-primary);
-    font-size: 16px;
-    font-weight: 600;
-    width: 100%;
-    outline: none;
-    box-sizing: border-box;
-}
-.smartwatch-sync-container {
-    margin-top: 4px;
-}
-.sync-smartwatch-btn {
-    --border-color: var(--ion-color-secondary);
-    --color: var(--ion-color-secondary);
-    margin: 0;
-    font-weight: 600;
-}
-.sleep-result-display {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: rgba(var(--ion-color-secondary-rgb), 0.08);
-    border: 1px dashed rgba(var(--ion-color-secondary-rgb), 0.25);
-    border-radius: 6px;
-    padding: 10px 12px;
-    margin-top: 4px;
-}
-.sleep-result-label {
-    font-size: 12px;
-    color: var(--forgy-text-primary);
-    font-weight: 500;
-}
-.sleep-result-value {
-    font-size: 14px;
-    color: var(--ion-color-secondary);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 13px;
     font-weight: 700;
+    color: var(--forgy-text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.sleep-preset-btn.active {
+    background: var(--ion-color-secondary);
+    color: #fff;
+    border-color: var(--ion-color-secondary);
+}
+.sleep-quality-section {
+    background: var(--forgy-input-bg);
+    border: 1px solid var(--ion-border-color);
+    border-radius: 12px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+.sleep-quality-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--forgy-text-primary);
+}
+.sleep-quality-hint {
+    font-size: 11px;
+    color: var(--forgy-text-secondary);
+    margin: 0;
+}
+/* Sleep Quality Picker - Mobile Optimized */
+.sleep-quality-picker {
+    display: flex;
+    gap: 6px;
+    width: 100%;
+}
+.sleep-quality-option {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-height: 70px;
+    background: var(--forgy-input-bg);
+    border: 1.5px solid var(--ion-border-color);
+    border-radius: 12px;
+    cursor: pointer;
+    padding: 8px 4px;
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+}
+.sleep-quality-option:active {
+    transform: scale(0.93);
+}
+.sq-num {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--forgy-text-secondary);
+    line-height: 1;
+    transition: color 0.2s ease;
+}
+.sq-desc {
+    font-size: 8px;
+    font-weight: 600;
+    color: var(--forgy-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    line-height: 1;
+    transition: color 0.2s ease;
+}
+/* Active states with progressive color coding */
+.sleep-quality-option.active.q-1 {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: #ef4444;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.25);
+    transform: translateY(-2px);
+}
+.sleep-quality-option.active.q-1 .sq-num,
+.sleep-quality-option.active.q-1 .sq-desc { color: #ef4444; }
+.sleep-quality-option.active.q-2 {
+    background: rgba(249, 115, 22, 0.12);
+    border-color: #f97316;
+    box-shadow: 0 0 12px rgba(249, 115, 22, 0.25);
+    transform: translateY(-2px);
+}
+.sleep-quality-option.active.q-2 .sq-num,
+.sleep-quality-option.active.q-2 .sq-desc { color: #f97316; }
+.sleep-quality-option.active.q-3 {
+    background: rgba(234, 179, 8, 0.12);
+    border-color: #eab308;
+    box-shadow: 0 0 12px rgba(234, 179, 8, 0.25);
+    transform: translateY(-2px);
+}
+.sleep-quality-option.active.q-3 .sq-num,
+.sleep-quality-option.active.q-3 .sq-desc { color: #eab308; }
+.sleep-quality-option.active.q-4 {
+    background: rgba(34, 197, 94, 0.12);
+    border-color: #22c55e;
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.25);
+    transform: translateY(-2px);
+}
+.sleep-quality-option.active.q-4 .sq-num,
+.sleep-quality-option.active.q-4 .sq-desc { color: #22c55e; }
+.sleep-quality-option.active.q-5 {
+    background: rgba(var(--ion-color-secondary-rgb), 0.12);
+    border-color: var(--ion-color-secondary);
+    box-shadow: 0 0 12px rgba(var(--ion-color-secondary-rgb), 0.3);
+    transform: translateY(-2px);
+}
+.sleep-quality-option.active.q-5 .sq-num,
+.sleep-quality-option.active.q-5 .sq-desc { color: var(--ion-color-secondary); }
+/* Drum picker select */
+.drum-picker-wrapper {
+    width: 100%;
+}
+.drum-select {
+    width: 100%;
+    background: var(--forgy-input-bg);
+    border: 1px solid var(--ion-border-color);
+    border-radius: 8px;
+    padding: 9px 10px;
+    color: var(--forgy-text-primary);
+    font-size: 14px;
+    font-weight: 700;
+    outline: none;
+    text-align: center;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease;
+}
+.drum-select:focus {
+    border-color: var(--ion-color-secondary);
+}
+/* Save button saving state */
+.btn-saving {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+.custom-modal-btn:disabled {
+    pointer-events: none;
+    opacity: 0.55;
 }
 .home-date-switcher-container {
     background: var(--forgy-card-bg);
