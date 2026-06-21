@@ -2,13 +2,13 @@
 import {
     IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
     IonButton, IonIcon,
-    onIonViewWillEnter, toastController, useIonRouter, alertController
+    onIonViewWillEnter, toastController, useIonRouter
 } from '@ionic/vue';
 import { ref, computed } from 'vue'
 import { useProfile } from '../utils/useProfile'
 import {
     flame, water, barbell, scaleOutline, resizeOutline,
-    moonOutline, nutritionOutline, pencilOutline, calculatorOutline, addOutline,
+    moonOutline, nutritionOutline, pencilOutline, addOutline,
     bookOutline, flameOutline, waterOutline, barbellOutline,
     trophyOutline, ribbonOutline, flashOutline, heartOutline, speedometerOutline,
     statsChartOutline, shieldCheckmarkOutline, fitnessOutline, alertCircleOutline,
@@ -305,22 +305,7 @@ const summary = computed(() => {
     };
 });
 
-const calculatedImc = computed(() => {
-    const weight = summary.value.weight;
-    const height = summary.value.height;
-    if (!weight || !height) return null;
-    const heightInMeters = height / 100;
-    return (weight / (heightInMeters * heightInMeters)).toFixed(1);
-});
 
-const imcClassification = computed(() => {
-    const imc = parseFloat(calculatedImc.value || '0');
-    if (imc === 0) return '';
-    if (imc < 18.5) return 'Bajo peso';
-    if (imc < 25) return 'Saludable';
-    if (imc < 30) return 'Sobrepeso';
-    return 'Obesidad';
-});
 
 const getStressLabel = (score: number | null) => {
     if (!score) return '--';
@@ -519,7 +504,7 @@ const waterPercent = computed(() => {
 
 // Navigation
 function goToWorkout() {
-    router.push('/tabs/exercises');
+    router.push('/tabs/train');
 }
 
 function goToProgress() {
@@ -746,58 +731,7 @@ const editHeight = () => openEditModal('height');
 const editSleep = () => openEditModal('sleep');
 const editCalories = () => openEditModal('calories');
 
-// Calculadora IMC
-const calculateIMC = async () => {
-    const weight = summary.value.weight;
-    const height = summary.value.height;
 
-    if (!weight || !height) {
-        const alert = await alertController.create({
-            header: 'Datos incompletos',
-            message: 'Por favor, registra tu Peso y Estatura antes de calcular tu IMC.',
-            buttons: ['Entendido']
-        });
-        await alert.present();
-        return;
-    }
-
-    const heightInMeters = height / 100;
-    const imc = weight / (heightInMeters * heightInMeters);
-    const imcFormatted = imc.toFixed(1);
-
-    let classification = '';
-    let color = '';
-    if (imc < 18.5) {
-        classification = 'Bajo peso';
-        color = '#f59e0b';
-    } else if (imc < 25) {
-        classification = 'Peso Saludable';
-        color = '#10b981';
-    } else if (imc < 30) {
-        classification = 'Sobrepeso';
-        color = '#f59e0b';
-    } else {
-        classification = 'Obesidad';
-        color = '#ef4444';
-    }
-
-    const alert = await alertController.create({
-        header: 'Cálculo de IMC',
-        message: `
-            <div style="text-align: center; margin-bottom: 12px;">
-                <p style="font-size: 14px; margin: 4px 0;">Tu Índice de Masa Corporal es:</p>
-                <h1 style="font-size: 38px; font-weight: 800; margin: 6px 0; color: ${color};">${imcFormatted}</h1>
-                <p style="font-size: 16px; font-weight: 700; margin: 4px 0;">Clasificación: ${classification}</p>
-            </div>
-            <hr style="opacity: 0.15; margin: 12px 0;" />
-            <p style="font-size: 11px; color: var(--ion-color-medium); text-align: justify; line-height: 1.35; margin: 0;">
-                <b>Aviso Importante:</b> Este cálculo es puramente orientativo y de uso deportivo general. No representa ningún tipo de diagnóstico clínico, médico o nutricional personalizado. Por favor, consulta a un médico matriculado o nutricionista profesional para evaluaciones terapéuticas.
-            </p>
-        `,
-        buttons: ['Entendido']
-    });
-    await alert.present();
-};
 
 const loadMetrics = async () => {
     try {
@@ -1038,10 +972,10 @@ onIonViewWillEnter(() => {
                     </div>
                     <div
                         class="action-card"
-                        @click="calculateIMC"
+                        @click="editHeight"
                     >
-                        <ion-icon :icon="calculatorOutline" class="action-icon"></ion-icon>
-                        <span class="action-label">Calculadora IMC</span>
+                        <ion-icon :icon="resizeOutline" class="action-icon"></ion-icon>
+                        <span class="action-label">Registrar altura</span>
                     </div>
                     <div
                         class="action-card"
@@ -1209,14 +1143,14 @@ onIonViewWillEnter(() => {
                         <span class="summary-meta">Registrar peso</span>
                     </div>
 
-                    <!-- IMC -->
-                    <div class="summary-card" style="cursor: default;">
+                    <!-- Altura -->
+                    <div class="summary-card interactive-card" @click="openEditModal('height')">
                         <div class="card-header-row">
-                            <span class="summary-label">IMC</span>
-                            <ion-icon :icon="calculatorOutline" class="edit-icon" style="color: var(--forgy-text-secondary);"></ion-icon>
+                            <span class="summary-label">Altura</span>
+                            <ion-icon :icon="resizeOutline" class="edit-icon"></ion-icon>
                         </div>
-                        <span class="summary-value">{{ calculatedImc ?? '--' }}</span>
-                        <span class="summary-meta">{{ imcClassification || 'Calculado' }}</span>
+                        <span class="summary-value">{{ summary.height ?? '--' }} <small>cm</small></span>
+                        <span class="summary-meta">Registrar altura</span>
                     </div>
 
                     <!-- Grasa Corporal -->
