@@ -1,16 +1,13 @@
 <template>
   <ion-page>
-    <ion-header>
-      <ion-toolbar color="primary">
-        <ion-title>
-          <ion-icon
-            :icon="calendarIcon"
-            style="margin-right: 8px;"
-          ></ion-icon>
+    <!-- Header principal con clase Forgy -->
+    <ion-header class="forgy-header">
+      <ion-toolbar>
+        <ion-title class="forgy-title">
           Mi Entrenamiento
         </ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="openAddWorkoutModal">
+          <ion-button @click="openAddWorkoutModal" class="header-add-btn">
             <ion-icon :icon="add"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -25,193 +22,179 @@
         <ion-refresher-content></ion-refresher-content>
       </ion-refresher>
 
-      <!-- Selector de semana -->
-      <div class="week-selector">
-        <ion-button
-          fill="clear"
-          @click="changeWeek(-1)"
-        >
-          <ion-icon :icon="chevronBack"></ion-icon>
-        </ion-button>
-        <div class="week-info">
-          <span class="month-name">{{ currentMonthName }}</span>
-          <span class="week-range">{{ weekRangeText }}</span>
-        </div>
-        <ion-button
-          fill="clear"
-          @click="changeWeek(1)"
-        >
-          <ion-icon :icon="chevronForward"></ion-icon>
-        </ion-button>
-      </div>
-
-      <!-- Calendario semanal -->
-      <div class="week-calendar">
-        <div
-          v-for="day in weekDays"
-          :key="day.date"
-          class="day-item"
-          :class="{
-            'active': day.date === selectedDate,
-            'today': day.isToday,
-            'has-workout': calendarData[day.date]?.hasWorkout
-          }"
-          @click="selectDate(day.date)"
-        >
-          <span class="day-name">{{ day.dayName }}</span>
-          <span class="day-number">{{ day.dayNumber }}</span>
-          <div
-            v-if="calendarData[day.date]?.hasWorkout"
-            class="workout-indicator"
-          ></div>
-        </div>
-      </div>
-
-      <!-- Resumen del día -->
-      <ion-card class="day-summary">
-        <ion-card-header>
-          <ion-card-subtitle>{{ formattedSelectedDate }}</ion-card-subtitle>
-          <ion-card-title>Resumen del día</ion-card-title>
-        </ion-card-header>
-        <ion-card-content>
-          <div class="summary-stats">
-            <div class="summary-stat">
-              <ion-icon
-                :icon="barbell"
-                color="primary"
-              ></ion-icon>
-              <span class="stat-value">{{ dayWorkouts.length }}</span>
-              <span class="stat-label">Ejercicios</span>
+      <div class="train-container">
+        <!-- Tarjeta de Calendario Semanal Rediseñado -->
+        <div class="calendar-card">
+          <div class="week-selector">
+            <ion-button
+              fill="clear"
+              @click="changeWeek(-1)"
+              class="nav-btn"
+            >
+              <ion-icon :icon="chevronBack"></ion-icon>
+            </ion-button>
+            <div class="week-info">
+              <span class="month-name">{{ currentMonthName }}</span>
+              <span class="week-range">Semana: {{ weekRangeText }}</span>
             </div>
-            <div class="summary-stat">
-              <ion-icon
-                :icon="time"
-                color="tertiary"
-              ></ion-icon>
-              <span class="stat-value">{{ totalDuration }}</span>
-              <span class="stat-label">Minutos</span>
+            <ion-button
+              fill="clear"
+              @click="changeWeek(1)"
+              class="nav-btn"
+            >
+              <ion-icon :icon="chevronForward"></ion-icon>
+            </ion-button>
+          </div>
+
+          <div class="week-calendar">
+            <div
+              v-for="day in weekDays"
+              :key="day.date"
+              class="day-item"
+              :class="{
+                'active': day.date === selectedDate,
+                'today': day.isToday,
+                'has-workout': calendarData[day.date]?.hasWorkout
+              }"
+              @click="selectDate(day.date)"
+            >
+              <span class="day-name">{{ day.dayName }}</span>
+              <span class="day-number">{{ day.dayNumber }}</span>
+              <div
+                v-if="calendarData[day.date]?.hasWorkout"
+                class="workout-indicator"
+              ></div>
             </div>
           </div>
-          <!-- Recomendación personalizada -->
-          <div
-            v-if="personalAdvice"
-            class="personal-advice"
+        </div>
+
+        <!-- Encabezado de sección de entrenamientos con fecha seleccionada -->
+        <div class="section-header">
+          <div class="header-text-group">
+            <h3>Entrenamientos</h3>
+            <span class="selected-date-label">{{ formattedSelectedDate }}</span>
+          </div>
+          <ion-button
+            fill="clear"
+            size="small"
+            @click="openAddWorkoutModal"
+            class="section-add-btn"
           >
             <ion-icon
-              :icon="adviceIcon"
-              color="warning"
-              style="margin-right:8px;vertical-align:middle;"
-            />
-            <span>{{ personalAdvice }}</span>
+              :icon="add"
+              slot="start"
+            ></ion-icon>
+            Registrar
+          </ion-button>
+        </div>
+
+        <!-- Estado Vacío -->
+        <div
+          v-if="dayWorkouts.length === 0"
+          class="empty-state"
+        >
+          <div class="empty-icon-wrapper">
+            <ion-icon :icon="barbellOutline"></ion-icon>
           </div>
-        </ion-card-content>
-      </ion-card>
+          <h4>Sin entrenamientos</h4>
+          <p>No has registrado ejercicios para este día.</p>
+          <ion-button
+            @click="openAddWorkoutModal"
+            color="primary"
+            class="empty-register-btn"
+          >
+            <ion-icon
+              :icon="add"
+              slot="start"
+            ></ion-icon>
+            Registrar ejercicio
+          </ion-button>
+        </div>
 
-      <!-- Lista de entrenamientos del día -->
-      <div class="section-header">
-        <h3>Entrenamientos realizados</h3>
-        <ion-button
-          fill="clear"
-          size="small"
-          @click="openAddWorkoutModal"
+        <!-- Lista de Entrenamientos -->
+        <ion-list
+          v-else
+          class="workout-list"
         >
-          <ion-icon
-            :icon="add"
-            slot="start"
-          ></ion-icon>
-          Agregar
-        </ion-button>
+          <ion-item-sliding
+            v-for="workout in dayWorkouts"
+            :key="workout.id"
+            class="workout-sliding-item"
+          >
+            <ion-item lines="none" class="workout-item">
+              <div class="workout-item-content">
+                <div class="workout-header">
+                  <h4>{{ workout.exerciseName }}</h4>
+                  <ion-chip
+                    size="small"
+                    color="primary"
+                    class="workout-sets-chip"
+                  >
+                    {{ workout.sets.length }} series
+                  </ion-chip>
+                </div>
+                <div class="sets-preview">
+                  <span
+                    v-for="(set, idx) in workout.sets.slice(0, 4)"
+                    :key="idx"
+                    class="set-pill"
+                  >
+                    {{ set.reps }}×{{ set.weight }}kg
+                  </span>
+                  <span
+                    v-if="workout.sets.length > 4"
+                    class="more-sets"
+                  >+{{ workout.sets.length - 4 }}</span>
+                </div>
+                <div class="workout-meta">
+                  <span><ion-icon :icon="time"></ion-icon> {{ workout.duration }} min</span>
+                  <span v-if="workout.notes"><ion-icon :icon="documentText"></ion-icon> {{ workout.notes }}</span>
+                </div>
+              </div>
+            </ion-item>
+            <ion-item-options side="end">
+              <ion-item-option
+                color="primary"
+                @click="editWorkout(workout)"
+                class="option-btn-edit"
+              >
+                <ion-icon :icon="create"></ion-icon>
+              </ion-item-option>
+              <ion-item-option
+                color="danger"
+                @click="confirmDeleteWorkout(workout)"
+                class="option-btn-delete"
+              >
+                <ion-icon :icon="trash"></ion-icon>
+              </ion-item-option>
+            </ion-item-options>
+          </ion-item-sliding>
+        </ion-list>
       </div>
 
-      <div
-        v-if="dayWorkouts.length === 0"
-        class="empty-state"
-      >
-        <ion-icon :icon="barbellOutline"></ion-icon>
-        <h4>Sin entrenamientos</h4>
-        <p>No has registrado ejercicios este día</p>
-        <ion-button
-          @click="openAddWorkoutModal"
-          color="primary"
-          size="small"
-        >
-          <ion-icon
-            :icon="add"
-            slot="start"
-          ></ion-icon>
-          Registrar ejercicio
-        </ion-button>
-      </div>
-
-      <ion-list
-        v-else
-        class="workout-list"
-      >
-        <ion-item-sliding
-          v-for="workout in dayWorkouts"
-          :key="workout.id"
-        >
-          <ion-item>
-            <div class="workout-item-content">
-              <div class="workout-header">
-                <h4>{{ workout.exerciseName }}</h4>
-                <ion-chip
-                  size="small"
-                  color="primary"
-                >
-                  {{ workout.sets.length }} series
-                </ion-chip>
-              </div>
-              <div class="sets-preview">
-                <span
-                  v-for="(set, idx) in workout.sets.slice(0, 3)"
-                  :key="idx"
-                  class="set-pill"
-                >
-                  {{ set.reps }}×{{ set.weight }}kg
-                </span>
-                <span
-                  v-if="workout.sets.length > 3"
-                  class="more-sets"
-                >+{{ workout.sets.length - 3 }}</span>
-              </div>
-              <div class="workout-meta">
-                <span><ion-icon :icon="time"></ion-icon> {{ workout.duration }} min</span>
-                <span v-if="workout.notes"><ion-icon :icon="documentText"></ion-icon> {{ workout.notes }}</span>
-              </div>
-            </div>
-          </ion-item>
-          <ion-item-options side="end">
-            <ion-item-option
-              color="primary"
-              @click="editWorkout(workout)"
-            >
-              <ion-icon :icon="create"></ion-icon>
-            </ion-item-option>
-            <ion-item-option
-              color="danger"
-              @click="confirmDeleteWorkout(workout)"
-            >
-              <ion-icon :icon="trash"></ion-icon>
-            </ion-item-option>
-          </ion-item-options>
-        </ion-item-sliding>
-      </ion-list>
+      <!-- Botón Flotante Premium (FAB) -->
+      <ion-fab slot="fixed" vertical="bottom" horizontal="end">
+        <ion-fab-button @click="openAddWorkoutModal" class="forgy-fab">
+          <ion-icon :icon="add"></ion-icon>
+        </ion-fab-button>
+      </ion-fab>
 
       <!-- Modal para agregar/editar entrenamiento -->
       <ion-modal
         :is-open="isWorkoutModalOpen"
         @didDismiss="isWorkoutModalOpen = false"
+        class="workout-modal"
       >
-        <ion-header>
-          <ion-toolbar color="primary">
+        <ion-header class="forgy-header">
+          <ion-toolbar>
             <ion-buttons slot="start">
-              <ion-button @click="isWorkoutModalOpen = false">Cancelar</ion-button>
+              <ion-button color="medium" @click="isWorkoutModalOpen = false">Cancelar</ion-button>
             </ion-buttons>
-            <ion-title>{{ editingWorkout ? 'Editar' : 'Nuevo' }} Ejercicio</ion-title>
+            <ion-title class="forgy-title">{{ editingWorkout ? 'Editar' : 'Nuevo' }} Ejercicio</ion-title>
             <ion-buttons slot="end">
               <ion-button
                 strong
+                color="primary"
                 @click="saveWorkout"
               >Guardar</ion-button>
             </ion-buttons>
@@ -219,212 +202,241 @@
         </ion-header>
 
         <ion-content class="modal-content">
-          <!-- Step 1: Seleccionar ejercicio -->
-          <div class="step-section">
-            <div class="step-header">
-              <span class="step-number">1</span>
-              <h4>Selecciona el ejercicio</h4>
-            </div>
+          <div class="modal-container">
+            <!-- Paso 1: Seleccionar ejercicio -->
+            <div class="step-section">
+              <div class="step-header">
+                <span class="step-number">1</span>
+                <h4>Selecciona el ejercicio</h4>
+              </div>
 
-            <!-- Filtro por músculo -->
-            <div class="muscle-filter" style="display: flex; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px;">
-              <ion-chip
-                v-for="muscle in visibleMuscleGroups"
-                :key="muscle"
-                :color="selectedMuscle === muscle ? 'primary' : 'medium'"
-                :outline="selectedMuscle !== muscle"
-                @click="selectedMuscle = muscle"
-              >
-                <span class="muscle-icon-span" v-html="getMuscleIcon(muscle)"></span>
-                <span class="chip-text" style="margin-left: 6px;">{{ muscle }}</span>
-              </ion-chip>
-              <ion-chip
-                class="muscle-chip expand-chip"
-                color="medium"
-                @click="isExpandedMuscleGroups = !isExpandedMuscleGroups"
-                :outline="!isExpandedMuscleGroups"
-              >
-                <ion-icon :icon="isExpandedMuscleGroups ? removeCircleOutline : addCircleOutline" style="font-size: 16px; margin-right: 4px;"></ion-icon>
-                <span class="chip-text" style="margin-left: 6px;">{{ isExpandedMuscleGroups ? 'Ver menos' : 'Ver más' }}</span>
-              </ion-chip>
-            </div>
+              <!-- Buscador de ejercicios -->
+              <ion-searchbar
+                v-model="modalSearchText"
+                placeholder="Buscar por nombre..."
+                :animated="true"
+                class="modal-searchbar"
+              ></ion-searchbar>
 
-            <!-- Lista de ejercicios filtrados -->
-            <div class="exercises-grid">
-              <div
-                v-for="ex in filteredExercises"
-                :key="ex.id"
-                class="exercise-card"
-                :class="{ selected: workoutForm.exerciseId === ex.id }"
-                @click="selectExercise(ex)"
-              >
-                <div class="exercise-icon" v-html="getMuscleIcon(ex.muscle)"></div>
-                <div class="exercise-info">
-                  <span class="exercise-name">{{ ex.name }}</span>
-                  <span
-                    class="exercise-difficulty"
-                    :class="ex.difficulty.toLowerCase()"
+              <!-- Filtro por músculo -->
+              <div class="muscle-filter-scroll">
+                <div class="muscle-filter">
+                  <ion-chip
+                    v-for="muscle in visibleMuscleGroups"
+                    :key="muscle"
+                    :color="selectedMuscle === muscle ? 'primary' : 'medium'"
+                    :outline="selectedMuscle !== muscle"
+                    @click="selectedMuscle = muscle"
+                    class="muscle-chip"
                   >
-                    {{ ex.difficulty }}
-                  </span>
+                    <span class="muscle-icon-span" v-html="getMuscleIcon(muscle)"></span>
+                    <span class="chip-text">{{ muscle }}</span>
+                  </ion-chip>
+                  <ion-chip
+                    class="muscle-chip expand-chip"
+                    color="medium"
+                    @click="isExpandedMuscleGroups = !isExpandedMuscleGroups"
+                    :outline="!isExpandedMuscleGroups"
+                  >
+                    <ion-icon :icon="isExpandedMuscleGroups ? removeCircleOutline : addCircleOutline" class="expand-icon"></ion-icon>
+                    <span class="chip-text">{{ isExpandedMuscleGroups ? 'Ver menos' : 'Ver más' }}</span>
+                  </ion-chip>
                 </div>
-                <ion-icon
-                  v-if="workoutForm.exerciseId === ex.id"
-                  :icon="checkmarkCircle"
-                  color="success"
-                ></ion-icon>
+              </div>
+
+              <!-- Lista de ejercicios filtrados -->
+              <div class="exercises-grid">
+                <div
+                  v-for="ex in filteredExercises"
+                  :key="ex.id"
+                  class="exercise-card"
+                  :class="{ selected: workoutForm.exerciseId === ex.id }"
+                  @click="selectExercise(ex)"
+                >
+                  <div class="exercise-icon" v-html="getMuscleIcon(ex.muscle)"></div>
+                  <div class="exercise-info">
+                    <span class="exercise-name">{{ ex.name }}</span>
+                    <span
+                      class="exercise-difficulty"
+                      :class="ex.difficulty.toLowerCase()"
+                    >
+                      {{ ex.difficulty }}
+                    </span>
+                  </div>
+                  <ion-icon
+                    v-if="workoutForm.exerciseId === ex.id"
+                    :icon="checkmarkCircle"
+                    color="success"
+                    class="check-icon"
+                  ></ion-icon>
+                </div>
+                <div v-if="filteredExercises.length === 0" class="no-exercises-found">
+                  Sin resultados para "{{ modalSearchText }}"
+                </div>
               </div>
             </div>
-          </div>
 
-          <!-- Step 2: Configurar series -->
-          <div
-            class="step-section"
-            v-if="workoutForm.exerciseId"
-          >
-            <div class="step-header">
-              <span class="step-number">2</span>
-              <h4>Configura tus series</h4>
-            </div>
+            <!-- Paso 2: Configurar series -->
+            <div
+              class="step-section"
+              v-if="workoutForm.exerciseId"
+            >
+              <div class="step-header">
+                <span class="step-number">2</span>
+                <h4>Configura tus series</h4>
+              </div>
 
-            <div class="sets-config">
-              <div
-                v-for="(set, index) in workoutForm.sets"
-                :key="index"
-                class="set-row-enhanced"
-              >
-                <div class="set-badge">Serie {{ index + 1 }}</div>
-                <div class="set-inputs">
-                  <div class="input-group">
-                    <label>Reps</label>
-                    <div class="number-input">
-                      <ion-button
-                        fill="clear"
-                        size="small"
-                        @click="decrementValue(set, 'reps')"
-                      >
-                        <ion-icon :icon="remove"></ion-icon>
-                      </ion-button>
-                      <span class="number-value">{{ set.reps }}</span>
-                      <ion-button
-                        fill="clear"
-                        size="small"
-                        @click="incrementValue(set, 'reps')"
-                      >
-                        <ion-icon :icon="add"></ion-icon>
-                      </ion-button>
-                    </div>
+              <div class="sets-config">
+                <div
+                  v-for="(set, index) in workoutForm.sets"
+                  :key="index"
+                  class="set-row-enhanced"
+                >
+                  <div class="set-row-header">
+                    <div class="set-badge">Serie {{ index + 1 }}</div>
+                    <ion-button
+                      v-if="workoutForm.sets.length > 1"
+                      fill="clear"
+                      color="danger"
+                      size="small"
+                      @click="removeSet(index)"
+                      class="delete-set-btn"
+                    >
+                      <ion-icon :icon="trash"></ion-icon>
+                    </ion-button>
                   </div>
-                  <div class="input-group">
-                    <label>Peso (kg)</label>
-                    <div class="number-input">
-                      <ion-button
-                        fill="clear"
-                        size="small"
-                        @click="decrementValue(set, 'weight', 2.5)"
-                      >
-                        <ion-icon :icon="remove"></ion-icon>
-                      </ion-button>
-                      <span class="number-value">{{ set.weight }}</span>
-                      <ion-button
-                        fill="clear"
-                        size="small"
-                        @click="incrementValue(set, 'weight', 2.5)"
-                      >
-                        <ion-icon :icon="add"></ion-icon>
-                      </ion-button>
+                  
+                  <div class="set-inputs">
+                    <div class="input-group">
+                      <label>Reps</label>
+                      <div class="number-input">
+                        <ion-button
+                          fill="clear"
+                          size="small"
+                          @click="decrementValue(set, 'reps')"
+                          class="calc-btn"
+                        >
+                          <ion-icon :icon="remove"></ion-icon>
+                        </ion-button>
+                        <span class="number-value">{{ set.reps }}</span>
+                        <ion-button
+                          fill="clear"
+                          size="small"
+                          @click="incrementValue(set, 'reps')"
+                          class="calc-btn"
+                        >
+                          <ion-icon :icon="add"></ion-icon>
+                        </ion-button>
+                      </div>
+                    </div>
+                    <div class="input-group">
+                      <label>Peso (kg)</label>
+                      <div class="number-input">
+                        <ion-button
+                          fill="clear"
+                          size="small"
+                          @click="decrementValue(set, 'weight', 2.5)"
+                          class="calc-btn"
+                        >
+                          <ion-icon :icon="remove"></ion-icon>
+                        </ion-button>
+                        <span class="number-value">{{ set.weight }}</span>
+                        <ion-button
+                          fill="clear"
+                          size="small"
+                          @click="incrementValue(set, 'weight', 2.5)"
+                          class="calc-btn"
+                        >
+                          <ion-icon :icon="add"></ion-icon>
+                        </ion-button>
+                      </div>
                     </div>
                   </div>
                 </div>
+
                 <ion-button
-                  v-if="workoutForm.sets.length > 1"
-                  fill="clear"
-                  color="danger"
-                  size="small"
-                  @click="removeSet(index)"
+                  expand="block"
+                  fill="outline"
+                  @click="addSet"
+                  class="add-set-btn"
                 >
-                  <ion-icon :icon="trash"></ion-icon>
+                  <ion-icon
+                    :icon="add"
+                    slot="start"
+                  ></ion-icon>
+                  Agregar serie
                 </ion-button>
               </div>
-
-              <ion-button
-                expand="block"
-                fill="outline"
-                @click="addSet"
-                class="add-set-btn"
-              >
-                <ion-icon
-                  :icon="add"
-                  slot="start"
-                ></ion-icon>
-                Agregar serie
-              </ion-button>
-            </div>
-          </div>
-
-          <!-- Step 3: Detalles adicionales -->
-          <div
-            class="step-section"
-            v-if="workoutForm.exerciseId"
-          >
-            <div class="step-header">
-              <span class="step-number">3</span>
-              <h4>Detalles adicionales</h4>
             </div>
 
-            <ion-list
-              lines="none"
-              class="details-list"
+            <!-- Paso 3: Detalles adicionales -->
+            <div
+              class="step-section"
+              v-if="workoutForm.exerciseId"
             >
-              <ion-item>
-                <ion-icon
-                  :icon="time"
-                  slot="start"
-                  color="primary"
-                ></ion-icon>
-                <ion-input
-                  v-model.number="workoutForm.duration"
-                  type="number"
-                  label="Duración (minutos)"
-                  label-placement="floating"
-                  placeholder="15"
-                ></ion-input>
-              </ion-item>
+              <div class="step-header">
+                <span class="step-number">3</span>
+                <h4>Detalles adicionales</h4>
+              </div>
 
-              <ion-item>
-                <ion-icon
-                  :icon="documentText"
-                  slot="start"
-                  color="primary"
-                ></ion-icon>
-                <ion-textarea
-                  v-model="workoutForm.notes"
-                  label="Notas"
-                  label-placement="floating"
-                  placeholder="¿Cómo te sentiste?"
-                  :auto-grow="true"
-                ></ion-textarea>
-              </ion-item>
-            </ion-list>
-          </div>
+              <ion-list
+                lines="none"
+                class="details-list"
+              >
+                <ion-item class="detail-item-input">
+                  <ion-icon
+                    :icon="time"
+                    slot="start"
+                    color="primary"
+                  ></ion-icon>
+                  <ion-input
+                    v-model.number="workoutForm.duration"
+                    type="number"
+                    label="Duración (minutos)"
+                    label-placement="floating"
+                    placeholder="15"
+                    class="detail-input"
+                  ></ion-input>
+                </ion-item>
 
-          <!-- Resumen -->
-          <div
-            class="workout-summary"
-            v-if="workoutForm.exerciseId && workoutForm.sets.length > 0"
-          >
-            <h4>📊 Resumen</h4>
-            <div class="summary-row">
-              <span>Volumen total:</span>
-              <strong>{{ calculateVolume() }} kg</strong>
+                <ion-item class="detail-item-input">
+                  <ion-icon
+                    :icon="documentText"
+                    slot="start"
+                    color="primary"
+                  ></ion-icon>
+                  <ion-textarea
+                    v-model="workoutForm.notes"
+                    label="Notas"
+                    label-placement="floating"
+                    placeholder="¿Cómo te sentiste? Técnica, esfuerzo..."
+                    :auto-grow="true"
+                    class="detail-textarea"
+                  ></ion-textarea>
+                </ion-item>
+              </ion-list>
             </div>
-            <div class="summary-row">
-              <span>Series:</span>
-              <strong>{{ workoutForm.sets.length }}</strong>
-            </div>
-            <div class="summary-row">
-              <span>Reps totales:</span>
-              <strong>{{workoutForm.sets.reduce((a, s) => a + s.reps, 0)}}</strong>
+
+            <!-- Resumen de volumen -->
+            <div
+              class="workout-summary"
+              v-if="workoutForm.exerciseId && workoutForm.sets.length > 0"
+            >
+              <h4>📊 Resumen del Ejercicio</h4>
+              <div class="summary-grid">
+                <div class="summary-tile">
+                  <span class="tile-label">Volumen total</span>
+                  <span class="tile-val">{{ calculateVolume() }} kg</span>
+                </div>
+                <div class="summary-tile">
+                  <span class="tile-label">Series</span>
+                  <span class="tile-val">{{ workoutForm.sets.length }}</span>
+                </div>
+                <div class="summary-tile">
+                  <span class="tile-label">Reps totales</span>
+                  <span class="tile-val">{{ workoutForm.sets.reduce((a, s) => a + s.reps, 0) }}</span>
+                </div>
+              </div>
             </div>
           </div>
         </ion-content>
@@ -436,10 +448,10 @@
 <script setup lang="ts">
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
-  IonButton, IonButtons, IonIcon, IonCard, IonCardHeader,
-  IonCardTitle, IonCardSubtitle, IonCardContent, IonList, IonItem,
+  IonButton, IonButtons, IonIcon, IonList, IonItem,
   IonChip, IonModal, IonInput, IonTextarea, IonItemSliding,
   IonItemOptions, IonItemOption, IonRefresher, IonRefresherContent,
+  IonSearchbar, IonFab, IonFabButton,
   onIonViewWillEnter, alertController, toastController
 } from '@ionic/vue';
 import { ref, computed } from 'vue';
@@ -455,35 +467,9 @@ import pantorillasImg from '../assets/pantorillas.png';
 import pechoImg from '../assets/pecho.png';
 import trapecioImg from '../assets/trapecio.png';
 import {
-  calendar as calendarIcon, add, chevronBack, chevronForward, barbell, time,
-  fitness, barbellOutline, create, trash, documentText, close, remove,
-  checkmarkCircle, warning, happy, alertCircle, addCircleOutline, removeCircleOutline
+  add, chevronBack, chevronForward, barbellOutline, create, trash,
+  documentText, remove, checkmarkCircle, addCircleOutline, removeCircleOutline, time
 } from 'ionicons/icons';
-// Recomendación personalizada según los datos del día
-const adviceIcon = computed(() => {
-  if (totalDuration.value > 60) return alertCircle;
-  if (dayWorkouts.value.length === 0) return warning;
-  return happy;
-});
-
-const personalAdvice = computed(() => {
-  if (dayWorkouts.value.length === 0) {
-    return '¡Aún no has registrado ejercicios hoy! Tu puedes, la constancia es clave para progresar.';
-  }
-  if (totalDuration.value > 90) {
-    return 'Has entrenado más de 1.5 horas hoy. El sobreentrenamiento puede ser perjudicial, asegúrate de descansar y alimentarte bien.';
-  }
-  if (totalDuration.value > 60) {
-    return 'Entrenar más de 1 hora puede aumentar el riesgo de fatiga. Escucha a tu cuerpo y descansa si lo necesitas.';
-  }
-  if (dayWorkouts.value.length >= 5) {
-    return '¡Gran variedad de ejercicios hoy! Recuerda mantener una buena técnica para evitar lesiones.';
-  }
-  if (totalVolume.value > 10000) {
-    return '¡Impresionante volumen total! No olvides estirar y cuidar tus articulaciones.';
-  }
-  return 'Buen trabajo hoy. Mantén la constancia y escucha a tu cuerpo para seguir progresando de forma segura.';
-});
 
 interface Exercise {
   id: string;
@@ -518,6 +504,7 @@ const currentWeekStart = ref(getWeekStart(new Date()));
 const isWorkoutModalOpen = ref(false);
 const editingWorkout = ref<Workout | null>(null);
 const selectedMuscle = ref('Todos');
+const modalSearchText = ref('');
 
 const muscleGroups = [
   'Todos', 'Brazos', 'Piernas', 'Espalda', 'Abdomen', 'Pecho', 
@@ -540,8 +527,15 @@ const workoutForm = ref({
 });
 
 const filteredExercises = computed(() => {
-  if (selectedMuscle.value === 'Todos') return exercises.value;
-  return exercises.value.filter(e => e.muscle === selectedMuscle.value);
+  let list = exercises.value;
+  if (selectedMuscle.value !== 'Todos') {
+    list = list.filter(e => e.muscle === selectedMuscle.value);
+  }
+  if (modalSearchText.value.trim() !== '') {
+    const query = modalSearchText.value.toLowerCase();
+    list = list.filter(e => e.name.toLowerCase().includes(query));
+  }
+  return list;
 });
 
 const weekDays = computed(() => {
@@ -584,9 +578,6 @@ const formattedSelectedDate = computed(() => {
 });
 
 const dayWorkouts = computed(() => workouts.value.filter(w => w.date === selectedDate.value));
-const totalDuration = computed(() => dayWorkouts.value.reduce((acc, w) => acc + w.duration, 0));
-const totalVolume = computed(() => dayWorkouts.value.reduce((acc, w) =>
-  acc + w.sets.reduce((setAcc, s) => setAcc + (s.reps * s.weight), 0), 0));
 
 function getMuscleIcon(muscle: string): string {
   const icons: { [key: string]: string } = {
@@ -639,10 +630,8 @@ function calculateVolume(): number {
   return workoutForm.value.sets.reduce((acc, s) => acc + (s.reps * s.weight), 0);
 }
 
-// Fuera del componente, a nivel de módulo
 let cachedExercises: Exercise[] = [];
 
-// Dentro del componente
 async function loadExercises() {
   if (cachedExercises.length > 0) {
     exercises.value = cachedExercises;
@@ -672,7 +661,6 @@ async function loadWorkouts() {
     console.error('Error loading workouts:', error);
   }
 
-  // Cargar locales y combinar
   const stored = localStorage.getItem('local_workouts');
   const allLocal: Workout[] = stored ? JSON.parse(stored) : [];
   const localWorkouts = allLocal.filter(w => w.date === selectedDate.value);
@@ -691,7 +679,6 @@ async function loadCalendarData() {
     console.error('Error loading calendar:', error);
   }
 
-  // Cargar calendario local
   const stored = localStorage.getItem('local_workouts');
   const allLocal: Workout[] = stored ? JSON.parse(stored) : [];
   const localCalendar: { [date: string]: { hasWorkout: boolean } } = {};
@@ -705,6 +692,7 @@ async function loadCalendarData() {
 function openAddWorkoutModal() {
   editingWorkout.value = null;
   selectedMuscle.value = 'Todos';
+  modalSearchText.value = '';
   workoutForm.value = {
     exerciseId: '',
     exerciseName: '',
@@ -731,6 +719,7 @@ function removeSet(index: number) {
 function editWorkout(workout: Workout) {
   editingWorkout.value = workout;
   selectedMuscle.value = 'Todos';
+  modalSearchText.value = '';
   workoutForm.value = {
     exerciseId: workout.exerciseId,
     exerciseName: workout.exerciseName,
@@ -778,7 +767,6 @@ async function saveWorkout() {
   } catch (error) {
     console.warn('Backend error, saving locally:', error);
 
-    // Fallback a localStorage
     const stored = localStorage.getItem('local_workouts');
     let allLocal: Workout[] = stored ? JSON.parse(stored) : [];
 
@@ -856,12 +844,30 @@ onIonViewWillEnter(() => {
 </script>
 
 <style scoped>
+.train-container {
+  max-width: 768px;
+  margin: 0 auto;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.calendar-card {
+  background: var(--forgy-card-bg);
+  border: 1px solid var(--forgy-border);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  margin-bottom: 24px;
+  overflow: hidden;
+  backdrop-filter: blur(8px);
+}
+
 .week-selector {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 8px;
-  background: var(--forgy-content-bg);
+  padding: 16px;
+  border-bottom: 1px solid var(--forgy-border);
+  background: rgba(var(--ion-card-background-rgb, 255, 255, 255), 0.5);
 }
 
 .week-info {
@@ -871,157 +877,189 @@ onIonViewWillEnter(() => {
 .month-name {
   display: block;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--forgy-text-primary);
+  text-transform: capitalize;
 }
 
 .week-range {
-  font-size: 12px;
+  display: block;
+  font-size: 11px;
   color: var(--forgy-text-secondary);
+  margin-top: 2px;
+}
+
+.nav-btn {
+  --color: var(--ion-color-primary);
+  margin: 0;
 }
 
 .week-calendar {
   display: flex;
   justify-content: space-around;
-  padding: 12px 8px;
-  background: var(--forgy-card-bg);
-  border-bottom: 1px solid var(--forgy-border);
+  padding: 16px 8px;
 }
 
 .day-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 8px 12px;
-  border-radius: 12px;
+  justify-content: center;
+  width: 44px;
+  height: 60px;
+  border-radius: 14px;
   cursor: pointer;
   position: relative;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid transparent;
+}
+
+.day-item:hover {
+  background: rgba(var(--ion-color-primary-rgb), 0.08);
 }
 
 .day-item.active {
-  background: var(--ion-color-primary);
-  color: white;
+  background: linear-gradient(135deg, var(--ion-color-primary), var(--ion-color-tertiary, var(--ion-color-secondary)));
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(var(--ion-color-primary-rgb), 0.35);
+  transform: translateY(-2px);
 }
 
 .day-item.today:not(.active) {
-  border: 2px solid var(--ion-color-primary);
+  border: 1px dashed var(--ion-color-primary);
 }
 
 .day-name {
-  font-size: 11px;
+  font-size: 10px;
+  font-weight: 600;
   text-transform: uppercase;
-  opacity: 0.7;
+  opacity: 0.6;
+}
+
+.day-item.active .day-name {
+  opacity: 0.9;
 }
 
 .day-number {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
   margin-top: 4px;
 }
 
 .workout-indicator {
-  width: 6px;
-  height: 6px;
-  background: var(--ion-color-success);
+  width: 5px;
+  height: 5px;
+  background: var(--ion-color-success, #2dd36f);
   border-radius: 50%;
   position: absolute;
-  bottom: 4px;
+  bottom: 6px;
+  transition: all 0.2s ease;
 }
 
 .day-item.active .workout-indicator {
-  background: white;
-}
-
-.day-summary {
-  margin: 16px;
-  border-radius: 16px;
-  --background: var(--forgy-card-bg);
-  color: var(--forgy-text-primary);
-}
-
-.personal-advice {
-  margin-top: 18px;
-  padding: 12px;
-  background: #fffbe6;
-  color: #b8860b;
-  border-radius: 10px;
-  font-size: 15px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
-}
-
-.summary-stats {
-  display: flex;
-  justify-content: space-around;
-}
-
-.summary-stat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.summary-stat ion-icon {
-  font-size: 24px;
-}
-
-.summary-stat .stat-value {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--forgy-text-primary);
-}
-
-.summary-stat .stat-label {
-  font-size: 11px;
-  color: var(--forgy-text-secondary);
+  background: #fff;
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 16px;
-  margin-top: 16px;
+  margin-top: 8px;
+  margin-bottom: 16px;
 }
 
-.section-header h3 {
+.header-text-group h3 {
   margin: 0;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
   color: var(--forgy-text-primary);
+}
+
+.selected-date-label {
+  font-size: 12px;
+  color: var(--ion-color-primary);
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.section-add-btn {
+  --color: var(--ion-color-primary);
+  font-weight: 600;
+  font-size: 13px;
 }
 
 .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 40px 20px;
+  justify-content: center;
+  padding: 48px 24px;
+  background: var(--forgy-card-bg);
+  border: 1px dashed var(--forgy-border);
+  border-radius: 20px;
   text-align: center;
-  color: var(--forgy-text-secondary);
+  margin-top: 8px;
+}
+
+.empty-icon-wrapper {
+  background: rgba(var(--ion-color-primary-rgb), 0.08);
+  border-radius: 50%;
+  padding: 16px;
+  margin-bottom: 16px;
+  color: var(--ion-color-primary);
 }
 
 .empty-state ion-icon {
-  font-size: 48px;
-  opacity: 0.5;
-  margin-bottom: 12px;
+  font-size: 36px;
+  display: block;
 }
 
 .empty-state h4 {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 700;
   color: var(--forgy-text-primary);
 }
 
+.empty-state p {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--forgy-text-secondary);
+}
+
+.empty-register-btn {
+  --border-radius: 12px;
+  --box-shadow: 0 4px 12px rgba(var(--ion-color-primary-rgb), 0.2);
+  font-weight: 600;
+}
+
 .workout-list {
-  margin: 8px 16px;
-  border-radius: 12px;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.workout-sliding-item {
+  border-radius: 16px;
   overflow: hidden;
+  background: transparent;
+  margin-bottom: 12px;
+  border: 1px solid var(--forgy-border);
+}
+
+.workout-item {
+  --background: var(--forgy-card-bg);
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --padding-top: 12px;
+  --padding-bottom: 12px;
+  transition: background-color 0.2s ease;
 }
 
 .workout-item-content {
-  padding: 8px 0;
   width: 100%;
 }
 
@@ -1029,36 +1067,46 @@ onIonViewWillEnter(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .workout-header h4 {
   margin: 0;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--forgy-text-primary);
+}
+
+.workout-sets-chip {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .sets-preview {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .set-pill {
   background: var(--forgy-input-bg);
   padding: 4px 10px;
-  border-radius: 20px;
+  border-radius: 12px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--forgy-text-primary);
+  border: 1px solid rgba(0, 0, 0, 0.04);
 }
 
 .more-sets {
   color: var(--forgy-text-secondary);
   font-size: 12px;
-  padding: 4px 8px;
+  font-weight: 500;
+  padding: 4px 4px;
 }
 
 .workout-meta {
@@ -1070,21 +1118,55 @@ onIonViewWillEnter(() => {
 
 .workout-meta ion-icon {
   font-size: 14px;
-  vertical-align: middle;
   margin-right: 4px;
+  color: var(--ion-color-primary);
+}
+
+.option-btn-edit {
+  --background: var(--ion-color-primary);
+  color: #fff;
+}
+
+.option-btn-delete {
+  --background: var(--ion-color-danger);
+  color: #fff;
+}
+
+/* FAB Premium */
+.forgy-fab {
+  --background: linear-gradient(135deg, var(--ion-color-primary), var(--ion-color-tertiary, var(--ion-color-secondary)));
+  --background-hover: var(--ion-color-primary-tint);
+  --color: #fff;
+  box-shadow: 0 8px 24px rgba(var(--ion-color-primary-rgb), 0.4);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.forgy-fab:hover {
+  transform: scale(1.08);
 }
 
 /* Modal Styles */
+.workout-modal {
+  --border-radius: 24px;
+}
+
 .modal-content {
   --background: var(--forgy-content-bg);
 }
 
+.modal-container {
+  padding: 16px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
 .step-section {
   background: var(--forgy-card-bg);
-  margin: 12px;
-  border-radius: 16px;
-  padding: 16px;
+  margin-bottom: 20px;
+  border-radius: 20px;
+  padding: 20px;
   color: var(--forgy-text-primary);
+  border: 1px solid var(--forgy-border);
 }
 
 .step-header {
@@ -1103,35 +1185,69 @@ onIonViewWillEnter(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
+  font-weight: 800;
   font-size: 14px;
 }
 
 .step-header h4 {
   margin: 0;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
+}
+
+.modal-searchbar {
+  --background: var(--forgy-input-bg);
+  --border-radius: 12px;
+  padding-left: 0;
+  padding-right: 0;
+  margin-bottom: 16px;
+}
+
+.muscle-filter-scroll {
+  overflow-x: auto;
+  margin: 0 -20px 16px;
+  padding: 0 20px;
+  scrollbar-width: none;
+}
+
+.muscle-filter-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 .muscle-filter {
   display: flex;
-  flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 16px;
+  width: max-content;
 }
 
-.muscle-filter ion-chip {
-  --padding-start: 10px;
-  --padding-end: 10px;
+.muscle-chip {
+  --border-radius: 12px;
+  font-weight: 600;
   font-size: 12px;
+  margin: 0;
+}
+
+.expand-chip {
+  --background: var(--forgy-input-bg);
+}
+
+.expand-icon {
+  font-size: 16px;
 }
 
 .exercises-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 250px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  max-height: 260px;
   overflow-y: auto;
+  padding-right: 4px;
+}
+
+@media (min-width: 576px) {
+  .exercises-grid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 .exercise-card {
@@ -1140,17 +1256,32 @@ onIonViewWillEnter(() => {
   gap: 12px;
   padding: 12px;
   background: var(--forgy-input-bg);
-  border-radius: 12px;
-  border: 2px solid transparent;
+  border-radius: 14px;
+  border: 1px solid var(--forgy-border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.exercise-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
 .exercise-card.selected {
   border-color: var(--ion-color-primary);
-  background: rgba(var(--ion-color-primary-rgb), 0.1);
+  background: rgba(var(--ion-color-primary-rgb), 0.08);
 }
 
 .exercise-icon {
-  font-size: 24px;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--forgy-card-bg);
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--forgy-border);
 }
 
 .exercise-info {
@@ -1160,13 +1291,15 @@ onIonViewWillEnter(() => {
 }
 
 .exercise-name {
-  font-weight: 600;
+  font-weight: 700;
   font-size: 14px;
   color: var(--forgy-text-primary);
 }
 
 .exercise-difficulty {
-  font-size: 11px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
   margin-top: 2px;
 }
 
@@ -1182,6 +1315,19 @@ onIonViewWillEnter(() => {
   color: var(--ion-color-danger);
 }
 
+.check-icon {
+  font-size: 20px;
+}
+
+.no-exercises-found {
+  text-align: center;
+  padding: 24px;
+  color: var(--forgy-text-secondary);
+  font-size: 14px;
+  grid-column: 1 / -1;
+}
+
+/* Configurador de series */
 .sets-config {
   display: flex;
   flex-direction: column;
@@ -1189,28 +1335,41 @@ onIonViewWillEnter(() => {
 }
 
 .set-row-enhanced {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
   background: var(--forgy-input-bg);
-  border-radius: 12px;
+  border: 1px solid var(--forgy-border);
+  border-radius: 16px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.set-row-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .set-badge {
   background: var(--ion-color-primary);
-  color: white;
-  padding: 4px 10px;
+  color: #fff;
+  padding: 4px 12px;
   border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.delete-set-btn {
+  margin: 0;
+  --padding-start: 6px;
+  --padding-end: 6px;
 }
 
 .set-inputs {
-  flex: 1;
   display: flex;
-  gap: 16px;
+  gap: 12px;
 }
 
 .input-group {
@@ -1220,63 +1379,110 @@ onIonViewWillEnter(() => {
 .input-group label {
   display: block;
   font-size: 11px;
+  font-weight: 600;
   color: var(--forgy-text-secondary);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .number-input {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   background: var(--forgy-card-bg);
-  border-radius: 8px;
-  padding: 4px;
+  border: 1px solid var(--forgy-border);
+  border-radius: 12px;
+  padding: 2px;
 }
 
 .number-value {
-  min-width: 40px;
   text-align: center;
-  font-weight: 700;
+  font-weight: 800;
   font-size: 16px;
   color: var(--forgy-text-primary);
+  min-width: 40px;
+}
+
+.calc-btn {
+  --color: var(--ion-color-primary);
+  --padding-start: 8px;
+  --padding-end: 8px;
+  margin: 0;
 }
 
 .add-set-btn {
   margin-top: 8px;
+  --border-radius: 12px;
+  font-weight: 600;
 }
 
+/* Detalles adicionales */
 .details-list {
   background: transparent;
+  padding: 0;
 }
 
-.details-list ion-item {
+.detail-item-input {
   --background: var(--forgy-input-bg);
-  border-radius: 12px;
-  margin-bottom: 8px;
-}
-
-.workout-summary {
-  background: linear-gradient(135deg, var(--ion-color-primary), var(--ion-color-tertiary));
-  color: white;
-  margin: 12px;
-  padding: 16px;
+  border: 1px solid var(--forgy-border);
   border-radius: 16px;
+  margin-bottom: 12px;
+  --padding-start: 16px;
+  --padding-end: 16px;
 }
 
-.workout-summary h4 {
-  margin: 0 0 12px;
-  font-size: 16px;
-}
-
-.summary-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 4px 0;
+.detail-input, .detail-textarea {
+  --color: var(--forgy-text-primary);
   font-size: 14px;
 }
 
-.summary-row strong {
+/* Resumen del ejercicio */
+.workout-summary {
+  background: linear-gradient(135deg, var(--ion-color-primary), var(--ion-color-tertiary, var(--ion-color-secondary)));
+  color: white;
+  padding: 20px;
+  border-radius: 20px;
+  box-shadow: 0 8px 24px rgba(var(--ion-color-primary-rgb), 0.25);
+  margin-top: 24px;
+}
+
+.workout-summary h4 {
+  margin: 0 0 16px;
+  font-size: 15px;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.95;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+
+.summary-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.12);
+  padding: 10px 4px;
+  border-radius: 12px;
+  backdrop-filter: blur(4px);
+}
+
+.tile-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  opacity: 0.8;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.tile-val {
+  font-size: 16px;
+  font-weight: 800;
 }
 </style>
