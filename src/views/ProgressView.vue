@@ -7,7 +7,7 @@
           Mi Progreso
         </ion-title>
         <ion-buttons slot="end">
-          <ion-button class="header-add-btn" @click="openProgressModal">
+          <ion-button class="header-add-btn" @click="openEditModal('weight')">
             <ion-icon :icon="add"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -31,7 +31,7 @@
           <div class="hero-stats">
             <div
               class="hero-stat"
-              @click="openProgressModal"
+              @click="openEditModal('weight')"
             >
               <div class="stat-circle weight">
                 <ion-icon :icon="scaleOutline"></ion-icon>
@@ -41,7 +41,7 @@
             </div>
             <div
               class="hero-stat"
-              @click="openProgressModal"
+              @click="addCustomWater"
             >
               <div class="stat-circle water">
                 <ion-icon :icon="waterOutline"></ion-icon>
@@ -51,7 +51,7 @@
             </div>
             <div
               class="hero-stat"
-              @click="openProgressModal"
+              @click="openEditModal('sleep')"
             >
               <div class="stat-circle sleep">
                 <ion-icon :icon="moonOutline"></ion-icon>
@@ -61,7 +61,7 @@
             </div>
             <div
               class="hero-stat"
-              @click="openProgressModal"
+              @click="openEditModal('calories')"
             >
               <div class="stat-circle calories">
                 <ion-icon :icon="nutritionOutline"></ion-icon>
@@ -140,6 +140,7 @@
             <h3>Enfoque Muscular Reciente</h3>
             <span class="section-value">Por series registradas</span>
           </div>
+
           <div class="muscle-chart">
             <div
               v-for="item in muscleDistribution.slice(0, 5)"
@@ -251,7 +252,6 @@
           <p class="water-status">{{ waterStatusMessage }}</p>
         </div>
 
-
         <!-- Calculadora RM -->
         <div class="section-card rm-card" @click="goToRmCalculator">
           <div class="section-header">
@@ -318,180 +318,21 @@
         </div>
       </div>
 
-      <!-- Modal Progreso -->
-      <ion-modal
-        :is-open="isProgressModalOpen"
-        @didDismiss="isProgressModalOpen = false"
-        class="workout-modal"
-      >
-        <ion-header class="forgy-header">
-          <ion-toolbar>
-            <ion-buttons slot="start">
-              <ion-button color="medium" @click="isProgressModalOpen = false">Cancelar</ion-button>
-            </ion-buttons>
-            <ion-title class="forgy-title">Registrar Día</ion-title>
-            <ion-buttons slot="end">
-              <ion-button
-                strong
-                color="primary"
-                @click="saveProgress"
-              >Guardar</ion-button>
-            </ion-buttons>
-          </ion-toolbar>
-        </ion-header>
-        <ion-content class="modal-content">
-          <div class="modal-container">
-            <div class="metrics-grid">
-              
-              <!-- Tarjeta de Peso -->
-              <div class="metric-card weight-card">
-                <div class="metric-header">
-                  <div class="metric-icon-badge">
-                    <ion-icon :icon="scaleOutline"></ion-icon>
-                  </div>
-                  <div class="metric-meta">
-                    <span class="metric-title">Peso Corporal</span>
-                    <span class="metric-subtitle">Registra tu peso en kg</span>
-                  </div>
-                </div>
-                <div class="metric-body">
-                  <button class="control-btn" @click="progressForm.weight = Math.max(0, Number((progressForm.weight - 0.5).toFixed(1)))">
-                    <ion-icon :icon="remove"></ion-icon>
-                  </button>
-                  <div class="value-display">
-                    <input type="number" v-model.number="progressForm.weight" step="0.1" class="metric-input" />
-                    <span class="metric-unit">kg</span>
-                  </div>
-                  <button class="control-btn" @click="progressForm.weight = Number((progressForm.weight + 0.5).toFixed(1))">
-                    <ion-icon :icon="add"></ion-icon>
-                  </button>
-                </div>
-                <div class="quick-actions">
-                  <button class="quick-btn" @click="progressForm.weight = Math.max(0, Number((progressForm.weight - 0.1).toFixed(1)))">-0.1</button>
-                  <button class="quick-btn" @click="progressForm.weight = Number((progressForm.weight + 0.1).toFixed(1))">+0.1</button>
-                </div>
-              </div>
-
-              <!-- Tarjeta de Agua -->
-              <div class="metric-card water-card">
-                <div class="metric-header">
-                  <div class="metric-icon-badge">
-                    <ion-icon :icon="waterOutline"></ion-icon>
-                  </div>
-                  <div class="metric-meta">
-                    <span class="metric-title">Consumo de Agua</span>
-                    <span class="metric-subtitle">Meta diaria: {{ waterGoal }} ml</span>
-                  </div>
-                </div>
-                <div class="metric-body">
-                  <button class="control-btn" @click="progressForm.waterIntake = Math.max(0, progressForm.waterIntake - 250)">
-                    <ion-icon :icon="remove"></ion-icon>
-                  </button>
-                  <div class="value-display">
-                    <input type="number" v-model.number="progressForm.waterIntake" step="100" class="metric-input" />
-                    <span class="metric-unit">ml</span>
-                  </div>
-                  <button class="control-btn" @click="progressForm.waterIntake += 250">
-                    <ion-icon :icon="add"></ion-icon>
-                  </button>
-                </div>
-                <div class="quick-actions">
-                  <button class="quick-btn" @click="progressForm.waterIntake = Math.max(0, progressForm.waterIntake - 100)">-100</button>
-                  <button class="quick-btn" @click="progressForm.waterIntake += 100">+100</button>
-                </div>
-              </div>
-
-              <!-- Tarjeta de Sueño -->
-              <div class="metric-card sleep-card">
-                <div class="metric-header">
-                  <div class="metric-icon-badge">
-                    <ion-icon :icon="moonOutline"></ion-icon>
-                  </div>
-                  <div class="metric-meta">
-                    <span class="metric-title">Horas de Sueño</span>
-                    <span class="metric-subtitle">Recomendado: 7 - 9 horas</span>
-                  </div>
-                </div>
-                <div class="metric-body">
-                  <button class="control-btn" @click="progressForm.sleepHours = Math.max(0, Number((progressForm.sleepHours - 0.5).toFixed(1)))">
-                    <ion-icon :icon="remove"></ion-icon>
-                  </button>
-                  <div class="value-display">
-                    <input type="number" v-model.number="progressForm.sleepHours" step="0.5" class="metric-input" />
-                    <span class="metric-unit">hrs</span>
-                  </div>
-                  <button class="control-btn" @click="progressForm.sleepHours = Number((progressForm.sleepHours + 0.5).toFixed(1))">
-                    <ion-icon :icon="add"></ion-icon>
-                  </button>
-                </div>
-                <div class="quick-actions">
-                  <button class="quick-btn" @click="progressForm.sleepHours = 7">7 hrs</button>
-                  <button class="quick-btn" @click="progressForm.sleepHours = 8">8 hrs</button>
-                </div>
-              </div>
-
-              <!-- Tarjeta de Calorías Consumidas -->
-              <div class="metric-card kcal-consumed-card">
-                <div class="metric-header">
-                  <div class="metric-icon-badge">
-                    <ion-icon :icon="nutritionOutline"></ion-icon>
-                  </div>
-                  <div class="metric-meta">
-                    <span class="metric-title">Calorías Consumidas</span>
-                    <span class="metric-subtitle">Energía alimentaria</span>
-                  </div>
-                </div>
-                <div class="metric-body">
-                  <button class="control-btn" @click="progressForm.caloriesConsumed = Math.max(0, progressForm.caloriesConsumed - 100)">
-                    <ion-icon :icon="remove"></ion-icon>
-                  </button>
-                  <div class="value-display">
-                    <input type="number" v-model.number="progressForm.caloriesConsumed" step="50" class="metric-input" />
-                    <span class="metric-unit">kcal</span>
-                  </div>
-                  <button class="control-btn" @click="progressForm.caloriesConsumed += 100">
-                    <ion-icon :icon="add"></ion-icon>
-                  </button>
-                </div>
-                <div class="quick-actions">
-                  <button class="quick-btn" @click="progressForm.caloriesConsumed = Math.max(0, progressForm.caloriesConsumed - 50)">-50</button>
-                  <button class="quick-btn" @click="progressForm.caloriesConsumed += 50">+50</button>
-                </div>
-              </div>
-
-              <!-- Tarjeta de Calorías Quemadas -->
-              <div class="metric-card kcal-burned-card">
-                <div class="metric-header">
-                  <div class="metric-icon-badge">
-                    <ion-icon :icon="flame"></ion-icon>
-                  </div>
-                  <div class="metric-meta">
-                    <span class="metric-title">Calorías Quemadas</span>
-                    <span class="metric-subtitle">Gasto por actividad</span>
-                  </div>
-                </div>
-                <div class="metric-body">
-                  <button class="control-btn" @click="progressForm.caloriesBurned = Math.max(0, progressForm.caloriesBurned - 100)">
-                    <ion-icon :icon="remove"></ion-icon>
-                  </button>
-                  <div class="value-display">
-                    <input type="number" v-model.number="progressForm.caloriesBurned" step="50" class="metric-input" />
-                    <span class="metric-unit">kcal</span>
-                  </div>
-                  <button class="control-btn" @click="progressForm.caloriesBurned += 100">
-                    <ion-icon :icon="add"></ion-icon>
-                  </button>
-                </div>
-                <div class="quick-actions">
-                  <button class="quick-btn" @click="progressForm.caloriesBurned = Math.max(0, progressForm.caloriesBurned - 50)">-50</button>
-                  <button class="quick-btn" @click="progressForm.caloriesBurned += 50">+50</button>
-                </div>
-              </div>
-
-            </div>
-          </div>
-        </ion-content>
-      </ion-modal>
+      <!-- Modal de Registro de Métrica Reutilizable -->
+      <DashboardMetricModal
+        :type="activeModal"
+        v-model:inputValue="modalInputValue"
+        v-model:bedtime="bedtime"
+        v-model:waketime="waketime"
+        v-model:sleepQuality="sleepQualityInModal"
+        :isSaving="isSaving"
+        :error="modalError"
+        @close="closeEditModal"
+        @save="saveModalMetric"
+        @sync-smartwatch="syncSmartwatchSleep"
+        @calculate-sleep="calculateSleepHoursFromTimes"
+        @apply-preset="applyPresetHours($event)"
+      />
     </ion-content>
   </ion-page>
 </template>
@@ -499,572 +340,72 @@
 <script setup lang="ts">
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
-  IonButton, IonButtons, IonIcon,
-  IonModal, IonRefresher, IonRefresherContent,
-  onIonViewWillEnter, toastController, useIonRouter, alertController
+  IonButton, IonButtons, IonIcon, IonRefresher, IonRefresherContent,
+  onIonViewWillEnter, useIonRouter
 } from '@ionic/vue';
-import { ref, computed } from 'vue';
-
-import absImg from '../assets/abs.png';
-import antebrazoImg from '../assets/antebrazo.png';
-import bicepsImg from '../assets/biceps.png';
-import cuadricepsImg from '../assets/cuadriceps.png';
-import dorsalesImg from '../assets/dorsales.png';
-import hombrosImg from '../assets/hombros.png';
-import pantorillasImg from '../assets/pantorillas.png';
-import pechoImg from '../assets/pecho.png';
-import trapecioImg from '../assets/trapecio.png';
+import { useProgress } from '../composables/useProgress';
+import DashboardMetricModal from '../components/DashboardMetricModal.vue';
 import {
-  add, scaleOutline, waterOutline, moonOutline, nutritionOutline, barbell, flame, bodyOutline,
-  chevronBack, chevronForward, statsChartOutline, remove
+  add, scaleOutline, waterOutline, moonOutline, nutritionOutline, barbell, flame,
+  chevronBack, chevronForward, statsChartOutline
 } from 'ionicons/icons';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://forgybackendapi-production.up.railway.app'
 const router = useIonRouter();
-
-interface DailyProgress {
-  id: string;
-  date: string;
-  weight?: number | null;
-  waterIntake?: number | null;
-  caloriesConsumed?: number | null;
-  caloriesBurned?: number | null;
-  sleepHours?: number | null;
-  mood?: string | null;
-}
-
-interface UserProfile {
-  height?: number | null;
-  weight?: number | null;
-  name?: string | null;
-}
-
-interface ProgressStats {
-  totalWorkouts: number;
-  totalVolume: number;
-  avgWater: number;
-  weightHistory: { date: string; weight: number }[];
-  currentWeight: number;
-  streakDays: number;
-}
-
-const progressData = ref<DailyProgress[]>([]);
-const progressStats = ref<ProgressStats>({
-  totalWorkouts: 0, totalVolume: 0, avgWater: 0, weightHistory: [], currentWeight: 0, streakDays: 0
-});
-const isProgressModalOpen = ref(false);
-const userProfile = ref<UserProfile>({});
-
-const exercises = ref<any[]>([]);
-const workoutCalendarDates = ref<Record<string, boolean>>({});
-const workoutHistory = ref<any[]>([]);
-const personalRecords = ref<Record<string, any>>({});
-const waterGoal = ref(Number(localStorage.getItem('forgy_water_goal') || '2500'));
-
-function getLocalDateKey(date = new Date()) {
-  return date.toLocaleDateString('en-CA');
-}
-
-const today = getLocalDateKey();
-
-const progressForm = ref({
-  weight: 0, waterIntake: 0, caloriesConsumed: 0, caloriesBurned: 0, sleepHours: 0
-});
-
-const selectedDate = ref(today);
-
-const now = new Date();
-const currentYear = ref(now.getFullYear());
-const currentMonth = ref(now.getMonth());
-
-const monthNames = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-];
-
-function selectDate(dateKey: string) {
-  selectedDate.value = dateKey;
-}
-
-function prevMonth() {
-  if (currentMonth.value === 0) {
-    currentMonth.value = 11;
-    currentYear.value--;
-  } else {
-    currentMonth.value--;
-  }
-}
-
-function nextMonth() {
-  if (currentMonth.value === 11) {
-    currentMonth.value = 0;
-    currentYear.value++;
-  } else {
-    currentMonth.value++;
-  }
-}
-
-const formattedSelectedDate = computed(() => {
-  if (selectedDate.value === today) return 'Hoy';
-  const d = new Date(selectedDate.value + 'T12:00:00');
-  return d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
-});
-
-function checkIfDateHasData(dateKey: string) {
-  const hasProgress = progressData.value.some(p => p.date === dateKey && (p.waterIntake || p.weight || p.sleepHours || p.caloriesConsumed || p.caloriesBurned));
-  const hasWorkout = workoutCalendarDates.value[dateKey] || false;
-  return hasProgress || hasWorkout;
-}
-
-const calendarDays = computed(() => {
-  const year = currentYear.value;
-  const month = currentMonth.value;
-
-  const firstDay = new Date(year, month, 1);
-  let startDayOfWeek = firstDay.getDay() - 1;
-  if (startDayOfWeek < 0) startDayOfWeek = 6;
-
-  const numDays = new Date(year, month + 1, 0).getDate();
-  const prevMonthNumDays = new Date(year, month, 0).getDate();
-  const days: { dateKey: string; dayNum: number; isCurrentMonth: boolean; hasData: boolean }[] = [];
-
-  for (let i = startDayOfWeek - 1; i >= 0; i--) {
-    const day = prevMonthNumDays - i;
-    const prevMonth = month === 0 ? 11 : month - 1;
-    const prevYear = month === 0 ? year - 1 : year;
-    const dateKey = `${prevYear}-${(prevMonth + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-    days.push({
-      dateKey,
-      dayNum: day,
-      isCurrentMonth: false,
-      hasData: checkIfDateHasData(dateKey)
-    });
-  }
-
-  for (let day = 1; day <= numDays; day++) {
-    const dateKey = `${year}-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-    days.push({
-      dateKey,
-      dayNum: day,
-      isCurrentMonth: true,
-      hasData: checkIfDateHasData(dateKey)
-    });
-  }
-
-  const remainingCells = 42 - days.length;
-  for (let day = 1; day <= remainingCells; day++) {
-    const nextMonth = month === 11 ? 0 : month + 1;
-    const nextYear = month === 11 ? year + 1 : year;
-    const dateKey = `${nextYear}-${(nextMonth + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-    days.push({
-      dateKey,
-      dayNum: day,
-      isCurrentMonth: false,
-      hasData: checkIfDateHasData(dateKey)
-    });
-  }
-
-  return days;
-});
-
-const todayProgress = computed(() => progressData.value.find(p => p.date === selectedDate.value));
-
-const displayWeight = computed(() => {
-  const weight = todayProgress.value?.weight ?? userProfile.value.weight ?? progressStats.value.currentWeight ?? null;
-  return weight === 0 ? null : weight;
-});
-
-const displayHeight = computed(() => {
-  const height = userProfile.value.height ?? null;
-  return height === 0 ? null : height;
-});
-
-const waterPercentage = computed(() => Math.min(((todayProgress.value?.waterIntake || 0) / waterGoal.value) * 100, 100));
-
-const waterStatusMessage = computed(() => {
-  const intake = todayProgress.value?.waterIntake || 0;
-  if (intake >= waterGoal.value) return '¡Excelente! Hidratación completa hoy';
-  if (intake >= waterGoal.value * 0.6) return 'Vas bien: hidratación normal';
-  if (intake >= waterGoal.value * 0.3) return 'Vas a mitad: toma un poco más';
-  return 'Hidratación baja: suma más agua hoy';
-});
-
-const weightHistory = computed(() => progressStats.value.weightHistory.slice(-7));
-
-const weightChange = computed(() => {
-  if (weightHistory.value.length < 2) return 0;
-  return Number((weightHistory.value[weightHistory.value.length - 1].weight - weightHistory.value[0].weight).toFixed(1));
-});
-
-const weightTrend = computed(() => weightChange.value > 0 ? 'trend-up' : weightChange.value < 0 ? 'trend-down' : '');
-
-
-const caloricBalance = computed(() => {
-  const consumed = todayProgress.value?.caloriesConsumed || 0;
-  const burned = todayProgress.value?.caloriesBurned || 0;
-  return consumed - burned;
-});
-
-const topExercises = computed(() => {
-  const counts: Record<string, number> = {};
-  workoutHistory.value.forEach((sess: any) => {
-    if (Array.isArray(sess.exercises)) {
-      sess.exercises.forEach((ex: any) => {
-        counts[ex.name] = (counts[ex.name] || 0) + 1;
-      });
-    }
-  });
-
-  return Object.entries(counts)
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 3);
-});
-
-const exerciseToMuscleMap = computed(() => {
-  const map: Record<string, string> = {};
-  exercises.value.forEach(ex => {
-    map[ex.name.toLowerCase()] = ex.muscle;
-  });
-  return map;
-});
-
-const muscleDistribution = computed(() => {
-  const counts: Record<string, number> = {};
-  const map = exerciseToMuscleMap.value;
-
-  workoutHistory.value.forEach((sess: any) => {
-    if (Array.isArray(sess.exercises)) {
-      sess.exercises.forEach((ex: any) => {
-        const muscle = map[ex.name.toLowerCase()] || 'Otros';
-        const setRules = Array.isArray(ex.sets) ? ex.sets.length : 0;
-        counts[muscle] = (counts[muscle] || 0) + setRules;
-      });
-    }
-  });
-
-  const list = Object.entries(counts)
-    .map(([muscle, series]) => ({ muscle, series }))
-    .sort((a, b) => b.series - a.series);
-
-  const maxSeries = list.length > 0 ? Math.max(...list.map(l => l.series)) : 1;
-  return list.map(item => ({
-    ...item,
-    percentage: (item.series / maxSeries) * 100
-  }));
-});
-
-const cumulativeVolume = computed(() => {
-  return workoutHistory.value.reduce((sum, sess) => sum + (sess.totalVolume || 0), 0);
-});
-
-const totalSessionsCount = computed(() => {
-  return workoutHistory.value.length;
-});
-
-const formattedRecordsList = computed(() => {
-  return Object.entries(personalRecords.value).map(([_, data]: [string, any]) => {
-    return {
-      exerciseName: data.exerciseName,
-      maxWeight: data.records.max_weight?.value || null,
-      maxReps: data.records.max_reps?.value || null,
-      maxRepsWeight: data.records.max_reps?.weight || null,
-      maxVolume: data.records.max_volume?.value || null
-    };
-  }).slice(0, 5);
-});
-
-function getGreeting() {
-  const hour = new Date().getHours();
-  if (hour < 12) return '¡Buenos días!';
-  if (hour < 18) return '¡Buenas tardes!';
-  return '¡Buenas noches!';
-}
-
-function toDateKey(value: string) {
-  if (!value) return '';
-  return value.includes('T') ? value.split('T')[0] : value;
-}
-
-function getAuthHeaders() {
-  const token = localStorage.getItem('token');
-  if (!token) return {};
-  return { Authorization: `Bearer ${token}` };
-}
-
-function formatWater(ml: number) { return (ml / 1000).toFixed(1); }
-function formatVolume(vol: number | undefined | null) {
-  if (vol === undefined || vol === null) return '0';
-  return vol >= 1000 ? (vol / 1000).toFixed(1) + 'k' : vol.toString();
-}
-function formatShortDate(dateStr: string) { return new Date(dateStr + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric' }); }
-
-function getBarHeight(weight: number) {
-  const weights = weightHistory.value.map(w => w.weight);
-  if (weights.length === 0) return 50;
-  const min = Math.min(...weights) - 2;
-  const max = Math.max(...weights) + 2;
-  return Math.max(20, ((weight - min) / (max - min)) * 100);
-}
-
-function mergeLocalWorkouts() {
-  const stored = localStorage.getItem('local_workouts');
-  const localList: any[] = stored ? JSON.parse(stored) : [];
-
-  localList.forEach(w => {
-    if (w.date) {
-      workoutCalendarDates.value[w.date] = true;
-    }
-  });
-
-  const formattedLocals = localList.map(w => {
-    const totalVol = w.sets.reduce((sum: number, s: any) => sum + (s.reps * s.weight), 0);
-    return {
-      id: w.id,
-      date: w.date,
-      routine: 'Entrenamiento Libre (Local)',
-      exerciseCount: 1,
-      totalVolume: totalVol,
-      duration: w.duration || 15,
-      exercises: [{
-        name: w.exerciseName,
-        sets: w.sets
-      }]
-    };
-  });
-
-  const combinedHistory = [...workoutHistory.value];
-  formattedLocals.forEach(l => {
-    if (!combinedHistory.some(h => h.id === l.id)) {
-      combinedHistory.push(l);
-    }
-  });
-
-  combinedHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  workoutHistory.value = combinedHistory;
-}
-
-async function loadAllData() {
-  try {
-    const headers = getAuthHeaders();
-    if (!headers.Authorization) {
-      return;
-    }
-
-    const [progressRes, statsRes, profileRes, workoutsCalRes, workoutsHistRes, exercisesRes, recordsRes] = await Promise.all([
-      fetch(`${API_URL}/progress`, { headers }),
-      fetch(`${API_URL}/progress/stats`, { headers }),
-      fetch(`${API_URL}/user/profile`, { headers }),
-      fetch(`${API_URL}/workouts/calendar`, { headers }),
-      fetch(`${API_URL}/workouts/history?limit=100`, { headers }),
-      fetch(`${API_URL}/exercises?paginate=false`, { headers }),
-      fetch(`${API_URL}/workouts/records`, { headers })
-    ]);
-
-    if (progressRes.ok) {
-      const progressJson = await progressRes.json();
-      progressData.value = Array.isArray(progressJson)
-        ? progressJson.map((item: any) => ({ ...item, date: toDateKey(item.date) }))
-        : [];
-      localStorage.setItem('cache_all_progress', JSON.stringify(progressData.value));
-    }
-
-    if (statsRes.ok) {
-      progressStats.value = await statsRes.json();
-      localStorage.setItem('cache_progress_stats', JSON.stringify(progressStats.value));
-    }
-
-    if (profileRes.ok) {
-      userProfile.value = await profileRes.json();
-      localStorage.setItem('cache_user_profile', JSON.stringify(userProfile.value));
-    }
-
-    if (workoutsCalRes.ok) {
-      const calData = await workoutsCalRes.json();
-      const dates: Record<string, boolean> = {};
-      Object.keys(calData).forEach(d => {
-        dates[d] = true;
-      });
-      workoutCalendarDates.value = dates;
-    }
-
-    if (workoutsHistRes.ok) {
-      workoutHistory.value = await workoutsHistRes.json();
-    }
-
-    if (exercisesRes.ok) {
-      const data = await exercisesRes.json();
-      exercises.value = Array.isArray(data) ? data : (data.data ?? []);
-    }
-
-    if (recordsRes.ok) {
-      personalRecords.value = await recordsRes.json();
-    }
-
-    mergeLocalWorkouts();
-
-  } catch (error) {
-    console.error('Error loading data:', error);
-  }
-}
-
+const {
+  progressData,
+  progressStats,
+  waterGoal,
+  selectedDate,
+  currentYear,
+  currentMonth,
+  monthNames,
+  today,
+  formattedSelectedDate,
+  calendarDays,
+  todayProgress,
+  displayWeight,
+  waterPercentage,
+  waterStatusMessage,
+  weightHistory,
+  weightChange,
+  weightTrend,
+  caloricBalance,
+  topExercises,
+  muscleDistribution,
+  cumulativeVolume,
+  totalSessionsCount,
+  formattedRecordsList,
+  getGreeting,
+  formatWater,
+  formatVolume,
+  formatShortDate,
+  getBarHeight,
+  loadAllData,
+  selectDate,
+  prevMonth,
+  nextMonth,
+  addWater,
+  changeWaterGoal,
+  addCustomWater,
+
+  // Modal bindings
+  activeModal,
+  modalInputValue,
+  modalError,
+  isSaving,
+  bedtime,
+  waketime,
+  sleepQualityInModal,
+  openEditModal,
+  closeEditModal,
+  saveModalMetric,
+  calculateSleepHoursFromTimes,
+  applyPresetHours,
+  syncSmartwatchSleep
+} = useProgress();
 
 function goToRmCalculator() {
   router.push('/tabs/rm');
-}
-
-function openProgressModal() {
-  const tp = todayProgress.value;
-  progressForm.value = {
-    weight: tp?.weight ?? userProfile.value.weight ?? progressStats.value.currentWeight ?? 70,
-    waterIntake: tp?.waterIntake || 0,
-    caloriesConsumed: tp?.caloriesConsumed || 0,
-    caloriesBurned: tp?.caloriesBurned || 0,
-    sleepHours: tp?.sleepHours || 7
-  };
-  isProgressModalOpen.value = true;
-}
-
-function normalizeNumber(value: unknown, { asInt = false } = {}) {
-  if (value === null || value === undefined || value === '') return null;
-  let raw = value as string | number;
-  if (typeof raw === 'string') {
-    raw = raw.trim().replace(/\s+/g, '');
-    if (raw.includes(',') && raw.includes('.')) {
-      raw = raw.replace(/\./g, '').replace(',', '.');
-    } else if (raw.includes(',')) {
-      raw = raw.replace(',', '.');
-    } else if (/^\d{1,3}(\.\d{3})+$/.test(raw)) {
-      raw = raw.replace(/\./g, '');
-    }
-  }
-  const num = Number(raw);
-  if (!Number.isFinite(num)) return null;
-  return asInt ? Math.round(num) : num;
-}
-
-function buildProgressPayload() {
-  return {
-    weight: normalizeNumber(progressForm.value.weight),
-    waterIntake: normalizeNumber(progressForm.value.waterIntake, { asInt: true }),
-    caloriesConsumed: normalizeNumber(progressForm.value.caloriesConsumed, { asInt: true }),
-    caloriesBurned: normalizeNumber(progressForm.value.caloriesBurned, { asInt: true }),
-    sleepHours: normalizeNumber(progressForm.value.sleepHours)
-  };
-}
-
-async function saveProgress() {
-  try {
-    const authHeaders = getAuthHeaders();
-    if (!authHeaders.Authorization) {
-      showToast('Inicia sesión para guardar', 'danger');
-      return;
-    }
-
-    const payload = buildProgressPayload();
-    const saveRes = await fetch(`${API_URL}/progress`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders },
-      body: JSON.stringify({ date: selectedDate.value, ...payload })
-    });
-    if (!saveRes.ok) {
-      throw new Error('No se pudo guardar el progreso');
-    }
-    showToast('¡Progreso guardado! 💪');
-    isProgressModalOpen.value = false;
-    loadAllData();
-  } catch (error) {
-    showToast('Error al guardar', 'danger');
-  }
-}
-
-async function changeWaterGoal() {
-  const alert = await alertController.create({
-    header: 'Objetivo de Agua',
-    message: 'Introduce tu objetivo diario de hidratación en mililitros (ml):',
-    inputs: [
-      {
-        name: 'goal',
-        type: 'number',
-        placeholder: 'Ej. 2500',
-        value: waterGoal.value
-      }
-    ],
-    buttons: [
-      { text: 'Cancelar', role: 'cancel' },
-      {
-        text: 'Guardar',
-        handler: (data) => {
-          const val = Number(data.goal);
-          if (val > 0) {
-            waterGoal.value = val;
-            localStorage.setItem('forgy_water_goal', val.toString());
-            showToast(`Objetivo de agua actualizado a ${val} ml`);
-          }
-        }
-      }
-    ]
-  });
-  await alert.present();
-}
-
-async function addCustomWater() {
-  const alert = await alertController.create({
-    header: 'Cantidad Personalizada',
-    message: 'Introduce la cantidad de agua consumida en mililitros (ml):',
-    inputs: [
-      {
-        name: 'amount',
-        type: 'number',
-        placeholder: 'Ej. 330'
-      }
-    ],
-    buttons: [
-      { text: 'Cancelar', role: 'cancel' },
-      {
-        text: 'Agregar',
-        handler: (data) => {
-          const amount = Number(data.amount);
-          if (amount > 0) {
-            addWater(amount);
-          }
-        }
-      }
-    ]
-  });
-  await alert.present();
-}
-
-async function addWater(amount: number) {
-  try {
-    const authHeaders = getAuthHeaders();
-    if (!authHeaders.Authorization) {
-      showToast('Inicia sesión para guardar', 'danger');
-      return;
-    }
-
-    const currentWater = todayProgress.value?.waterIntake || 0;
-    const addRes = await fetch(`${API_URL}/progress`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders },
-      body: JSON.stringify({
-        date: selectedDate.value,
-        waterIntake: currentWater + amount
-      })
-    });
-    if (!addRes.ok) {
-      throw new Error('No se pudo guardar el agua');
-    }
-    showToast(`+${amount}ml 💧`);
-    loadAllData();
-  } catch (error) {
-    showToast('Error', 'danger');
-  }
-}
-
-async function showToast(message: string, color = 'success') {
-  const toast = await toastController.create({ message, duration: 2000, color, position: 'bottom' });
-  await toast.present();
 }
 
 async function handleRefresh(event: CustomEvent) {
@@ -1073,23 +414,6 @@ async function handleRefresh(event: CustomEvent) {
 }
 
 onIonViewWillEnter(() => {
-  const cachedProgress = localStorage.getItem('cache_all_progress');
-  const cachedStats = localStorage.getItem('cache_progress_stats');
-  const cachedProfile = localStorage.getItem('cache_user_profile');
-
-  if (cachedProgress) {
-    const progressJson = JSON.parse(cachedProgress);
-    progressData.value = Array.isArray(progressJson)
-      ? progressJson.map((item: any) => ({ ...item, date: toDateKey(item.date) }))
-      : [];
-  }
-  if (cachedStats) {
-    progressStats.value = JSON.parse(cachedStats);
-  }
-  if (cachedProfile) {
-    userProfile.value = JSON.parse(cachedProfile);
-  }
-
   loadAllData();
 });
 </script>
@@ -1181,10 +505,6 @@ onIonViewWillEnter(() => {
   background: rgba(244, 67, 54, 0.45);
 }
 
-.stat-circle.height {
-  background: rgba(156, 39, 176, 0.4);
-}
-
 .stat-value {
   font-size: 22px;
   font-weight: 800;
@@ -1258,12 +578,12 @@ onIonViewWillEnter(() => {
   color: var(--forgy-text-primary);
 }
 
-.bmi-card, .rm-card {
+.rm-card {
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.bmi-card:hover, .rm-card:hover {
+.rm-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
 }
@@ -1608,194 +928,6 @@ onIonViewWillEnter(() => {
   --color: var(--ion-color-primary);
   --border-color: var(--ion-color-primary);
   align-self: flex-start;
-}
-
-/* Modal */
-.modal-content {
-  --background: var(--forgy-content-bg);
-}
-
-.workout-modal {
-  --border-radius: 24px;
-}
-
-.modal-container {
-  padding: 16px;
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-/* Modal Metrics Grid & Cards */
-.metrics-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-@media (min-width: 576px) {
-  .metrics-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-  }
-}
-
-.metric-card {
-  background: var(--forgy-input-bg);
-  border: 1px solid var(--forgy-border);
-  border-radius: 20px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02);
-}
-
-.metric-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.metric-icon-badge {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-}
-
-/* Colores específicos de iconos por métrica */
-.weight-card .metric-icon-badge {
-  background: rgba(156, 39, 176, 0.1);
-  color: #9c27b0;
-}
-.water-card .metric-icon-badge {
-  background: rgba(56, 128, 255, 0.1);
-  color: #3880ff;
-}
-.sleep-card .metric-icon-badge {
-  background: rgba(255, 196, 9, 0.1);
-  color: #ffc409;
-}
-.kcal-consumed-card .metric-icon-badge {
-  background: rgba(244, 67, 54, 0.1);
-  color: #f44336;
-}
-.kcal-burned-card .metric-icon-badge {
-  background: rgba(255, 106, 0, 0.1);
-  color: #ff6a00;
-}
-
-.metric-meta {
-  display: flex;
-  flex-direction: column;
-}
-
-.metric-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--forgy-text-primary);
-}
-
-.metric-subtitle {
-  font-size: 11px;
-  color: var(--forgy-text-secondary);
-}
-
-.metric-body {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--forgy-card-bg);
-  border: 1px solid var(--forgy-border);
-  border-radius: 16px;
-  padding: 8px 12px;
-}
-
-.value-display {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  flex: 1;
-}
-
-.metric-input {
-  width: 90px;
-  text-align: center;
-  border: none;
-  background: transparent;
-  font-size: 24px;
-  font-weight: 800;
-  color: var(--forgy-text-primary);
-  outline: none;
-}
-
-.metric-input::-webkit-outer-spin-button,
-.metric-input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-.metric-input[type=number] {
-  -moz-appearance: textfield;
-}
-
-.metric-unit {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--forgy-text-secondary);
-  margin-left: 2px;
-}
-
-.control-btn {
-  width: 40px;
-  height: 40px;
-  border: none;
-  background: var(--forgy-input-bg);
-  border-radius: 50%;
-  font-size: 18px;
-  font-weight: 700;
-  cursor: pointer;
-  color: var(--forgy-text-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
-  transition: all 0.2s ease;
-}
-
-.control-btn:active {
-  background: var(--forgy-border);
-  transform: scale(0.95);
-}
-
-.quick-actions {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-}
-
-.quick-btn {
-  flex: 1;
-  background: var(--forgy-card-bg);
-  border: 1px solid var(--forgy-border);
-  border-radius: 10px;
-  padding: 6px;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--forgy-text-secondary);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.quick-btn:active {
-  background: var(--forgy-input-bg);
-  color: var(--ion-color-primary);
 }
 
 /* Calendar Styles */
