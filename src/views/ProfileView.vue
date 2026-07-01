@@ -304,10 +304,7 @@ async function confirmLogout() {
                     <ion-label>Ajustes</ion-label>
                 </ion-item>
 
-                <ion-item
-                    button
-                    detail
-                >
+                <ion-item>
                     <ion-icon
                         :icon="moonOutline"
                         slot="start"

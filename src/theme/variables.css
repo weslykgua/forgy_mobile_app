@@ -189,3 +189,40 @@ ion-searchbar {
         transform: translateX(0);
     }
 }
+
+/* Ionic Alert Dark Mode styling overrides */
+body.dark ion-alert {
+  --background: var(--forgy-card-bg, #18181b) !important;
+  --ion-overlay-background: var(--forgy-card-bg, #18181b) !important;
+  --ion-text-color: var(--forgy-text-primary, #fafafa) !important;
+  color: var(--forgy-text-primary, #fafafa) !important;
+}
+
+body.dark ion-alert .alert-title,
+body.dark ion-alert .alert-sub-title,
+body.dark ion-alert .alert-header {
+  color: var(--forgy-text-primary, #fafafa) !important;
+}
+
+body.dark ion-alert .alert-message {
+  color: var(--forgy-text-secondary, #a1a1aa) !important;
+}
+
+body.dark ion-alert .alert-input {
+  --background: var(--forgy-input-bg, #27272a) !important;
+  color: var(--forgy-text-primary, #fafafa) !important;
+  border-bottom-color: var(--forgy-border, #27272a) !important;
+}
+
+body.dark ion-alert .alert-button {
+  color: var(--ion-color-secondary, #5856d6) !important;
+}
+
+body.dark ion-alert .alert-button.alert-button-role-cancel {
+  color: var(--forgy-text-secondary, #a1a1aa) !important;
+}
+
+/* Water Quick Buttons Adjustments */
+.btn-quick-water.btn-quick-water-remove {
+    --color: var(--ion-color-danger, #eb445a) !important;
+}

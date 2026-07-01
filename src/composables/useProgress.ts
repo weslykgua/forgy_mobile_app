@@ -75,8 +75,15 @@ export function useProgress() {
   };
 
   // Toast / Alert helpers
+  let activeToast: HTMLIonToastElement | null = null;
   const showToast = async (message: string, color = 'success') => {
-    const toast = await toastController.create({ message, duration: 2000, color, position: 'bottom' });
+    if (activeToast) {
+      try {
+        await activeToast.dismiss();
+      } catch (e) {}
+    }
+    const toast = await toastController.create({ message, duration: 1500, color, position: 'bottom' });
+    activeToast = toast;
     await toast.present();
   };
 
@@ -394,18 +401,23 @@ export function useProgress() {
       }
 
       const currentWater = todayProgress.value?.waterIntake || 0;
+      const newWater = Math.max(0, currentWater + amount);
       const addRes = await fetch(`${API_URL}/progress`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
           date: selectedDate.value,
-          waterIntake: currentWater + amount
+          waterIntake: newWater
         })
       });
       if (!addRes.ok) {
         throw new Error('No se pudo guardar el agua');
       }
-      showToast(`+${amount}ml 💧`);
+      if (amount > 0) {
+        showToast(`+${amount}ml 💧`);
+      } else {
+        showToast(`${amount}ml 💧`, 'warning');
+      }
       loadAllData();
     } catch (error) {
       showToast('Error', 'danger');

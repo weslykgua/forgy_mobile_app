@@ -47,13 +47,20 @@ export function useRoutines() {
 
   const daysOfWeek = DAYS_OF_WEEK;
 
+  let activeToast: HTMLIonToastElement | null = null;
   const showToast = async (message: string, color = 'success') => {
+    if (activeToast) {
+      try {
+        await activeToast.dismiss();
+      } catch (e) {}
+    }
     const toast = await toastController.create({
       message,
-      duration: 2000,
+      duration: 1500,
       color,
       position: 'bottom'
     });
+    activeToast = toast;
     await toast.present();
   };
 

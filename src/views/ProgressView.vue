@@ -219,9 +219,9 @@
             </div>
           </div>
           <div class="water-actions">
+            <ion-button size="small" fill="clear" class="btn-quick-water btn-quick-water-remove" @click="addWater(-250)">-250ml</ion-button>
             <ion-button size="small" fill="clear" class="btn-quick-water" @click="addWater(250)">+250ml</ion-button>
             <ion-button size="small" fill="clear" class="btn-quick-water" @click="addWater(500)">+500ml</ion-button>
-            <ion-button size="small" fill="clear" class="btn-quick-water" @click="addWater(1000)">+1.0L</ion-button>
             <ion-button size="small" fill="clear" class="btn-quick-water btn-quick-water-custom" @click="addCustomWater">+ Otro</ion-button>
           </div>
           <p class="water-status">{{ waterStatusMessage }}</p>

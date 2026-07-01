@@ -69,8 +69,15 @@ export function useDashboard() {
     waketime.value = `${snappedH.toString().padStart(2, '0')}:${snappedM.toString().padStart(2, '0')}`;
   };
 
+  let activeToast: HTMLIonToastElement | null = null;
   const showToast = async (message: string, color = 'success') => {
-    const toast = await toastController.create({ message, duration: 2000, color, position: 'bottom' });
+    if (activeToast) {
+      try {
+        await activeToast.dismiss();
+      } catch (e) {}
+    }
+    const toast = await toastController.create({ message, duration: 1500, color, position: 'bottom' });
+    activeToast = toast;
     await toast.present();
   };
 
@@ -596,9 +603,13 @@ export function useDashboard() {
 
   const addWater = async (amountMl: number) => {
     const currentWater = todayProgress.value?.waterIntake || 0;
-    const newWater = currentWater + amountMl;
+    const newWater = Math.max(0, currentWater + amountMl);
     await saveProgressField('waterIntake', newWater);
-    await showToast(`+${amountMl}ml de agua registrados`);
+    if (amountMl > 0) {
+      await showToast(`+${amountMl}ml de agua registrados`);
+    } else {
+      await showToast(`${amountMl}ml de agua eliminados`, 'warning');
+    }
   };
 
   const addCustomWater = async () => {

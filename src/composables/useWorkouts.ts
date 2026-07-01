@@ -32,8 +32,15 @@ export function useWorkouts() {
     notes: ''
   });
 
+  let activeToast: HTMLIonToastElement | null = null;
   const showToast = async (message: string, color = 'success') => {
-    const toast = await toastController.create({ message, duration: 2000, color, position: 'bottom' });
+    if (activeToast) {
+      try {
+        await activeToast.dismiss();
+      } catch (e) {}
+    }
+    const toast = await toastController.create({ message, duration: 1500, color, position: 'bottom' });
+    activeToast = toast;
     await toast.present();
   };
 
