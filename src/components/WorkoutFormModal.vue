@@ -22,8 +22,22 @@
 
     <ion-content class="modal-content">
       <div class="modal-container">
+        <!-- Banner del Ejercicio Seleccionado -->
+        <div class="selected-exercise-banner animate-fade-in" v-if="form.exerciseId">
+          <div class="selected-exercise-banner-info">
+            <div class="selected-exercise-muscle-icon" v-html="getMuscleIcon(selectedExerciseObject?.muscle || '')"></div>
+            <div class="selected-exercise-text">
+              <span class="selected-exercise-name">{{ form.exerciseName }}</span>
+              <span class="selected-exercise-muscle">{{ selectedExerciseObject?.muscle || 'Entrenamiento' }} &middot; {{ selectedExerciseObject?.difficulty || 'General' }}</span>
+            </div>
+          </div>
+          <ion-button fill="outline" size="small" class="change-exercise-btn" @click="clearSelectedExercise" v-if="!isEditing">
+            Cambiar
+          </ion-button>
+        </div>
+
         <!-- Paso 1: Seleccionar ejercicio -->
-        <div class="step-section">
+        <div class="step-section animate-slide-up" v-if="!form.exerciseId">
           <div class="step-header">
             <span class="step-number">1</span>
             <h4>Selecciona el ejercicio</h4>
@@ -97,7 +111,7 @@
 
         <!-- Paso 2: Configurar series -->
         <div
-          class="step-section"
+          class="step-section animate-slide-up"
           v-if="form.exerciseId"
         >
           <div class="step-header">
@@ -106,11 +120,12 @@
           </div>
 
           <div class="sets-config">
-            <div
-              v-for="(set, index) in form.sets"
-              :key="index"
-              class="set-row-enhanced"
-            >
+            <TransitionGroup name="list-fade">
+              <div
+                v-for="(set, index) in form.sets"
+                :key="index"
+                class="set-row-enhanced"
+              >
               <div class="set-row-header">
                 <div class="set-badge">Serie {{ index + 1 }}</div>
                 <ion-button
@@ -172,6 +187,7 @@
                 </div>
               </div>
             </div>
+            </TransitionGroup>
 
             <ion-button
               expand="block"
@@ -339,6 +355,15 @@ const addSet = () => {
 const removeSet = (index: number) => {
   props.form.sets.splice(index, 1);
 };
+
+const selectedExerciseObject = computed(() => {
+  return props.exercises.find(e => e.id === props.form.exerciseId) || null;
+});
+
+const clearSelectedExercise = () => {
+  props.form.exerciseId = '';
+  props.form.exerciseName = '';
+};
 </script>
 
 <style scoped>
@@ -353,6 +378,94 @@ const removeSet = (index: number) => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+/* Sets List Transitions */
+.list-fade-enter-active,
+.list-fade-leave-active {
+  transition: all 0.25s ease;
+}
+.list-fade-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.list-fade-leave-to {
+  opacity: 0;
+  transform: translateX(-15px);
+}
+
+/* Selected Exercise Banner Styles */
+.selected-exercise-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  background: var(--forgy-card-bg);
+  border: 1px solid var(--ion-border-color);
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  margin-bottom: 4px;
+}
+
+.selected-exercise-banner-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.selected-exercise-muscle-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--forgy-input-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid var(--ion-border-color);
+}
+
+.selected-exercise-muscle-icon :deep(.muscle-svg) {
+  width: 20px;
+  height: 20px;
+  stroke: var(--forgy-text-secondary);
+}
+
+.selected-exercise-muscle-icon :deep(.muscle-icon-img) {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.selected-exercise-text {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.selected-exercise-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--forgy-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.selected-exercise-muscle {
+  font-size: 11px;
+  color: var(--forgy-text-secondary);
+  margin-top: 1px;
+}
+
+.change-exercise-btn {
+  --color: var(--ion-color-secondary);
+  --border-color: var(--ion-color-secondary);
+  font-weight: 600;
+  font-size: 11px;
+  margin: 0;
+  flex-shrink: 0;
 }
 
 .step-header {

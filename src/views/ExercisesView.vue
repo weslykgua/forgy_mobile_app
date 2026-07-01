@@ -276,7 +276,7 @@ onUnmounted(() => {
     </ion-header>
 
     <!-- VISTA DE EJERCICIOS -->
-    <ion-content :fullscreen="true" class="ion-padding" v-if="viewMode === 'exercises'">
+    <ion-content :fullscreen="true" class="ion-padding animate-fade-in" v-if="viewMode === 'exercises'">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
         <ion-refresher-content></ion-refresher-content>
       </ion-refresher>
@@ -332,7 +332,7 @@ onUnmounted(() => {
     </ion-content>
 
     <!-- VISTA DE RUTINAS -->
-    <ion-content :fullscreen="true" class="ion-padding" v-if="viewMode === 'routines'">
+    <ion-content :fullscreen="true" class="ion-padding animate-fade-in" v-if="viewMode === 'routines'">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
         <ion-refresher-content></ion-refresher-content>
       </ion-refresher>

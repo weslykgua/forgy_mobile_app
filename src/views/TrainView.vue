@@ -63,6 +63,62 @@
           </div>
         </div>
 
+        <!-- Carrusel de Mis Rutinas -->
+        <div class="routines-section animate-fade-in" v-if="routines.length > 0">
+          <div class="section-header-simple">
+            <ion-icon :icon="albums" class="section-icon"></ion-icon>
+            <h3>Mis Rutinas</h3>
+          </div>
+          <div class="routines-carousel">
+            <div 
+              v-for="r in routines" 
+              :key="r.id" 
+              class="routine-carousel-card"
+              :class="{ 'active': activeRoutineId === r.id }"
+              @click="selectActiveRoutine(r.id)"
+            >
+              <img 
+                :src="routineImages[r.id] || r.imageUrl || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=600&q=80'" 
+                class="routine-card-img"
+              />
+              <div class="routine-card-overlay">
+                <span class="routine-card-name">{{ r.name }}</span>
+                <span class="routine-card-focus">{{ r.exercises?.length || 0 }} ej.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ejercicios de la Rutina Seleccionada -->
+        <div class="scheduled-section animate-fade-in" v-if="activeRoutine && activeRoutineExercises.length > 0">
+          <div class="scheduled-header">
+            <ion-icon :icon="barbellOutline" class="scheduled-header-icon"></ion-icon>
+            <div class="scheduled-header-text">
+              <h3>Ejercicios de: {{ activeRoutine.name }}</h3>
+              <span class="scheduled-subtitle">Toca un ejercicio para registrar tu serie</span>
+            </div>
+          </div>
+          <div class="scheduled-exercises-list">
+            <div 
+              v-for="ex in activeRoutineExercises" 
+              :key="ex.id" 
+              class="scheduled-exercise-card"
+              @click="logScheduledExercise(ex)"
+            >
+              <div class="scheduled-exercise-info">
+                <div class="scheduled-muscle-icon" v-html="getMuscleIcon(ex.muscle)"></div>
+                <div class="scheduled-text">
+                  <span class="scheduled-name">{{ ex.name }}</span>
+                  <span class="scheduled-routine-source">{{ ex.muscle }}</span>
+                </div>
+              </div>
+              <ion-button fill="clear" size="small" class="scheduled-log-btn">
+                <ion-icon :icon="add" slot="icon-only"></ion-icon>
+              </ion-button>
+            </div>
+          </div>
+        </div>
+
         <!-- Ejercicios Programados para Hoy -->
         <div class="scheduled-section animate-fade-in" v-if="scheduledExercises.length > 0">
           <div class="scheduled-header">
@@ -116,7 +172,8 @@
         <!-- Estado Vacío -->
         <div
           v-if="dayWorkouts.length === 0"
-          class="empty-state"
+          class="empty-state animate-fade-in"
+          :key="'empty-' + selectedDate"
         >
           <div class="empty-icon-wrapper">
             <ion-icon :icon="barbellOutline"></ion-icon>
@@ -139,7 +196,8 @@
         <!-- Lista de Entrenamientos -->
         <ion-list
           v-else
-          class="workout-list"
+          class="workout-list animate-slide-up"
+          :key="selectedDate"
         >
           <ion-item-sliding
             v-for="workout in dayWorkouts"
@@ -199,7 +257,7 @@
 
       <!-- Botón Flotante Premium (FAB) -->
       <ion-fab slot="fixed" vertical="bottom" horizontal="end">
-        <ion-fab-button @click="openAddWorkoutModal" class="forgy-fab">
+        <ion-fab-button size="small" @click="openAddWorkoutModal" class="forgy-fab">
           <ion-icon :icon="add"></ion-icon>
         </ion-fab-button>
       </ion-fab>
@@ -234,7 +292,7 @@ import WorkoutFormModal from '../components/WorkoutFormModal.vue';
 import {
   add, chevronBack, chevronForward, barbellOutline, create, trash,
   documentText, remove, checkmarkCircle, addCircleOutline, removeCircleOutline, time,
-  calendarOutline
+  calendarOutline, albums
 } from 'ionicons/icons';
 
 const {
@@ -265,7 +323,35 @@ const {
   confirmDeleteWorkout
 } = useWorkouts();
 
-const { routines, loadRoutines, routineSchedule } = useRoutines();
+const { routines, loadRoutines, routineSchedule, routineImages } = useRoutines();
+
+const activeRoutineId = ref<string | null>(null);
+
+const activeRoutine = computed(() => {
+  return routines.value.find(r => r.id === activeRoutineId.value) || null;
+});
+
+const activeRoutineExercises = computed(() => {
+  if (!activeRoutine.value) return [];
+  const result: any[] = [];
+  if (activeRoutine.value.exercises && Array.isArray(activeRoutine.value.exercises)) {
+    activeRoutine.value.exercises.forEach(ref => {
+      const fullEx = exercises.value.find(e => e.id === ref.exerciseId);
+      if (fullEx) {
+        result.push(fullEx);
+      }
+    });
+  }
+  return result;
+});
+
+const selectActiveRoutine = (routineId: string) => {
+  if (activeRoutineId.value === routineId) {
+    activeRoutineId.value = null;
+  } else {
+    activeRoutineId.value = routineId;
+  }
+};
 
 const getDayOfWeekName = (dateStr: string) => {
   if (!dateStr) return '';
@@ -375,7 +461,13 @@ const formattedSelectedDate = computed(() => {
   return date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
 });
 
-const dayWorkouts = computed(() => workouts.value.filter(w => w.date === selectedDate.value));
+const dayWorkouts = computed(() => {
+  return workouts.value.filter(w => {
+    if (!w.date) return false;
+    const wDateOnly = w.date.includes('T') ? w.date.split('T')[0] : w.date;
+    return wDateOnly === selectedDate.value;
+  });
+});
 
 // getMuscleIcon imported from '@/utils/muscles'
 
@@ -811,6 +903,93 @@ onIonViewWillEnter(() => {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Carrusel de Rutinas */
+.routines-section {
+  margin-bottom: 24px;
+}
+
+.routines-carousel {
+  display: flex;
+  overflow-x: auto;
+  gap: 12px;
+  padding: 4px 2px 12px 2px;
+  scrollbar-width: none;
+}
+
+.routines-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+.routine-carousel-card {
+  position: relative;
+  flex: 0 0 140px;
+  height: 90px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.routine-carousel-card.active {
+  border-color: var(--ion-color-primary);
+  transform: scale(1.04);
+  box-shadow: 0 6px 16px rgba(var(--ion-color-primary-rgb), 0.25);
+}
+
+.routine-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.routine-card-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0));
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  color: #fff;
+}
+
+.routine-card-name {
+  font-size: 11px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.routine-card-focus {
+  font-size: 9px;
+  opacity: 0.85;
+}
+
+.section-header-simple {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.section-header-simple h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--forgy-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.section-header-simple .section-icon {
+  font-size: 16px;
+  color: var(--ion-color-primary);
 }
 
 </style>

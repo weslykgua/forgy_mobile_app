@@ -96,9 +96,9 @@ const onImageError = (event: Event) => {
 
 <style scoped>
 .exercise-card {
-  margin-bottom: 16px;
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  margin-bottom: 12px;
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   --background: var(--forgy-card-bg);
   color: var(--forgy-text-primary);
   border: 1px solid var(--ion-border-color);
@@ -109,6 +109,16 @@ const onImageError = (event: Event) => {
 .exercise-card ion-card-title {
   color: var(--forgy-text-primary) !important;
   font-weight: 700;
+  font-size: 16px !important;
+  line-height: 1.25;
+}
+
+ion-card-header {
+  padding: 12px 14px !important;
+}
+
+ion-card-content {
+  padding: 0 14px 12px 14px !important;
 }
 
 .card-header-content {
