@@ -77,7 +77,8 @@
 
 /* Water quick buttons */
 .btn-quick-water {
-    flex: 1;
+    flex: 1 1 calc(25% - 8px);
+    min-width: 65px;
     --background: var(--forgy-input-bg);
     --color: var(--forgy-text-primary);
     --border-radius: 6px;
@@ -108,6 +109,15 @@
 
 .btn-quick-water-custom:active {
     --background: rgba(var(--ion-color-secondary-rgb), 0.15);
+}
+
+/* Contenedores de botones de agua rápidos */
+.water-quick-buttons,
+.water-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
 }
 
 /* FAB Premium */

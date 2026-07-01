@@ -771,10 +771,7 @@ onIonViewWillEnter(() => {
   font-weight: 700;
 }
 
-.water-actions {
-  display: flex;
-  gap: 8px;
-}
+/* .water-actions handled globally in variables.css */
 
 
 
