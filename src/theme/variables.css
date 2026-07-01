@@ -118,6 +118,7 @@
     flex-wrap: wrap;
     gap: 8px;
     width: 100%;
+    justify-content: center;
 }
 
 /* FAB Premium */
