@@ -430,4 +430,9 @@ const openAddExercise = () => {
 .muscle-chips::-webkit-scrollbar {
   display: none;
 }
+
+.exercise-list-item h2 {
+  color: var(--forgy-text-primary) !important;
+  font-weight: 700;
+}
 </style>

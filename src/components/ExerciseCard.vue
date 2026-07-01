@@ -106,6 +106,11 @@ const onImageError = (event: Event) => {
   margin-right: 0;
 }
 
+.exercise-card ion-card-title {
+  color: var(--forgy-text-primary) !important;
+  font-weight: 700;
+}
+
 .card-header-content {
   display: flex;
   justify-content: space-between;
