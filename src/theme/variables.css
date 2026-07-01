@@ -122,3 +122,11 @@
 .forgy-fab:hover {
     transform: scale(1.08);
 }
+
+/* Unificar estilos de buscadores (IonSearchbar) */
+ion-searchbar {
+    --color: var(--forgy-text-primary) !important;
+    --placeholder-color: var(--forgy-text-secondary) !important;
+    --icon-color: var(--forgy-text-secondary) !important;
+    --clear-button-color: var(--forgy-text-secondary) !important;
+}
