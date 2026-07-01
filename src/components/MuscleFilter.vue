@@ -82,20 +82,14 @@ const selectMuscle = (muscle: string) => {
 <style scoped>
 .muscle-filter-scroll {
   width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-.muscle-filter-scroll::-webkit-scrollbar {
-  display: none;
 }
 
 .muscle-filter {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 8px 4px;
-  width: max-content;
+  width: 100%;
 }
 
 .muscle-chip {

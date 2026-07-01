@@ -389,16 +389,12 @@ const removeSet = (index: number) => {
 
 .muscle-filter-scroll {
   width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.muscle-filter-scroll::-webkit-scrollbar {
-  display: none;
 }
 .muscle-filter {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  width: max-content;
+  width: 100%;
   padding: 2px 0;
 }
 
