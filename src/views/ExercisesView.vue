@@ -5,7 +5,8 @@ import {
   IonList, IonGrid, IonRow, IonCol, IonSegment, IonSegmentButton,
   IonButton, IonIcon, IonButtons, IonSearchbar, IonBadge, IonRefresher,
   IonRefresherContent, IonInfiniteScroll, IonInfiniteScrollContent,
-  onIonViewWillEnter, onIonViewWillLeave, alertController
+  onIonViewWillEnter, onIonViewWillLeave, alertController,
+  IonFab, IonFabButton
 } from '@ionic/vue';
 import { io } from 'socket.io-client';
 import {
@@ -244,16 +245,6 @@ onIonViewWillLeave(() => {
     <ion-header class="forgy-header">
       <ion-toolbar>
         <ion-title class="forgy-title">Biblioteca</ion-title>
-        <ion-buttons slot="end" v-if="viewMode === 'exercises'">
-          <ion-button @click="exercisesCtx.openCreateModal">
-            <ion-icon :icon="add" slot="icon-only"></ion-icon>
-          </ion-button>
-        </ion-buttons>
-        <ion-buttons slot="end" v-else-if="viewMode === 'routines' && !routinesCtx.isSelectionModeActive.value">
-          <ion-button @click="routinesCtx.createRoutine">
-            <ion-icon :icon="add" slot="icon-only"></ion-icon>
-          </ion-button>
-        </ion-buttons>
       </ion-toolbar>
 
       <ion-toolbar>
@@ -457,6 +448,13 @@ onIonViewWillLeave(() => {
           </div>
         </div>
       </div>
+      
+      <!-- Botón Flotante Premium (FAB) para Biblioteca -->
+      <ion-fab slot="fixed" vertical="bottom" horizontal="end" v-if="viewMode === 'exercises' || (viewMode === 'routines' && !routinesCtx.isSelectionModeActive.value)">
+        <ion-fab-button @click="viewMode === 'exercises' ? exercisesCtx.openCreateModal() : routinesCtx.createRoutine()" class="forgy-fab">
+          <ion-icon :icon="add"></ion-icon>
+        </ion-fab-button>
+      </ion-fab>
     </ion-content>
 
     <!-- Bulk actions bar -->

@@ -6,11 +6,6 @@
         <ion-title class="forgy-title">
           Mi Progreso
         </ion-title>
-        <ion-buttons slot="end">
-          <ion-button class="header-add-btn" @click="openEditModal('weight')">
-            <ion-icon :icon="add"></ion-icon>
-          </ion-button>
-        </ion-buttons>
       </ion-toolbar>
     </ion-header>
 

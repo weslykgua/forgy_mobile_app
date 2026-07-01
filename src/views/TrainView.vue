@@ -6,11 +6,6 @@
         <ion-title class="forgy-title">
           Mi Entrenamiento
         </ion-title>
-        <ion-buttons slot="end">
-          <ion-button @click="openAddWorkoutModal" class="header-add-btn">
-            <ion-icon :icon="add"></ion-icon>
-          </ion-button>
-        </ion-buttons>
       </ion-toolbar>
     </ion-header>
 
@@ -598,18 +593,7 @@ onIonViewWillEnter(() => {
   color: #fff;
 }
 
-/* FAB Premium */
-.forgy-fab {
-  --background: linear-gradient(135deg, var(--ion-color-primary), var(--ion-color-tertiary, var(--ion-color-secondary)));
-  --background-hover: var(--ion-color-primary-tint);
-  --color: #fff;
-  box-shadow: 0 8px 24px rgba(var(--ion-color-primary-rgb), 0.4);
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
 
-.forgy-fab:hover {
-  transform: scale(1.08);
-}
 
 
 </style>
