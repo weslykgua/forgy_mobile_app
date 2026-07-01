@@ -64,7 +64,10 @@ const {
     saveModalMetric,
     userLevel,
     currentXP,
-    nextLevelXP
+    nextLevelXP,
+    currentStreak,
+    longestStreak,
+    levelTitle
 } = useDashboard();
 
 onIonViewWillEnter(() => {
@@ -179,7 +182,7 @@ const editWeight = () => openEditModal('weight');
                         />
                     </svg>
                     <div class="ring-content">
-                        <span class="ring-value">{{ metrics.currentStreak }}</span>
+                        <span class="ring-value">{{ currentStreak }}</span>
                         <span class="ring-label">días</span>
                     </div>
                     <span class="ring-title">Racha</span>
@@ -488,7 +491,7 @@ const editWeight = () => openEditModal('weight');
                         </div>
                         <div class="xp-bar-container">
                             <div class="xp-labels">
-                                <span class="xp-label-primary">Atleta Disciplinado</span>
+                                <span class="xp-label-primary">{{ levelTitle }}</span>
                                 <span class="xp-label-secondary">{{ currentXP }} / {{ nextLevelXP }} XP</span>
                             </div>
                             <div class="xp-progress-bg">
@@ -502,14 +505,14 @@ const editWeight = () => openEditModal('weight');
                         <div class="streak-mini-card">
                             <ion-icon :icon="flashOutline" class="streak-icon active"></ion-icon>
                             <div class="streak-data">
-                                <span class="streak-value">{{ metrics?.currentStreak || 0 }}</span>
+                                <span class="streak-value">{{ currentStreak }}</span>
                                 <span class="streak-label">Racha actual</span>
                             </div>
                         </div>
                         <div class="streak-mini-card">
                             <ion-icon :icon="trophyOutline" class="streak-icon best"></ion-icon>
                             <div class="streak-data">
-                                <span class="streak-value">{{ metrics?.longestStreak || 0 }}</span>
+                                <span class="streak-value">{{ longestStreak }}</span>
                                 <span class="streak-label">Racha máxima</span>
                             </div>
                         </div>

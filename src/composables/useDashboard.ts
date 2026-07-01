@@ -100,9 +100,9 @@ export function useDashboard() {
   const circumference = 2 * Math.PI * 45; // ~283
 
   const streakOffset = computed(() => {
-    if (!metrics.value) return circumference;
+    const streak = currentStreak.value;
     const goal = 30;
-    const progress = Math.min(metrics.value.currentStreak / goal, 1);
+    const progress = Math.min(streak / goal, 1);
     return circumference * (1 - progress);
   });
 
@@ -123,46 +123,51 @@ export function useDashboard() {
   const waterStreak = computed(() => {
     if (!Array.isArray(allProgress.value) || allProgress.value.length === 0) return 0;
 
-    const waterDays = allProgress.value
-      .filter(p => p.waterIntake !== null && p.waterIntake !== undefined)
-      .map(p => ({
-        dateStr: toDateKey(p.date),
-        water: p.waterIntake
-      }))
-      .sort((a, b) => new Date(b.dateStr).getTime() - new Date(a.dateStr).getTime());
-
-    if (waterDays.length === 0) return 0;
+    const waterMap: Record<string, number> = {};
+    allProgress.value.forEach(p => {
+      if (p.waterIntake !== null && p.waterIntake !== undefined) {
+        const key = toDateKey(p.date);
+        waterMap[key] = (waterMap[key] || 0) + p.waterIntake;
+      }
+    });
 
     let streak = 0;
-    let expectedDate = new Date();
-    expectedDate.setHours(0, 0, 0, 0);
+    let checkDate = new Date();
+    checkDate.setHours(0, 0, 0, 0);
 
-    for (let i = 0; i < waterDays.length; i++) {
-      const day = waterDays[i];
-      const dayDate = new Date(day.dateStr);
-      dayDate.setHours(0, 0, 0, 0);
+    const todayStr = getLocalDateKey();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = getLocalDateKey(yesterday);
 
-      const diffTime = expectedDate.getTime() - dayDate.getTime();
-      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    const todayWater = waterMap[todayStr] || 0;
+    const yesterdayWater = waterMap[yesterdayStr] || 0;
 
-      if (diffDays === 0) {
-        if (day.water >= 2000) {
+    if (todayWater >= 2000) {
+      while (true) {
+        const dStr = getLocalDateKey(checkDate);
+        const water = waterMap[dStr] || 0;
+        if (water >= 2000) {
           streak++;
-          expectedDate.setDate(expectedDate.getDate() - 1);
-        } else {
-          expectedDate.setDate(expectedDate.getDate() - 1);
-        }
-      } else if (diffDays === 1) {
-        if (day.water >= 2000) {
-          streak++;
-          expectedDate = new Date(dayDate.getTime() - 24 * 60 * 60 * 1000);
+          checkDate.setDate(checkDate.getDate() - 1);
         } else {
           break;
         }
-      } else if (diffDays > 1) {
-        break;
+      }
+    } else if (yesterdayWater >= 2000) {
+      checkDate.setDate(checkDate.getDate() - 1);
+      while (true) {
+        const dStr = getLocalDateKey(checkDate);
+        const water = waterMap[dStr] || 0;
+        if (water >= 2000) {
+          streak++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+          break;
+        }
       }
     }
+
     return streak;
   });
 
@@ -211,18 +216,149 @@ export function useDashboard() {
     };
   });
 
-  const userLevel = ref(4);
-  const currentXP = ref(2450);
-  const nextLevelXP = ref(3000);
+  // Racha calculada dinámicamente en el cliente desde el historial
+  const computedStreaks = computed(() => {
+    if (!Array.isArray(workoutHistory.value) || workoutHistory.value.length === 0) {
+      return { currentStreak: 0, longestStreak: 0 };
+    }
 
-  const levelProgressPercent = computed(() => {
-    return Math.round((currentXP.value / nextLevelXP.value) * 100);
+    const workoutDates = Array.from(new Set(
+      workoutHistory.value
+        .filter(w => w.date)
+        .map(w => toDateKey(w.date))
+    )).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+
+    if (workoutDates.length === 0) {
+      return { currentStreak: 0, longestStreak: 0 };
+    }
+
+    let cStreak = 0;
+    let lStreak = 0;
+    let tempStreak = 0;
+
+    const todayStr = getLocalDateKey();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = getLocalDateKey(yesterday);
+
+    const hasWorkoutToday = workoutDates.includes(todayStr);
+    const hasWorkoutYesterday = workoutDates.includes(yesterdayStr);
+
+    if (hasWorkoutToday || hasWorkoutYesterday) {
+      let checkDate = hasWorkoutToday ? new Date() : yesterday;
+      checkDate.setHours(0, 0, 0, 0);
+
+      while (true) {
+        const checkDateStr = getLocalDateKey(checkDate);
+        if (workoutDates.includes(checkDateStr)) {
+          cStreak++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+          break;
+        }
+      }
+    }
+
+    let prevDate: Date | null = null;
+    for (const dStr of [...workoutDates].reverse()) {
+      const currentDate = new Date(dStr);
+      currentDate.setHours(0, 0, 0, 0);
+
+      if (prevDate === null) {
+        tempStreak = 1;
+      } else {
+        const diffTime = currentDate.getTime() - prevDate.getTime();
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays === 1) {
+          tempStreak++;
+        } else if (diffDays > 1) {
+          if (tempStreak > lStreak) {
+            lStreak = tempStreak;
+          }
+          tempStreak = 1;
+        }
+      }
+      prevDate = currentDate;
+    }
+    if (tempStreak > lStreak) {
+      lStreak = tempStreak;
+    }
+
+    return {
+      currentStreak: cStreak,
+      longestStreak: Math.max(lStreak, cStreak)
+    };
+  });
+
+  const currentStreak = computed(() => {
+    return Math.max(metrics.value?.currentStreak || 0, computedStreaks.value.currentStreak);
+  });
+
+  const longestStreak = computed(() => {
+    return Math.max(metrics.value?.longestStreak || 0, computedStreaks.value.longestStreak);
+  });
+
+  // Cálculo de XP y nivel dinámico
+  const totalXP = computed(() => {
+    const workoutXP = (workoutHistory.value?.length || 0) * 150;
+    const progressXP = (allProgress.value?.length || 0) * 50;
+    
+    let prCount = 0;
+    if (personalRecords.value) {
+      Object.values(personalRecords.value).forEach((exRecord: any) => {
+        if (exRecord.records) {
+          prCount += Object.keys(exRecord.records).length;
+        }
+      });
+    }
+    const prXP = prCount * 100;
+
+    return 1000 + workoutXP + progressXP + prXP;
+  });
+
+  const levelInfo = computed(() => {
+    const xp = totalXP.value;
+    let level = 1;
+    let prevLimit = 0;
+    let nextLimit = 1000;
+    
+    while (xp >= nextLimit) {
+      level++;
+      prevLimit = nextLimit;
+      nextLimit = prevLimit + (level * 1000);
+    }
+    
+    const xpInLevel = xp - prevLimit;
+    const xpNeededForNext = nextLimit - prevLimit;
+    const progressPercent = Math.round((xpInLevel / xpNeededForNext) * 100);
+    
+    return {
+      level,
+      xpInLevel,
+      xpNeededForNext,
+      progressPercent
+    };
+  });
+
+  const userLevel = computed(() => levelInfo.value.level);
+  const currentXP = computed(() => levelInfo.value.xpInLevel);
+  const nextLevelXP = computed(() => levelInfo.value.xpNeededForNext);
+  const levelProgressPercent = computed(() => levelInfo.value.progressPercent);
+
+  const levelTitle = computed(() => {
+    const lvl = userLevel.value;
+    if (lvl <= 1) return 'Iniciado Consagrado';
+    if (lvl === 2) return 'Guerrero en Crecimiento';
+    if (lvl === 3) return 'Atleta Disciplinado';
+    if (lvl === 4) return 'Bestia del Templo';
+    return 'Leyenda Inquebrantable';
   });
 
   const achievements = computed(() => {
     const list = [];
-    const streak = metrics.value?.currentStreak || 0;
-    const maxStreak = metrics.value?.longestStreak || 0;
+    const streak = currentStreak.value;
+    const maxStreak = longestStreak.value;
     const currentOrMaxStreak = Math.max(streak, maxStreak);
 
     list.push({
@@ -254,8 +390,8 @@ export function useDashboard() {
         session.exercises.forEach((ex: any) => {
           if (Array.isArray(ex.sets)) {
             ex.sets.forEach((set: any) => {
-              if (set.completed !== false && set.reps > maxRepsRecorded) {
-                maxRepsRecorded = set.reps;
+              if (set.completed !== false && Number(set.reps) > maxRepsRecorded) {
+                maxRepsRecorded = Number(set.reps);
               }
             });
           }
@@ -266,7 +402,7 @@ export function useDashboard() {
       Object.values(personalRecords.value).forEach((exRecord: any) => {
         if (exRecord.records && exRecord.records.max_reps) {
           const val = exRecord.records.max_reps.value || 0;
-          if (val > maxRepsRecorded) maxRepsRecorded = val;
+          if (Number(val) > maxRepsRecorded) maxRepsRecorded = Number(val);
         }
       });
     }
@@ -289,8 +425,8 @@ export function useDashboard() {
           if (nameLower.includes('banca') || nameLower.includes('sentadilla') || nameLower.includes('peso muerto') || nameLower.includes('deadlift') || nameLower.includes('squat')) {
             if (Array.isArray(ex.sets)) {
               ex.sets.forEach((set: any) => {
-                if (set.completed !== false && set.weight > maxWeightLifted) {
-                  maxWeightLifted = set.weight;
+                if (set.completed !== false && Number(set.weight) > maxWeightLifted) {
+                  maxWeightLifted = Number(set.weight);
                 }
               });
             }
@@ -304,7 +440,7 @@ export function useDashboard() {
         if (nameLower.includes('banca') || nameLower.includes('sentadilla') || nameLower.includes('peso muerto') || nameLower.includes('deadlift') || nameLower.includes('squat')) {
           if (exRecord.records && exRecord.records.max_weight) {
             const val = exRecord.records.max_weight.value || 0;
-            if (val > maxWeightLifted) maxWeightLifted = val;
+            if (Number(val) > maxWeightLifted) maxWeightLifted = Number(val);
           }
         }
       });
@@ -385,18 +521,27 @@ export function useDashboard() {
       const syncedIds = new Set(workoutHistory.value.map(w => w.id));
       const unsynced = localWorkouts.filter((w: any) => !syncedIds.has(w.id));
       if (unsynced.length > 0) {
-        const mapped = unsynced.map((lw: any) => ({
-          id: lw.id,
-          date: lw.date,
-          routine: lw.routineName || 'Entrenamiento Libre',
-          exerciseCount: lw.exercises?.length || 0,
-          totalVolume: lw.exercises?.reduce((acc: number, ex: any) => {
-            const setVolume = ex.sets?.reduce((sAcc: number, s: any) => sAcc + (s.weight * s.reps || 0), 0) || 0;
-            return acc + setVolume;
-          }, 0) || 0,
-          duration: lw.duration || 0,
-          exercises: lw.exercises || []
-        }));
+        const mapped = unsynced.map((lw: any) => {
+          const exercises = lw.exercises || [
+            {
+              name: lw.exerciseName || 'Ejercicio',
+              sets: lw.sets || []
+            }
+          ];
+          
+          return {
+            id: lw.id,
+            date: lw.date,
+            routine: lw.routineName || 'Entrenamiento Libre',
+            exerciseCount: exercises.length,
+            totalVolume: exercises.reduce((acc: number, ex: any) => {
+              const setVolume = ex.sets?.reduce((sAcc: number, s: any) => sAcc + (Number(s.weight) * Number(s.reps) || 0), 0) || 0;
+              return acc + setVolume;
+            }, 0) || 0,
+            duration: lw.duration || 0,
+            exercises: exercises
+          };
+        });
         workoutHistory.value = [...mapped, ...workoutHistory.value];
       }
     }
@@ -745,7 +890,10 @@ export function useDashboard() {
     saveModalMetric,
     userLevel,
     currentXP,
-    nextLevelXP
+    nextLevelXP,
+    currentStreak,
+    longestStreak,
+    levelTitle
   };
 }
 export type UseDashboardType = ReturnType<typeof useDashboard>;
