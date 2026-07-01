@@ -248,7 +248,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { IonModal, IonHeader, IonToolbar, IonButtons, IonButton, IonTitle, IonContent, IonReorderGroup, IonItemSliding, IonItem, IonIcon, IonLabel, IonReorder, IonItemOptions, IonItemOption, IonFab, IonFabButton, IonSearchbar, IonChip } from '@ionic/vue';
+import { IonModal, IonHeader, IonToolbar, IonButtons, IonButton, IonTitle, IonContent, IonReorderGroup, IonItemSliding, IonItem, IonIcon, IonLabel, IonReorder, IonItemOptions, IonItemOption, IonFab, IonFabButton, IonSearchbar, IonChip, IonList } from '@ionic/vue';
 import { removeCircleOutline, reorderThreeOutline, trash, add, addCircleOutline } from 'ionicons/icons';
 import { getMuscleIcon, muscleGroups, mainMuscles } from '@/utils/muscles';
 import type { RoutineDetail, Exercise } from '@/interfaces';

@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onUnmounted } from 'vue';
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
   IonList, IonGrid, IonRow, IonCol, IonSegment, IonSegmentButton,
   IonButton, IonIcon, IonButtons, IonSearchbar, IonBadge, IonRefresher,
   IonRefresherContent, IonInfiniteScroll, IonInfiniteScrollContent,
   onIonViewWillEnter, onIonViewWillLeave, alertController,
-  IonFab, IonFabButton
+  IonFab, IonFabButton, IonLabel, IonModal
 } from '@ionic/vue';
 import { io } from 'socket.io-client';
 import {
@@ -225,18 +225,23 @@ onIonViewWillEnter(() => {
   routinesCtx.loadRoutines();
   routinesCtx.loadAllExercisesLight();
 
-  // Socket
-  socket = io(API_URL.replace('/api', ''), {
-    auth: { token: localStorage.getItem('token') }
-  });
-  socket.on('exercises-updated', () => {
-    exercisesCtx.currentPage.value = 1;
-    exercisesCtx.loadExercises();
-  });
+  // Socket (se inicializa una sola vez para evitar reconexiones innecesarias)
+  if (!socket) {
+    socket = io(API_URL.replace('/api', ''), {
+      auth: { token: localStorage.getItem('token') }
+    });
+    socket.on('exercises-updated', () => {
+      exercisesCtx.currentPage.value = 1;
+      exercisesCtx.loadExercises();
+    });
+  }
 });
 
-onIonViewWillLeave(() => {
-  if (socket) socket.disconnect();
+onUnmounted(() => {
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
 });
 </script>
 
