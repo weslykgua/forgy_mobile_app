@@ -36,3 +36,76 @@
     text-transform: uppercase;
     text-align: center;
 }
+
+/* ============================================
+   FORGY APP - Unified Styles (Buttons & Segments)
+   ============================================ */
+
+/* Segmented Control / Toggle Switch standard style */
+.forgy-segment {
+    display: flex;
+    background: var(--forgy-input-bg);
+    border: 1px solid var(--ion-border-color);
+    padding: 4px;
+    border-radius: 12px;
+    width: 100%;
+}
+
+.forgy-segment-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--forgy-text-secondary);
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.forgy-segment-btn.active {
+    background: var(--forgy-card-bg);
+    color: var(--ion-color-primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* Water quick buttons */
+.btn-quick-water {
+    flex: 1;
+    --background: var(--forgy-input-bg);
+    --color: var(--forgy-text-primary);
+    --border-radius: 6px;
+    --border-color: var(--ion-border-color);
+    --border-style: solid;
+    --border-width: 1px;
+    font-size: 11px;
+    font-weight: 600;
+    margin: 0;
+    height: 32px;
+    text-transform: none;
+}
+
+.btn-quick-water::part(native) {
+    padding: 0 4px;
+}
+
+.btn-quick-water:active {
+    --background: var(--ion-color-primary);
+    --color: white;
+}
+
+.btn-quick-water-custom {
+    --background: rgba(var(--ion-color-secondary-rgb), 0.08);
+    --border-color: rgba(var(--ion-color-secondary-rgb), 0.2);
+    --color: var(--ion-color-secondary);
+}
+
+.btn-quick-water-custom:active {
+    --background: rgba(var(--ion-color-secondary-rgb), 0.15);
+}

@@ -224,30 +224,10 @@
             </div>
           </div>
           <div class="water-actions">
-            <button
-              class="water-btn"
-              @click="addWater(250)"
-            >
-              <span>+250ml</span>
-            </button>
-            <button
-              class="water-btn"
-              @click="addWater(500)"
-            >
-              <span>+500ml</span>
-            </button>
-            <button
-              class="water-btn"
-              @click="addWater(1000)"
-            >
-              <span>+1L</span>
-            </button>
-            <button
-              class="water-btn custom-water-btn"
-              @click="addCustomWater"
-            >
-              <span>+ Otro</span>
-            </button>
+            <ion-button size="small" fill="clear" class="btn-quick-water" @click="addWater(250)">+250ml</ion-button>
+            <ion-button size="small" fill="clear" class="btn-quick-water" @click="addWater(500)">+500ml</ion-button>
+            <ion-button size="small" fill="clear" class="btn-quick-water" @click="addWater(1000)">+1.0L</ion-button>
+            <ion-button size="small" fill="clear" class="btn-quick-water btn-quick-water-custom" @click="addCustomWater">+ Otro</ion-button>
           </div>
           <p class="water-status">{{ waterStatusMessage }}</p>
         </div>
@@ -801,35 +781,7 @@ onIonViewWillEnter(() => {
   gap: 8px;
 }
 
-.water-btn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 12px;
-  background: var(--forgy-input-bg);
-  border: 1px solid var(--forgy-border);
-  border-radius: 12px;
-  cursor: pointer;
-  color: var(--forgy-text-primary);
-  font-weight: 600;
-  font-size: 13px;
-  transition: background-color 0.2s;
-}
 
-.water-btn:active {
-  background: rgba(var(--ion-color-secondary-rgb), 0.1);
-}
-
-.custom-water-btn {
-  background: rgba(var(--ion-color-secondary-rgb), 0.08);
-  border-color: rgba(var(--ion-color-secondary-rgb), 0.2);
-  color: var(--ion-color-secondary);
-}
-
-.custom-water-btn:active {
-  background: rgba(var(--ion-color-secondary-rgb), 0.15);
-}
 
 .water-status {
   margin-top: 12px;

@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue';
 import { useProfile } from '@/utils/useProfile';
-import { toastController } from '@ionic/vue';
+import { toastController, alertController } from '@ionic/vue';
 import {
   trophyOutline, waterOutline, barbellOutline, barbell, scaleOutline, moonOutline, flashOutline
 } from 'ionicons/icons';
@@ -601,6 +601,35 @@ export function useDashboard() {
     await showToast(`+${amountMl}ml de agua registrados`);
   };
 
+  const addCustomWater = async () => {
+    const alert = await alertController.create({
+      header: 'Agregar Agua',
+      inputs: [
+        {
+          name: 'amount',
+          type: 'number',
+          placeholder: 'Cantidad en ml (ej. 350)'
+        }
+      ],
+      buttons: [
+        {
+          text: 'Cancelar',
+          role: 'cancel'
+        },
+        {
+          text: 'Agregar',
+          handler: (data) => {
+            const amt = parseInt(data.amount);
+            if (!isNaN(amt) && amt > 0) {
+              addWater(amt);
+            }
+          }
+        }
+      ]
+    });
+    await alert.present();
+  };
+
   const updateProfileData = async (weight: number | null, height: number | null) => {
     try {
       const headers = getHeaders();
@@ -893,7 +922,8 @@ export function useDashboard() {
     nextLevelXP,
     currentStreak,
     longestStreak,
-    levelTitle
+    levelTitle,
+    addCustomWater
   };
 }
 export type UseDashboardType = ReturnType<typeof useDashboard>;

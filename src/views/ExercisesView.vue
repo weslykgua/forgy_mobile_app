@@ -342,10 +342,10 @@ onIonViewWillLeave(() => {
       </ion-refresher>
 
       <div class="view-switcher-container">
-        <div class="glass-segment-wrapper">
+        <div class="forgy-segment" style="max-width: 320px;">
           <button
             type="button"
-            class="view-switch-btn"
+            class="forgy-segment-btn"
             :class="{ active: routinesCtx.routineViewStyle.value === 'grid' }"
             @click="routinesCtx.routineViewStyle.value = 'grid'"
           >
@@ -354,7 +354,7 @@ onIonViewWillLeave(() => {
           </button>
           <button
             type="button"
-            class="view-switch-btn"
+            class="forgy-segment-btn"
             :class="{ active: routinesCtx.routineViewStyle.value === 'calendar' }"
             @click="routinesCtx.routineViewStyle.value = 'calendar'"
           >
@@ -592,39 +592,7 @@ onIonViewWillLeave(() => {
   width: 100%;
 }
 
-.glass-segment-wrapper {
-  display: flex;
-  background: var(--forgy-input-bg, rgba(var(--ion-border-color-rgb), 0.08));
-  border: 1px solid var(--ion-border-color, rgba(0, 0, 0, 0.06));
-  padding: 4px;
-  border-radius: 14px;
-  width: 100%;
-  max-width: 320px;
-}
 
-.view-switch-btn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  background: transparent;
-  border: none;
-  outline: none;
-  padding: 10px;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--forgy-text-secondary);
-  cursor: pointer;
-  border-radius: 10px;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.view-switch-btn.active {
-  background: var(--forgy-card-bg, #fff);
-  color: var(--ion-color-primary);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-}
 
 .switcher-icon {
   font-size: 18px;

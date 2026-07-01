@@ -417,11 +417,11 @@ async function confirmLogout() {
                         <ion-list class="settings-list">
                             <ion-item>
                                 <ion-label position="stacked">Sistema de Unidades</ion-label>
-                                <div class="unit-selector">
-                                    <button type="button" class="unit-btn" :class="{ active: settingsForm.units === 'metric' }" @click="settingsForm.units = 'metric'">
+                                <div class="forgy-segment" style="margin-top: 8px;">
+                                    <button type="button" class="forgy-segment-btn" :class="{ active: settingsForm.units === 'metric' }" @click="settingsForm.units = 'metric'">
                                         Métrico (kg, cm)
                                     </button>
-                                    <button type="button" class="unit-btn" :class="{ active: settingsForm.units === 'imperial' }" @click="settingsForm.units = 'imperial'">
+                                    <button type="button" class="forgy-segment-btn" :class="{ active: settingsForm.units === 'imperial' }" @click="settingsForm.units = 'imperial'">
                                         Imperial (lb, in)
                                     </button>
                                 </div>
@@ -855,32 +855,7 @@ ion-modal.workout-modal .settings-list ion-input {
     font-weight: 500;
 }
 
-/* Selector de Unidades */
-ion-modal.workout-modal .unit-selector {
-    display: flex;
-    gap: 8px;
-    margin-top: 8px;
-    width: 100%;
-}
 
-ion-modal.workout-modal .unit-btn {
-    flex: 1;
-    background: var(--forgy-input-bg);
-    border: 1px solid var(--ion-border-color);
-    color: var(--forgy-text-secondary);
-    padding: 10px;
-    border-radius: 6px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-ion-modal.workout-modal .unit-btn.active {
-    background: var(--ion-color-primary);
-    color: var(--ion-color-primary-contrast);
-    border-color: var(--ion-color-primary);
-}
 
 /* Banners de Error */
 ion-modal.workout-modal .error-banner {

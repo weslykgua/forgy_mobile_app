@@ -67,7 +67,8 @@ const {
     nextLevelXP,
     currentStreak,
     longestStreak,
-    levelTitle
+    levelTitle,
+    addCustomWater
 } = useDashboard();
 
 onIonViewWillEnter(() => {
@@ -359,6 +360,7 @@ const editWeight = () => openEditModal('weight');
                             <ion-button size="small" fill="clear" class="btn-quick-water" @click="addWater(250)">+250ml</ion-button>
                             <ion-button size="small" fill="clear" class="btn-quick-water" @click="addWater(500)">+500ml</ion-button>
                             <ion-button size="small" fill="clear" class="btn-quick-water" @click="addWater(1000)">+1.0L</ion-button>
+                            <ion-button size="small" fill="clear" class="btn-quick-water btn-quick-water-custom" @click="addCustomWater">+ Otro</ion-button>
                         </div>
                     </div>
 
@@ -810,29 +812,7 @@ const editWeight = () => openEditModal('weight');
     margin-top: 4px;
 }
 
-.btn-quick-water {
-    flex: 1;
-    --background: var(--forgy-input-bg);
-    --color: var(--forgy-text-primary);
-    --border-radius: 4px;
-    --border-color: var(--ion-border-color);
-    --border-style: solid;
-    --border-width: 1px;
-    font-size: 10px;
-    font-weight: 600;
-    margin: 0;
-    height: 28px;
-    text-transform: none;
-}
 
-.btn-quick-water::part(native) {
-    padding: 0 4px;
-}
-
-.btn-quick-water:active {
-    --background: var(--ion-color-primary);
-    --color: white;
-}
 
 .summary-label {
     font-size: 11px;
