@@ -63,6 +63,36 @@
           </div>
         </div>
 
+        <!-- Ejercicios Programados para Hoy -->
+        <div class="scheduled-section animate-fade-in" v-if="scheduledExercises.length > 0">
+          <div class="scheduled-header">
+            <ion-icon :icon="calendarOutline" class="scheduled-header-icon"></ion-icon>
+            <div class="scheduled-header-text">
+              <h3>Programado para Hoy</h3>
+              <span class="scheduled-subtitle">Ejercicios de tus rutinas programadas para este día</span>
+            </div>
+          </div>
+          <div class="scheduled-exercises-list">
+            <div 
+              v-for="ex in scheduledExercises" 
+              :key="ex.id" 
+              class="scheduled-exercise-card"
+              @click="logScheduledExercise(ex)"
+            >
+              <div class="scheduled-exercise-info">
+                <div class="scheduled-muscle-icon" v-html="getMuscleIcon(ex.muscle)"></div>
+                <div class="scheduled-text">
+                  <span class="scheduled-name">{{ ex.name }}</span>
+                  <span class="scheduled-routine-source">Rutina: {{ ex.routineName }}</span>
+                </div>
+              </div>
+              <ion-button fill="clear" size="small" class="scheduled-log-btn">
+                <ion-icon :icon="add" slot="icon-only"></ion-icon>
+              </ion-button>
+            </div>
+          </div>
+        </div>
+
         <!-- Encabezado de sección de entrenamientos con fecha seleccionada -->
         <div class="section-header">
           <div class="header-text-group">
@@ -198,10 +228,13 @@ import {
 } from '@ionic/vue';
 import { ref, computed } from 'vue';
 import { useWorkouts } from '../composables/useWorkouts';
+import { useRoutines } from '../composables/useRoutines';
+import { getMuscleIcon } from '../utils/muscles';
 import WorkoutFormModal from '../components/WorkoutFormModal.vue';
 import {
   add, chevronBack, chevronForward, barbellOutline, create, trash,
-  documentText, remove, checkmarkCircle, addCircleOutline, removeCircleOutline, time
+  documentText, remove, checkmarkCircle, addCircleOutline, removeCircleOutline, time,
+  calendarOutline
 } from 'ionicons/icons';
 
 const {
@@ -231,6 +264,63 @@ const {
   saveWorkout,
   confirmDeleteWorkout
 } = useWorkouts();
+
+const { routines, loadRoutines, routineSchedule } = useRoutines();
+
+const getDayOfWeekName = (dateStr: string) => {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return '';
+  const date = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  const daysInSpanish = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+  return daysInSpanish[date.getDay()];
+};
+
+const scheduledExercises = computed(() => {
+  const dayName = getDayOfWeekName(selectedDate.value);
+  if (!dayName) return [];
+  
+  const dayRoutines = routines.value.filter(r => {
+    const scheduled = routineSchedule.value[r.id] || [];
+    return scheduled.includes(dayName);
+  });
+  
+  const result: any[] = [];
+  const seenIds = new Set<string>();
+  
+  dayRoutines.forEach(routine => {
+    if (routine.exercises && Array.isArray(routine.exercises)) {
+      routine.exercises.forEach(ref => {
+        if (!seenIds.has(ref.exerciseId)) {
+          seenIds.add(ref.exerciseId);
+          const fullEx = exercises.value.find(e => e.id === ref.exerciseId);
+          if (fullEx) {
+            result.push({
+              ...fullEx,
+              routineName: routine.name
+            });
+          }
+        }
+      });
+    }
+  });
+  
+  return result;
+});
+
+const logScheduledExercise = (ex: any) => {
+  editingWorkout.value = null;
+  selectedMuscle.value = 'Todos';
+  modalSearchText.value = '';
+  workoutForm.value = {
+    exerciseId: ex.id,
+    exerciseName: ex.name,
+    duration: 15,
+    sets: [{ reps: 12, weight: 20, completed: false }],
+    notes: ''
+  };
+  isWorkoutModalOpen.value = true;
+};
 
 const isEditing = computed(() => !!editingWorkout.value);
 
@@ -287,10 +377,7 @@ const formattedSelectedDate = computed(() => {
 
 const dayWorkouts = computed(() => workouts.value.filter(w => w.date === selectedDate.value));
 
-function getMuscleIcon(muscle: string): string {
-  // Logic remains in useWorkouts or internal helper
-  return '';
-}
+// getMuscleIcon imported from '@/utils/muscles'
 
 async function handleRefresh(event: CustomEvent) {
   await Promise.all([loadWorkouts(), loadCalendarData()]);
@@ -301,6 +388,7 @@ onIonViewWillEnter(() => {
   loadExercises();
   loadWorkouts();
   loadCalendarData();
+  loadRoutines();
 });
 </script>
 
@@ -594,6 +682,135 @@ onIonViewWillEnter(() => {
 }
 
 
+/* Scheduled Section Styles */
+.scheduled-section {
+  background: var(--forgy-card-bg);
+  border: 1px solid var(--forgy-border);
+  border-radius: 20px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+}
 
+.scheduled-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.scheduled-header-icon {
+  font-size: 24px;
+  color: var(--ion-color-primary);
+}
+
+.scheduled-header-text h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--forgy-text-primary);
+}
+
+.scheduled-subtitle {
+  font-size: 11px;
+  color: var(--forgy-text-secondary);
+}
+
+.scheduled-exercises-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.scheduled-exercise-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  background: var(--forgy-input-bg);
+  border: 1px solid var(--ion-border-color);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.scheduled-exercise-card:active {
+  transform: scale(0.98);
+  background: rgba(var(--ion-color-primary-rgb), 0.05);
+}
+
+.scheduled-exercise-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.scheduled-muscle-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--forgy-card-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid var(--ion-border-color);
+}
+
+.scheduled-muscle-icon :deep(.muscle-svg) {
+  width: 18px;
+  height: 18px;
+  stroke: var(--forgy-text-secondary);
+}
+
+.scheduled-muscle-icon :deep(.muscle-icon-img) {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.scheduled-text {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.scheduled-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--forgy-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scheduled-routine-source {
+  font-size: 10px;
+  color: var(--ion-color-primary);
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.scheduled-log-btn {
+  --color: var(--ion-color-primary);
+  margin: 0;
+}
+
+/* Animations */
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
 </style>

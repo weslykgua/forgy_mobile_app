@@ -806,9 +806,6 @@ const editWeight = () => openEditModal('weight');
 }
 
 .water-quick-buttons {
-    display: flex;
-    gap: 8px;
-    justify-content: space-between;
     margin-top: 4px;
 }
 
@@ -917,7 +914,7 @@ const editWeight = () => openEditModal('weight');
 /* Quick Actions */
 .quick-actions {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 10px;
 }
 

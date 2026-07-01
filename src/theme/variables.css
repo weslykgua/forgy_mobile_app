@@ -77,8 +77,8 @@
 
 /* Water quick buttons */
 .btn-quick-water {
-    flex: 1 1 calc(25% - 8px);
-    min-width: 65px;
+    flex: 0 0 auto;
+    min-width: 68px;
     --background: var(--forgy-input-bg);
     --color: var(--forgy-text-primary);
     --border-radius: 6px;
