@@ -8,7 +8,7 @@ import {
     alertController,
     toastController
 } from '@ionic/vue'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import {
     personCircle, camera, star, personOutline,
     notificationsOutline, settingsOutline, moonOutline,
@@ -44,10 +44,7 @@ const showCurrentPassword = ref(false);
 const showNewPassword = ref(false);
 const showConfirmPassword = ref(false);
 
-const toggleHealthDevices = (checked: boolean) => {
-    healthDevicesConnected.value = checked;
-    localStorage.setItem('health_devices_connected', checked ? 'true' : 'false');
-};
+
 const { userName, userEmail, loadProfileData, logout } = useProfile()
 
 // Configuración local para acceso a la API para no modificar useProfile.ts
@@ -93,12 +90,16 @@ async function getStatsFromServer() {
     }
 }
 
-const toggleDarkMode = () => {
-    document.body.classList.toggle('dark', darkMode.value);
-    document.body.classList.toggle('ion-palette-dark', darkMode.value);
-    document.body.classList.toggle('light', !darkMode.value);
-    localStorage.setItem('dark_mode', darkMode.value ? 'true' : 'false');
-};
+watch(darkMode, (val) => {
+    document.body.classList.toggle('dark', val);
+    document.body.classList.toggle('ion-palette-dark', val);
+    document.body.classList.toggle('light', !val);
+    localStorage.setItem('dark_mode', val ? 'true' : 'false');
+});
+
+watch(healthDevicesConnected, (val) => {
+    localStorage.setItem('health_devices_connected', val ? 'true' : 'false');
+});
 
 const showToast = async (message: string, color = 'success') => {
     const toast = await toastController.create({
@@ -204,7 +205,12 @@ const saveProfile = async () => {
 onIonViewWillEnter(() => {
     loadProfileData()
     getStatsFromServer()
-    darkMode.value = localStorage.getItem('dark_mode') === 'true'
+    const saved = localStorage.getItem('dark_mode')
+    if (saved !== null) {
+        darkMode.value = saved === 'true'
+    } else {
+        darkMode.value = document.body.classList.contains('dark')
+    }
     healthDevicesConnected.value = localStorage.getItem('health_devices_connected') === 'true'
 })
 
@@ -310,8 +316,7 @@ async function confirmLogout() {
                     <ion-label>Modo Oscuro</ion-label>
                     <ion-toggle
                         slot="end"
-                        :checked="darkMode"
-                        @ionChange="(e: any) => { darkMode = e.detail.checked; toggleDarkMode() }"
+                        v-model="darkMode"
                     ></ion-toggle>
                 </ion-item>
 
@@ -324,8 +329,7 @@ async function confirmLogout() {
                     <ion-label>Dispositivos de Salud</ion-label>
                     <ion-toggle
                         slot="end"
-                        :checked="healthDevicesConnected"
-                        @ionChange="(e: any) => toggleHealthDevices(e.detail.checked)"
+                        v-model="healthDevicesConnected"
                     ></ion-toggle>
                 </ion-item>
             </ion-list>
